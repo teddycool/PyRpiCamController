@@ -1,0 +1,25 @@
+# How the install-script works
+
+## 1: Get serial number and raspberry pi model type
+
+
+## 2: Update all packages
+
+
+## 3: Install needed packages for the PyCam-service
+
+
+## 4: Setup and enable the PyCam service 
+
+
+## 5: Install and setup the network-manager with comitup
+
+
+## For zero swap needs to be adjusted first:
+
+sudo dphys-swapfile swapoff
+sudo nano /etc/dphys-swapfile    
+
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+

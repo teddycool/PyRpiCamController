@@ -1,0 +1,15 @@
+# design choices and rules...
+
+*
+* sd-image for complete system and a base-configuration
+* settings from server
+* everything handled by settings either from server or via ssh
+* no writing to sd-card
+* ssh is enabled, the pw is available on account 
+* 
+
+
+ Basics:
+
+ 
+

@@ -1,0 +1,9 @@
+[Unit]
+Description=PyBeeCam service
+After=multi-user.target
+
+[Service]
+ExecStart=sudo /usr/bin/python3 /home/pi/PyBeeCam/Main.py
+
+[Install]
+WantedBy=multi-user.target
