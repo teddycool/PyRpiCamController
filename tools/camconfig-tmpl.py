@@ -1,5 +1,5 @@
 __author__ = "teddycool"
-# This file is part of the BeeCam project created by Par Sundback
+# This file is part of the CamController project created by Par Sundback
 #
 # Purpose of this file:
 # Configuration for the cam, both the video-stream and the CAM framework software

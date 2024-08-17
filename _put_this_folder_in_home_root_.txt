@@ -1,5 +1,5 @@
 Put these folder in the home-root of the user. Default is /home/pi/..
-/logs, /ota, /PyBeeCam, /tools
+/logs, /ota, /CamController, /tools
 
 
 
@@ -10,7 +10,7 @@ Structure will be:
 /home/pi/ota/sw/ (-> latest download for ota)
 /home/pi/ota/bu/    (-> bu before replacing sw)
 
-/home/pi/PyBeeCam/  (-> the actual sw for the cam)
+/home/pi/CamController/  (-> the actual sw for the cam)
 
 /home/pi/tools/     (-> script tools and settings) 
 

@@ -26,11 +26,11 @@ logger.addHandler(fh)
 class InstallOta(object):
 
     def __init__(self):
-        logger.info("Installing ota for PyBeeCam is starting...")
+        logger.info("Installing ota for CamController is starting...")
         os.system("sudo systemctl pycam.service stop")
         logger.info("Waiting for pycam-service to stop")   
         time.sleep(15)
-        self.cpuid = os.system("python /home/pi/PyBeeCam/Connectivity/cpuserial.py")
+        self.cpuid = os.system("python /home/pi/CamController/Connectivity/cpuserial.py")
         
     def Run(self):
         # Get and store latest sw
@@ -63,16 +63,13 @@ class InstallOta(object):
             os.system("sudo reboot")
         else:
             #Running recovery
+            pass
             
-
-                
-            
-        
-        
         
     def _getsw(self):
         r = requests.get("https://www.biwebben.se/getotasw.php?cpu=" + self.cpuid)
-            if r.status_code == 200: 
+        if r.status_code == 200: 
+            pass
         
         
         

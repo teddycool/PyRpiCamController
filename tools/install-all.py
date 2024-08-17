@@ -1,11 +1,7 @@
-#Install-script for zerocam, run as root
-#Use this on a 'master-sdcard' and save the image for cloning later
+#Install-script for CamController, run as root
 
 # NOTE:  For zero and zero v2 the swap-file needs to be enlarged or the install fails.
 # Adjust swap: https://pimylifeup.com/raspberry-pi-swap-file/
-
-
-
 
 #Settings:
 
@@ -70,16 +66,9 @@ try:
   #os.system("sudo apt install -y libcamera-dev libepoxy-dev libjpeg-dev libtiff5-dev")
   os.system("sudo pip install simplejpeg --break-system-packages")
 
-  print("Getting latest PyBeeCam sw from Github")  
   print("*****************************************")
-  # The COMPLETE software with the correct structure for \home\pi\PyBeeCam , from github
-  #get the latest zip-file from biwebben
-  #rename old PyBeeCam-folder if present
-  #unpack new version to PyBeeCam-folder and tools-folder
-
-  print("*****************************************")
-  print("* Copy correct settings for PyBeeCam...")
-  os.system("sudo cp " + configfilepath + " /home/pi/PyBeeCam/config.py")
+  print("* Copy correct settings for CamController...")
+  os.system("sudo cp " + configfilepath + " /home/pi/CamController/config.py")
 
   print("*****************************************")
   print("* Setting up the pycam service")

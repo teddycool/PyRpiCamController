@@ -1,9 +1,9 @@
 [Unit]
-Description=PyBeeCam service
+Description=CamController service
 After=multi-user.target
 
 [Service]
-ExecStart=sudo /usr/bin/python3 /home/pi/PyBeeCam/Main.py
+ExecStart=sudo /usr/bin/python3 /home/pi/CamController/Main.py
 
 [Install]
 WantedBy=multi-user.target
