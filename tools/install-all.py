@@ -3,22 +3,9 @@
 # NOTE:  For zero and zero v2 the swap-file needs to be enlarged or the install fails.
 # Adjust swap: https://pimylifeup.com/raspberry-pi-swap-file/
 
-#Settings:
 
-camtype = "PiCam3"        #PiCamHQ, PiCam3
-boxtype = "entrance"      #entrance, hive
-
-
+#Need to be changed to fit the hardware and wanted config
 configfilepath = "/home/pi/tools/camconfig-tmpl.py"
-
-if camtype == "PiCam3" and boxtype == "hive":
-   configfilepath = "/home/pi/tools/camconfig-picam3-inside.py"
-if camtype == "PiCam3" and boxtype == "entrance":
-   configfilepath = "/home/pi/tools/camconfig-picam3-outside.py"
-if camtype == "PiCam3HQ":
-   configfilepath = "/home/pi/tools/camconfig-picam3hq-so.py"
-
-
 
 import os
 import time
@@ -74,7 +61,8 @@ try:
   print("* Setting up the pycam service")
   print("*****************************************")
 
-  os.system("sudo cp /home/pi/tools/pycam.service  /lib/systemd/system/pycam.service")
+  os.system("sudo cp /home/pi/tools/pycam.service  /etc/systemd/system/pycam.service") #Changd.. https://www.thedigitalpictureframe.com/ultimate-guide-systemd-autostart-scripts-raspberry-pi/
+  #sudo chmod 644 /etc/systemd/system/name-of-your-service.service
   os.system("sudo systemctl daemon-reload")
   os.system("sudo systemctl enable pycam.service")
 

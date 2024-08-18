@@ -30,7 +30,7 @@ defaultsettings = {
         "maxcputemp": 80,
         "wcputemp": 65
     },
-    "Light": 70,           #PWM value for the light intensity 0-100 (%)
+    "Light": 50,           #PWM value for the light intensity 0-100 (%)
     "LogLevel": "debug",
     "LogToFile": True,
     "LogFilePath": "/home/pi/logs/cam.log", 
@@ -55,8 +55,8 @@ defaultsettings = {
 hwconfig = {
     "Version": 1, # version of the settings structure 
     "CamChip": "PiCam3",  
-    "RpiBoard": "PiZeroW", 
-    "LightBox": False,
+    "RpiBoard": "RPi3B+", 
+    "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin
         "displaycontrolgpio": 18, #only works with a PWM0 pin

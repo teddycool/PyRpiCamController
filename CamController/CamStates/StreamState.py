@@ -19,7 +19,6 @@ class StreamState(BaseState.BaseState):
         return
 
     def update(self, context):
-        print ("StreamState update..")
         # Camera runs in the background
         return
     

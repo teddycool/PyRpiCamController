@@ -27,7 +27,7 @@ $target_dir = $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/';
 $target_dir_date = $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/' . date("Y-m-d") .'/';
 $target_dir_thumbs= $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/' . date("Y-m-d") .'/'. "thumbs/";
 
-//Create the folderstructure if needed
+//Create the folders where needed
 if (!file_exists($target_dir)) {
     mkdir($target_dir, 0777, true);    
 }
@@ -39,12 +39,13 @@ if (!file_exists($target_dir_thumbs)) {
 }
 
 $latest_file = $target_dir. '/latest.jpg';
-$target_file = $target_dir_date . $timestamp . ".jpg";
+$target_file = $target_dir_date . $timestamp . ".jpg"; 
 $meta_file = $target_dir_date . $timestamp . ".json";
 $target_thumb_file = $target_dir_thumbs . $timestamp . ".jpg";
 
 //grab and store the image-file        
 move_uploaded_file($_FILES["media"]["tmp_name"], $target_file);
+//copy image to latest-file
 copy($target_file, $latest_file);
 //Store the provided meta-data as a json file
 file_put_contents($meta_file, $metadata);
@@ -55,4 +56,6 @@ $src = imagecreatefromstring( file_get_contents( $target_file ) );
 $dst = imagecreatetruecolor( $t_width, $t_height );
 imagecopyresampled( $dst, $src, 0, 0, 0, 0, $t_width, $t_height, $width, $height );
 imagejpeg( $dst, $target_thumb_file );
+//Free image resources
 imagedestroy( $dst );
+imagedestroy( $src );

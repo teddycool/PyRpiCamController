@@ -6,7 +6,7 @@ class Light(object):
     def __init__(self, GPIO, pin):
         self._gpio = GPIO
         self._gpio.setup(pin, GPIO.OUT)  # PWM pin
-        self._softpwm = self._gpio.PWM(pin, 2000)    # pin, frequency
+        self._softpwm = self._gpio.PWM(pin, 1000)    # pin, frequency
 
 
     def start(self, duty):

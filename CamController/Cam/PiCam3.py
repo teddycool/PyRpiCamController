@@ -6,7 +6,7 @@ import time
 import logging
 logger = logging.getLogger("cam.PiCam3")
 import json
-
+import sys
 #How to handle different types/generations of cams? Like picam1 and picam2 with different capabilities
 
 class PiCam3(CamBase.CamBase):
@@ -26,7 +26,7 @@ class PiCam3(CamBase.CamBase):
 
         self._cam = Picamera2()
         self._camconf =  self._cam.create_still_configuration({"format": "RGB888", "size": res})
-        logger.info("Cam-config %s", self._camconf["main"])
+        logger.info("Cam-config: " +  str(self._camconf["main"]))
         self._cam.configure(self._camconf)
         self._cam.start(show_preview=False)
         self._cam.set_controls({"AfMode": libcamera.controls.AfModeEnum.Auto}) 
@@ -52,7 +52,7 @@ class PiCam3(CamBase.CamBase):
             logger.debug("Current image buffer updated")   
             logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
         except:
-            logger.warning("Failed to update image buffer %s", exc_info=1)  
+            logger.warning("Failed to update image buffer %s" % str(sys.exc_info()))
         
 #Stream mode
 

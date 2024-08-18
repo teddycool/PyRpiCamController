@@ -6,7 +6,7 @@ import time
 import os
 from Connectivity import cpuserial
 from IO import Display
-from IO import Button
+#from IO import Button
 from IO import Light
 from IO import Tempmonitor
 from CamStates import InitState

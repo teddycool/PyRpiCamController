@@ -9,6 +9,7 @@ import cv2
 import logging
 from camconfig import hwconfig
 import json
+import sys
 
 logger = logging.getLogger("cam.state.poststate")
 
@@ -39,21 +40,23 @@ class PostState(BaseState.BaseState):
                 context._display.image_post()
                 self._cam.update()
                 #We are only handling image-data in memory. NO writing to the sd-card.
+                #TODO: for now only jpg files are supported in the backend but this should be a parameter in usersettings
+                format = ".jpg"
                 try:
-                    success, ajpegnumpy = cv2.imencode('.jpg', self._cam._currentimg)
+                    success, aimgnumpy = cv2.imencode(format, self._cam._currentimg,[int(cv2.IMWRITE_JPEG_QUALITY), 100])
                     if success:
-                        data = ajpegnumpy.tostring()
+                        data = aimgnumpy.tostring()
                         files = {'media': data}
-                        url = self._url + '?cpu=' + context.mycpuserial + '&meta=' + json.dumps(self._cam._currentMetaData)
+                        url = self._url + '?cpu=' + context.mycpuserial + '&format=' + format + '&meta=' + json.dumps(self._cam._currentMetaData)
                         r = requests.post(url, files=files)
-                        logger.debug("Posting image-data to " + url)
-                        logger.debug("Posting received http-status: " + str(r.status_code))
+                        logger.debug("Posted image-data to " + url)                        
+                        logger.debug("Received http-status: " + str(r.status_code))
                     else:
                         logger.warning ("Open-cv imencode failed")     
                 except:
-                    logger.error ("Open-cv imencode to jpegnumpy failed. Cam will try to continue. %s",  exc_info=1)    
+                    logger.error ("Open-cv imencode to failed. Cam will try to continue. %s" %  str(sys.exc_info()))    
             except:                
-                logger.warning ("PostState update catched an exception but will continue. %s", exc_info=1)
+                logger.warning ("PostState update catched an exception but will continue. %s" % str(sys.exc_info()))
             finally:
                 self._lastsent = time.time()
                 context._display.off()

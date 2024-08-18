@@ -25,19 +25,20 @@ except:
 
 old_factory = logging.getLogRecordFactory()
 
+#Adding cpuid to the logging records
 def record_factory(*args, **kwargs):
     record = old_factory(*args, **kwargs)
     record.cpuid = mycpuserial
     return record
-
 logging.setLogRecordFactory(record_factory)
+
 
 logger = logging.getLogger("cam")
 logger.setLevel(loglevel)
 
 
+#Settings formatters for log messages
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
 jsonformatter = logging.Formatter(json.dumps({
     'time': '%(asctime)s',
     'logname': '%(name)s',
@@ -45,7 +46,7 @@ jsonformatter = logging.Formatter(json.dumps({
     'message': '%(message)s'
 }))
 
-#Default, always log to console ?
+#Default, always log to the console
 sh = logging.StreamHandler()
 sh.setFormatter(formatter)
 logger.addHandler(sh)
@@ -58,7 +59,6 @@ if defaultsettings["LogToFile"]:
     fh = logging.handlers.RotatingFileHandler(defaultsettings["LogFilePath"],maxBytes=defaultsettings["LogFileSize"], backupCount=defaultsettings["LogFileBuCount"])
     fh.setFormatter(jsonformatter)
     logger.addHandler(fh)
-
 
 
 class Main(object):
@@ -82,7 +82,7 @@ class Main(object):
                 self._mainLoop.stop()
                 running = False
             except :
-                logger.warning ("Mainloop catched exception but will continue %s", exc_info=1)
+                logger.warning ("Mainloop catched exception but will continue %s" %  str(sys.exc_info()))
                 pass
         logger.info("PyCam has stopped")
 

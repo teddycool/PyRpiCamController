@@ -1,16 +1,14 @@
 # PyRpiCamController
 
-A python control-software for a raspberry pi with a camera, posting images. The software can also control a light (led-strip etc) and a status-indicator. 
+A python control-software for a raspberry pi with a camera, posting images. The software can also control a light (led-strip etc) and a status-indicator with some extra hardware. 
 
 It was primarily intended for collecting image-data for research or machine-learning projects but could ofcourse be used in other applications as well.
 
 The software should work with all raspberry pi's but depending on computational power some features now or in the future might not work with all raspberry pi models.
 
-Current supported camera-types has an implementation in the PyCam/Cam -module and it is fairly easy to add new camera-types here if needed. 
+Current supported camera-types has an implementation in the CamController/Cam -module and it is fairly easy to add new camera-types here if needed. 
 
 There are a lot of different settings, checkout camconfig.py.
-
-image::_doc/rpi3_picam3.jpg["Rpi3 with a cam"]
 
 
 ## General
@@ -21,17 +19,17 @@ The project uses python3, libcamera and picamera2 among some other packages.
 
 * Support for Raspberry Pi Camera module 3
 * Fully configurable from a config file
-* Logging to server with http to a configurable url
-* Logging to file in the pi
+* Logging to a server with http to a configurable url
+* Logging to a file in the pi
 * Saving still-images and meta-data at a configuarble interval and send this to a configurable url for saving in backend
 * Configurable image resolution 
 * Configurable log-level
-* Control a led-strip or other light-source with PWM (needs extra hardware)
-* Control a addressable RGB LED for status indication (needs extra hardware)
+* Can control a led-strip or other light-source with PWM (needs extra hardware)
+* Can control a addressable RGB LED for status indication (needs extra hardware)
 * Monitors the CPU-temp and take actions if needed
-* Can be installed an run as a Linux service
-* Provided install-script for needed packages and settings etc
-* WiFi management with 'commitup' from Dave Steel. 
+* Can be installed and run as a Linux service
+* A provided install-script for needed packages and default-settings etc
+* Using WiFi management with 'commitup' from Dave Steel. 
 * No writing to SD-card, all image handling in memory
 * Tested with RPi 3B+ and Zero W but probably works for all raspberry pi models
 
@@ -47,7 +45,7 @@ A circuic-diagram for the needed extra hardware used for some features can be fo
 
 ## How to install and get started (the easy way)
 
-Start with an sd-image with latest Raspberry Pi OS lite 32 or 64 bit (Legacy will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type.
+Start with an sd-image with latest Raspberry Pi OS lite 32 or 64 bit (Legacy OS will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type.
 
 When the WiFi is pre-set, you can directly start 'headless', ssh to target, copy the files and run the tools/install.py script which will update the os and then install all needed packages and services. After a reboot you need to set up the network again, using the comitup captive portal.
 
@@ -65,12 +63,12 @@ There is a settings-file (camsettings.py) with a lot of different settings such 
 
 ## Contibuting
 
-I encourgage everyone to cotribute! 
+I encourage everyone to contribute! 
 
-Either by posting issues/bugreport/feature-request or by pull-requests. For pull-requests, please only add one feature or bugfix for each pull-request which makes it easier to review and merge.
+Either by posting issues/bugreport/feature-request or by making pull-requests. For pull-requests, please only add one feature or bugfix for each pull-request which makes it easier to review and merge.
 
 
-## Examples of products using this software
+## Some examples of products using this software
 
 ### A cam for the inside of a bee-hive
 
@@ -78,8 +76,17 @@ A raspberry pi 3B+ using a picam3 with a 'wide-lens' and auto-focus. The softwar
 
 ### A cam for the outside/entrance of a bee-hive
 
-A raspberry pi Zero W using a picam3 with a 'std-lens' and auto-focus i a waterproof box. The software controls a status-led on the backside.
+A raspberry pi Zero W using a picam3 with a 'std-lens' and auto-focus in a waterproof box. The software controls a status-led on the backside of the box.
 
 ### A cam for arbitrary use, such as documenting insects visiting flowers
 
-A Raspberry pi 3B+ using a picam3HQ camera.
+A Raspberry pi 3B+ using a picam3HQ camera on a tri-pod.
+
+## Hardware images
+
+### Rpi3 with a cam
+
+image::_doc/rpi3_picam3.jpg["Rpi3 with a cam"]
+
+### Zero W with a cam and extra hardware
+image::_doc/zerow_picam3.jpg["Zero W with a cam and extra hardware"]

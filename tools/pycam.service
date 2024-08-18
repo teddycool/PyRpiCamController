@@ -1,6 +1,7 @@
 [Unit]
 Description=CamController service
 After=multi-user.target
+Requires=network.target
 
 [Service]
 ExecStart=sudo /usr/bin/python3 /home/pi/CamController/Main.py
