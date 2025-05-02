@@ -44,11 +44,13 @@ class PiCam3(CamBase.CamBase):
             success = self._cam.autofocus_cycle()
             if not success:
                 logger.info("Current image might be blurry. Autofocus cycle failed.")  
-            request = self._cam.capture_request()
-            self._currentimg = request.make_array("main")
+            request = self._cam.capture_request()            
           #  self._currentimg = self._cam.capture_array("main")    #How to avoid lock-up here? 
             self._currentMetaData = request.get_metadata()
+            self._currentimg = request.make_array("main")
+             
             request.release()
+            logger.debug("Current image size: " + str(self._currentimg.size)) 
             logger.debug("Current image buffer updated")   
             logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
         except:

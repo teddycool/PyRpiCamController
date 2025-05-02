@@ -55,7 +55,7 @@ defaultsettings = {
 hwconfig = {
     "Version": 1, # version of the settings structure 
     "CamChip": "PiCam3",  
-    "RpiBoard": "RPi3B+", 
+    "RpiBoard": "Rpi3B+", 
     "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin

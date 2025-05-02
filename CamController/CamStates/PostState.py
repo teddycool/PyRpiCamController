@@ -43,11 +43,11 @@ class PostState(BaseState.BaseState):
                 #TODO: for now only jpg files are supported in the backend but this should be a parameter in usersettings
                 format = ".jpg"
                 try:
-                    success, aimgnumpy = cv2.imencode(format, self._cam._currentimg,[int(cv2.IMWRITE_JPEG_QUALITY), 100])
+                    success, aimgnumpy = cv2.imencode(format, self._cam._currentimg)
                     if success:
                         data = aimgnumpy.tostring()
                         files = {'media': data}
-                        url = self._url + '?cpu=' + context.mycpuserial + '&format=' + format + '&meta=' + json.dumps(self._cam._currentMetaData)
+                        url = self._url + '?cpu=' + context.mycpuserial + '&meta=' + json.dumps(self._cam._currentMetaData)
                         r = requests.post(url, files=files)
                         logger.debug("Posted image-data to " + url)                        
                         logger.debug("Received http-status: " + str(r.status_code))

@@ -2,7 +2,7 @@
 
 A python control-software for a raspberry pi with a camera, posting images. The software can also control a light (led-strip etc) and a status-indicator with some extra hardware. 
 
-It was primarily intended for collecting image-data for research or machine-learning projects but could ofcourse be used in other applications as well.
+It was primarily intended for collecting image-data for research or machine-learning projects but can ofcourse be used in other applications as well.
 
 The software should work with all raspberry pi's but depending on computational power some features now or in the future might not work with all raspberry pi models.
 
@@ -40,6 +40,8 @@ The project uses python3, libcamera and picamera2 among some other packages.
 * OTA update
 * Support for more camera-types
 * Support for an extra tempsensor inside the cam-box (needs extra hardware)
+* Support for simple image-analyze with YOLO or similar
+* Support for using the camera as a 'sensor' in homeassistant
 
 A circuic-diagram for the needed extra hardware used for some features can be found here: link:_doc/extra_hardware.pdf["Circuit-diagram"]
 
