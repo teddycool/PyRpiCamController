@@ -13,7 +13,7 @@ defaultsettings = {
     "Cam": {
         "width": 4608,  # Picture width, in pixels,  maxres picam3: 4608 x 2592
         "height": 2592,  # Picture height, in pixels
-        "timeslot": 30,  # Time slot in seconds between pictures
+        "timeslot": 15,  # Time slot in seconds between pictures
         "posturl": "http://www.biwebben.se/filedump2.php",
         "timeschedule": (6, 19), # Start and stop hours... 0-24 for around the clock
         "MotionDetector": {"active": False, "motioncount": 200, "history": 50},                                 
@@ -34,8 +34,8 @@ defaultsettings = {
     "LogLevel": "debug",
     "LogToFile": True,
     "LogFilePath": "/home/pi/logs/cam.log", 
-    "LogFileSize": 15000, 
-    "LogFileBuCount": 10,
+    "LogFileSize": 1000000, 
+    "LogFileBuCount": 5,
     "LogToServer": True,
     "LogHost": "www.biwebben.se",
     "LogUrl":"/postcamlog.php", #This must be a receiving-script using GET and no security
@@ -54,9 +54,9 @@ defaultsettings = {
 
 hwconfig = {
     "Version": 1, # version of the settings structure 
-    "CamChip": "PiCam3",  
+    "CamChip": "PiCamHQ",  
     "RpiBoard": "Rpi3B+", 
-    "LightBox": True,
+    "LightBox": False,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin
         "displaycontrolgpio": 18, #only works with a PWM0 pin

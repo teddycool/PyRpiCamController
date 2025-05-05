@@ -11,6 +11,8 @@
 
 //Create the individual image-key as a timestamp for the arrival-time
 //NOTE: the meta-data contains the exact time for the exposure if this is needed
+
+//TODO: check valid cpuid or api-key or other security before doing anything
 $date=date_create();
 $timestamp = date_timestamp_get($date);
 

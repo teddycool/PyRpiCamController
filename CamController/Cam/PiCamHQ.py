@@ -27,7 +27,7 @@ class PiCamHQ(CamBase.CamBase):
 
         self._cam = Picamera2()
         self._camconf =  self._cam.create_still_configuration({"format": "RGB888", "size": res})
-        logger.info("Cam-config: " +  self._camconf["main"])
+     #   logger.info("Cam-config: " +  self._camconf["main"])
         self._cam.configure(self._camconf)
         self._cam.start(show_preview=False)
         self._cam.set_controls({"AwbMode": libcamera.controls.AwbModeEnum.Auto}) 
@@ -44,7 +44,7 @@ class PiCamHQ(CamBase.CamBase):
             request = self._cam.capture_request()
             self._currentimg = request.make_array("main")
           #  self._currentimg = self._cam.capture_array("main")    #How to avoid lock-up here? 
-            self._currentMetaData = request.get_metadata()
+            self._currentMetaData = request.get_metadata()  
             request.release()
             logger.debug("Current image buffer updated")   
             logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
