@@ -7,16 +7,17 @@ A python control-software for a raspberry pi with a camera, posting images. The 
 
 It was primarily intended for collecting image-data for research or machine-learning projects but can ofcourse be used in other applications as well.
 
+
+== General
+
+The project uses python3, libcamera and picamera2 among some other packages.
+
 The software should work with all raspberry pi's but depending on computational power some features now or in the future might not work with all raspberry pi models.
 
 Current supported camera-types has an implementation in the CamController/Cam -module and it is fairly easy to add new camera-types here if needed. 
 
 There are a lot of different settings, checkout camconfig.py. Not all are implemented yet but most of them are.
 The software is designed to be used 'headless' and installed as a service. 
-
-== General
-
-The project uses python3, libcamera and picamera2 among some other packages.
 
 == Currently implemented features
 
@@ -71,7 +72,7 @@ The software acts like a 'game-loop' with a main that starts a mainloop and run 
 
 Logging is implemented with python's logging module and the loglevel is set in the settings-file. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an exaple is provided int the 'backend' folder.
 
-== Contibuting
+== Contributing
 
 I encourage everyone to contribute! 
 
