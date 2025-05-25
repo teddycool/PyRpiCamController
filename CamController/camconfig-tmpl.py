@@ -13,10 +13,14 @@ defaultsettings = {
     "Cam": {
         "width": 4608,  # Picture width, in pixels,  maxres picam3: 4608 x 2592
         "height": 2592,  # Picture height, in pixels
-        "timeslot": 30,  # Time slot in seconds between pictures
+        "timeslot": 15,  # Time slot in seconds between pictures
         "posturl": "http://www.biwebben.se/filedump2.php",
+        "brightness": 0.1,  # Exposure brightness, -1 to 1, where 0 is default, -1 is really dark and 1 is really bright     "posturl": "http://www.biwebben.se/filedump2.php",
         "timeschedule": (6, 19), # Start and stop hours... 0-24 for around the clock
-        "MotionDetector": {"active": False, "motioncount": 200, "history": 50},                                 
+        "MotionDetector": {"active": False, "motioncount": 200, "history": 50},   
+        "crop": False, # Crop the image to a smaller size. NOTE: 0,0 is top left in the image vector
+        "ctopleft": (300,250), #Top left corner   (x1,y1) (inclusive)
+        "cbottomright": (4301,2351), #Bottom right corner (x2, y2) (exclusive)           
     },
     "Stream":{
         "width": 640,  # Stream width, in pixels,  maxres picam3: 4608 x 2592
@@ -30,16 +34,21 @@ defaultsettings = {
         "maxcputemp": 80,
         "wcputemp": 65
     },
-    "Light": 100,
+    "Light": 60,           #PWM value for the light intensity 0-100 (%)
     "LogLevel": "debug",
     "LogToFile": True,
-    "LogToServer": False,
+    "LogFilePath": "/home/pi/logs/cam.log", 
+    "LogFileSize": 1000000, 
+    "LogFileBuCount": 5,
+    "LogToServer": True,
+    "LogHost": "www.biwebben.se",
+    "LogUrl":"/postcamlog.php", #This must be a receiving-script using GET and no security
     "CheckNewSettings": 3600,  # seconds between checks for new settings    
     "CheckCpuTemp": 60,  # seconds between checking cpu-temp    
     "Connectivity": {
         "settingsbaseurl": "http://www.biwebben.se/getcamsettings.php",
         "inetdetectionurl": "http://www.google.com"
-    },
+    }, 
 }
 
 
@@ -47,11 +56,14 @@ defaultsettings = {
 # The settings below is related to the hardware and should NOT be changed on the fly from the server
 # IO used for display is the same for all pi-types
 
+#generated with python and unique for each box: secrets.token_urlsafe(64)
+apikey = "_28JXYMbS5m6W8zOX00Pi45b2RwP1F9FiiZdaj3zfmoj1zs38PTnrFX06l46z5NQI14VdGq2ksEpwvXvF7i9Nw"; 
+
 hwconfig = {
     "Version": 1, # version of the settings structure 
-    "CamChip": "PiCamHQ",  
-    "RpiBoard": "Pi3A+", 
-    "LightBox": False,
+    "CamChip": "PiCam3",  
+    "RpiBoard": "Rpi3B+", 
+    "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin
         "displaycontrolgpio": 18, #only works with a PWM0 pin

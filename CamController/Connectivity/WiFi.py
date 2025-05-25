@@ -26,7 +26,7 @@ class WiFi(object):
             logger.debug ("Responsecode: " + str(turl.status))
             connected = True
         except:
-            pass
+            connected = False
         return connected
         
 

@@ -17,7 +17,7 @@ The software should work with all raspberry pi's but depending on computational 
 Current supported camera-types has an implementation in the CamController/Cam -module and it is fairly easy to add new camera-types here if needed. 
 
 There are a lot of different settings, checkout camconfig.py. Not all are implemented yet but most of them are.
-The software is designed to be used 'headless' and installed as a service. 
+The software is designed to be used 'headless' and installed and run as a service. 
 
 == Currently implemented features
 

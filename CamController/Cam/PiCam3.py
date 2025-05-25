@@ -31,8 +31,11 @@ class PiCam3(CamBase.CamBase):
         self._cam.start(show_preview=False)
         self._cam.set_controls({"AfMode": libcamera.controls.AfModeEnum.Auto}) 
         self._cam.set_controls({"AwbMode": libcamera.controls.AwbModeEnum.Auto}) 
-        self._cam.set_controls({"AeEnable": True}) 
-        self._cam.set_controls({"AeExposureMode": libcamera.controls.AeExposureModeEnum.Short}) 
+   #     self._cam.set_controls({"AeEnable": True}) 
+        self._cam.set_controls({"Brightness": settings["Cam"]["brightness"] })
+        self._cam.set_controls({"ExposureTime": 0})  # Set to 0 for auto exposure
+    #    self._cam.set_controls({"AeMeteringMode": libcamera.controls.AeMeteringModeEnum.CenterWeighted})
+    #    self._cam.set_controls({"AeExposureMode": libcamera.controls.AeExposureModeEnum.Short}) 
     
     def initialize(self, settings):
         #Can't change cam settings on the fly, yet...

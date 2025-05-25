@@ -72,12 +72,13 @@ try:
   print("* Installing commitup and reset the network")
   print("*****************************************")
 
-  os.system("sudo wget https://davesteele.github.io/comitup/deb/davesteele-comitup-apt-source_1.2_all.deb")
-  os.system("sudo dpkg -i --force-all davesteele-comitup-apt-source_1.2_all.deb")
-  os.system("sudo rm davesteele-comitup-apt-source_1.2_all.deb")
+
+
+  os.system("sudo wget https://davesteele.github.io/comitup/deb/davesteele-comitup-apt-source_1.3_all.deb")
+  os.system("sudo dpkg -i davesteele-comitup-apt-source*.deb")
   os.system("sudo apt-get update")
   os.system("sudo apt-get install -y comitup comitup-watch")
-  os.system("sudo cp /home/pi/tools/comitup.conf /etc/comitup.conf")  
+  os.system("sudo cp /home/pi/tools/comitup.conf /etc/comitup.conf")
   os.system("sudo rm /etc/network/interfaces")
   os.system("sudo systemctl mask dnsmasq.service")
   os.system("sudo systemctl mask systemd-resolved.service")
