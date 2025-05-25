@@ -14,7 +14,7 @@ defaultsettings = {
         "width": 4608,  # Picture width, in pixels,  maxres picam3: 4608 x 2592
         "height": 2592,  # Picture height, in pixels
         "timeslot": 15,  # Time slot in seconds between pictures
-        "posturl": "http://www.biwebben.se/filedump2.php",
+        "posturl": "where to post", 
         "brightness": 0.1,  # Exposure brightness, -1 to 1, where 0 is default, -1 is really dark and 1 is really bright     "posturl": "http://www.biwebben.se/filedump2.php",
         "timeschedule": (6, 19), # Start and stop hours... 0-24 for around the clock
         "MotionDetector": {"active": False, "motioncount": 200, "history": 50},   
@@ -41,12 +41,12 @@ defaultsettings = {
     "LogFileSize": 1000000, 
     "LogFileBuCount": 5,
     "LogToServer": True,
-    "LogHost": "www.biwebben.se",
-    "LogUrl":"/postcamlog.php", #This must be a receiving-script using GET and no security
+    "LogHost": "your server",
+    "LogUrl":"/your script", #This must be a receiving-script using GET and no security
     "CheckNewSettings": 3600,  # seconds between checks for new settings    
     "CheckCpuTemp": 60,  # seconds between checking cpu-temp    
     "Connectivity": {
-        "settingsbaseurl": "http://www.biwebben.se/getcamsettings.php",
+        "settingsbaseurl": "where to get settings",
         "inetdetectionurl": "http://www.google.com"
     }, 
 }
@@ -57,7 +57,7 @@ defaultsettings = {
 # IO used for display is the same for all pi-types
 
 #generated with python and unique for each box: secrets.token_urlsafe(64)
-apikey = "_28JXYMbS5m6W8zOX00Pi45b2RwP1F9FiiZdaj3zfmoj1zs38PTnrFX06l46z5NQI14VdGq2ksEpwvXvF7i9Nw"; 
+apikey = "_your unique api key_"; 
 
 hwconfig = {
     "Version": 1, # version of the settings structure 

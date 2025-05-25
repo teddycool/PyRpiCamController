@@ -51,11 +51,62 @@ A circuic-diagram for the needed extra hardware used for some features can be fo
 
 == How to install and get started (the easy way)
 
+=== Clone the repo and fix settings
+Clone this repository to your computer. Rename the file /CamController/camconfig-tmpl.py to camconfig.py and edit it to your needs.
+
+=== Prepare the SD-card and start the pi
+
 Start with an sd-image with latest Raspberry Pi OS lite 32 or 64 bit (Legacy OS will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type.
 
-When the WiFi is pre-set, you can directly start 'headless', ssh to target, copy the files and run the tools/install.py script which will update the os and then install all needed packages and services. Note that the swap-file needs to be enlarged for zero and zero v2 oŕ the isntall will fail. How to adjust swap: https://pimylifeup.com/raspberry-pi-swap-file/
+When the pi starts it will automatically connect to the WiFi and get an IP-address. If you have set a hostname it will be available on the network with that name.
 
-After a reboot you need to set up the network again, using the comitup captive portal.
+When the WiFi is pre-set, you can directly start 'headless', ssh to target, copy the needed files. 
+
+=== What files to copy
+Copy these folder from the cloned repo the home-root of the pi-user. Default is /home/pi/..
+
+/logs, /ota, /CamController, /tools
+
+=== How to install the software
+
+Now, run the tools/install.py script on your pi which will update the os and then install all needed packages and services. Note that the swap-file needs to be enlarged for zero and zero v2 before you run this oŕ the install will fail. 
+ 
+
+=== How to adjust swap on zero and zero v2
+For Raspberry Pi Zero and Zero v2 the swap-file needs to be enlarged to at least 2GB for the install to work.
+This is done by editing the file /etc/dphys-swapfile and changing the CONF_SWAPSIZE to 2048 (or more if you want).
+You can do this by running the following commands: 
+
+[source]
+----
+sudo dphys-swapfile swapoff
+sudo nano /etc/dphys-swapfile
+----
+
+Change CONF_SWAPSIZE to 2048 (or more if you want) and save the file. Then run:
+
+[source]
+----
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+----
+
+Then run the install script:
+
+[source]
+----
+python3 tools/install.py
+----
+
+After a reboot you might need to set up the network again, using the comitup captive portal.
+
+The CamController starts as a service and will run in the background. You can check the status with:
+[source]
+----
+sudo systemctl status pycam.service
+----
+You can also check the log-file in /logs/pycam.log to see if everything is working as expected.
+
 
 
 == WIFI management with Comitup
@@ -63,7 +114,7 @@ The wifi is handled by the awesome software 'commitup' from Dave Steel. If the w
 
 https://github.com/davesteele/comitup/wiki/Installing-Comitup
 
-== How it works
+== How the cam-software works
 The basic function is to take pictures and send those to a backend.
 
 There is a settings-file (camsettings.py) with a lot of different settings such as resolution, image-interval, backend-receive-script-url, loglevel etc. This file contains both the hardware settings and a default userconfig.
