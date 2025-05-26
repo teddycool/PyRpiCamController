@@ -82,8 +82,7 @@ class Main(object):
                 self._mainLoop.stop()
                 running = False
             except :
-                logger.warning ("Mainloop catched exception but will continue %s" %  str(sys.exc_info()))
-                pass
+                logger.exception("Mainloop caught an exception but will continue")
         logger.info("PyCam has stopped")
 
     def __del__(self):

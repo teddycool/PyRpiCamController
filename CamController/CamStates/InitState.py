@@ -15,14 +15,14 @@ class InitState(BaseState.BaseState):
         #Init clockinit state
         logger.info("InitState initialize..")        
         self._lastconcheck = 0
+        self._wifi = WiFi.WiFi()
         return
 
     def update(self, context):
         logger.info ("InitState update..")
-        if time.time() - self._lastconcheck > 10: 
+        if time.time() - self._lastconcheck > 1: 
             self._lastconcheck = time.time()
-            wifi = WiFi.WiFi()
-            if (wifi.ConnectionCheck()):
+            if (self._wifi.ConnectionCheck()):
                 context._display.wifi_connected()
                 logger.info ("Connected")
                 if context._settingsMngr.curSettings["Mode"] == "Cam":
@@ -35,3 +35,4 @@ class InitState(BaseState.BaseState):
             context._display.no_internet()
         return
         
+  

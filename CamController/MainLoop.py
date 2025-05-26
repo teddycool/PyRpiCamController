@@ -42,7 +42,7 @@ class MainLoop(object):
         
         #Setup IO, these settings are NOT configurable from backend but hardware (camera) dependent
         self._display = Display.Display(hwconfig["Io"]["displaycontrolgpio"], hwconfig["Io"]["displaysize"])   
-        self._display.no_internet()     
+        self._display.startup()     
      
         if (hwconfig["LightBox"]):
             self._lightbox = Light.Light(GPIO,hwconfig["Io"]["lightcontrolgpio"])        
@@ -57,13 +57,12 @@ class MainLoop(object):
                        "PostState": self._postState}              
 
     def initialize(self):
-        logger.info("Mainloop initialize")        
-        self._initState.initialize(self._settingsMngr.curSettings)
-        self._currentstate = self._initState
+        logger.info("Mainloop initialize")      
         if (hwconfig["LightBox"]):
             light =self._settingsMngr.curSettings["Light"]
             self._lightbox.start(light)
             logger.info("Lightbox started with " + str(light) + "%")  
+        self.setState("InitState")
         
     def update(self):
         #TODO:  Check for new settings on server

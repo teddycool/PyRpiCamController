@@ -48,7 +48,13 @@ class Display(object):
         for i in range(self._displaysize ):
             self._displayArray.setPixelColor(i, Color(50, 0, 0, ))
         self._displayArray.show()
+    
 
+    def startup(self):
+        logger.debug ("Start-up pattern...")
+        for i in range(self._displaysize ):
+            self._displayArray.setPixelColor(i, Color(50, 50, 0, ))
+        self._displayArray.show()
 
 
 if __name__ == '__main__':
