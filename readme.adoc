@@ -56,11 +56,11 @@ Clone this repository to your computer. Rename the file /CamController/camconfig
 
 === Prepare the SD-card and start the pi
 
-Start with an sd-image with latest Raspberry Pi OS lite 32 or 64 bit (Legacy OS will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type.
+Start with an sd-image with latest Raspberry Pi OS lite 32 or 64 bit depending on model (Legacy OS will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type.
 
 When the pi starts it will automatically connect to the WiFi and get an IP-address. If you have set a hostname it will be available on the network with that name.
 
-When the WiFi is pre-set, you can directly start 'headless', ssh to target, copy the needed files. 
+When the WiFi is pre-set, you can directly start 'headless', ssh to target and copy the needed files. 
 
 === What files to copy
 Copy these folder from the cloned repo the home-root of the pi-user. Default is /home/pi/..
@@ -69,8 +69,9 @@ Copy these folder from the cloned repo the home-root of the pi-user. Default is 
 
 === How to install the software
 
-Now, run the tools/install.py script on your pi which will update the os and then install all needed packages and services. Note that the swap-file needs to be enlarged for zero and zero v2 before you run this oŕ the install will fail. 
- 
+Now, run the tools/install-all.py script on your pi which will update the os and then install all needed packages and services. This will take a while. At the end the system will reboot with a new node-name (the pi cpu-serial) and the CamController will start as a service.
+
+Note that the swap-file needs to be enlarged for zero and zero v2 before you run this oŕ the install will fail.   
 
 === How to adjust swap on zero and zero v2
 For Raspberry Pi Zero and Zero v2 the swap-file needs to be enlarged to at least 2GB for the install to work.
@@ -91,11 +92,11 @@ sudo dphys-swapfile setup
 sudo dphys-swapfile swapon
 ----
 
-Then run the install script:
+Run the install script:
 
 [source]
 ----
-python3 tools/install.py
+python tools/install-all.py
 ----
 
 After a reboot you might need to set up the network again, using the comitup captive portal.
@@ -105,8 +106,11 @@ The CamController starts as a service and will run in the background. You can ch
 ----
 sudo systemctl status pycam.service
 ----
-You can also check the log-file in /logs/pycam.log to see if everything is working as expected.
-
+You can also check the log-file in logs/cam.log to see if everything is working as expected.
+[source]
+----
+cat logs/cam.log
+----
 
 
 == WIFI management with Comitup
@@ -121,7 +125,7 @@ There is a settings-file (camsettings.py) with a lot of different settings such 
 
 The software acts like a 'game-loop' with a main that starts a mainloop and run update on all activated objects. The mainloop is a while-loop that runs until the program is stopped or killed. Different behaivior is implemented as different cam-states and the mainloop updates the state that is currently active.
 
-Logging is implemented with python's logging module and the loglevel is set in the settings-file. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an exaple is provided int the 'backend' folder.
+Logging is implemented with python's logging module and the loglevel is set in the settings-file. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an exaple is provided in the 'backend' folder.
 
 == Contributing
 
