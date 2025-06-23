@@ -51,6 +51,9 @@ A circuic-diagram for the needed extra hardware used for some features can be fo
 
 == How to install and get started (the easy way)
 
+=== Prerequisites
+You need a Raspberry Pi with a camera module (picam3 or picam3HQ which is currently supported) and a WiFi connection. The software is tested with Raspberry Pi 3B, 3B+, Zero W and Zero W2 but should work with all models.
+
 === Clone the repo and fix settings
 Clone this repository to your computer. Rename the file /CamController/camconfig-tmpl.py to camconfig.py and edit it to your needs.
 

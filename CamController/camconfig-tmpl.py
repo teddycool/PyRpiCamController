@@ -3,6 +3,7 @@ __author__ = "teddycool"
 #
 # Purpose of this file:
 # Configuration for the cam, both the video-stream and the CAM framework software
+# Rename to camconfig.py and edit the settings below to match your needs.
 
 # Default user-settings that can be replaced by a settings-file from server
 
@@ -31,7 +32,7 @@ defaultsettings = {
         "h1title": "Headline of webpage for stream"
     },
     "Limits": {
-        "maxcputemp": 80,
+        "maxcputemp": 75,  # Max CPU temperature before system will halt for 5 minutes to cool off
         "wcputemp": 65
     },
     "Light": 60,           #PWM value for the light intensity 0-100 (%)

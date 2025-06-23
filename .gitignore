@@ -1,5 +1,7 @@
 tools/camconfig-pi*.py
 */camconfig.py
+camsettings/*.*
+
 
 
 # Byte-compiled / optimized / DLL files

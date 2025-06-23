@@ -20,6 +20,9 @@ $timestamp = date_timestamp_get($date);
 $cpuid  = isset($_GET['cpu'])     ? $_GET['cpu']     : 'id_na';
 $metadata = isset($_GET['meta'])     ? $_GET['meta']     : '{}';
 
+# Validate the cpuid
+
+
 //Set the size of the thumb-nails
 $t_width= 300; 
 $t_height =200;
@@ -29,16 +32,22 @@ $target_dir = $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/';
 $target_dir_date = $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/' . date("Y-m-d") .'/';
 $target_dir_thumbs= $_SERVER['DOCUMENT_ROOT']. '/cvimages/'. $cpuid . '/' . date("Y-m-d") .'/'. "thumbs/";
 
+
+
+
 //Create the folders where needed
 if (!file_exists($target_dir)) {
     mkdir($target_dir, 0777, true);    
 }
 if (!file_exists($target_dir_date)) {
     mkdir($target_dir_date, 0777, true);
+
 }
 if (!file_exists($target_dir_thumbs)) {
     mkdir($target_dir_thumbs, 0777, true);
 }
+
+
 
 $latest_file = $target_dir. '/latest.jpg';
 $target_file = $target_dir_date . $timestamp . ".jpg"; 
