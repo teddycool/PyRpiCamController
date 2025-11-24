@@ -1,16 +1,18 @@
 Put these folder in the home-root of the user. Default is /home/pi/..
-/logs, /ota, /CamController, /tools
 
 
-
-Structure will be:
-/home/pi/logs/      (empty folder for logging)
+Structure will be:       
 
 /home/pi/ota/install       (-> ota scripts and logic)
-/home/pi/ota/sw/ (-> latest download for ota)
-/home/pi/ota/bu/    (-> bu before replacing sw)
+/home/pi/ota/sw/           (-> latest download for ota)
+/home/pi/ota/bu/           (-> bu before replacing sw)
 
-/home/pi/CamController/  (-> the actual sw for the cam)
+/home/pi/CamController/    (-> the actual sw for the cam)
 
-/home/pi/tools/     (-> script tools and settings) 
+/home/pi/tools/            (-> script tools and settings) 
+
+/home/pi/webgui            (-> webgui for adjusting cam-settings)
+
+/home/pi/shared/images     (folder for sharing images in the network) 
+/home/pi/shared/logs       (empty folder for logging)
 

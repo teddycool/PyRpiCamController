@@ -1,6 +1,8 @@
 tools/camconfig-pi*.py
 */camconfig.py
 camsettings/*.*
+backend/secrets.php
+dev_tools/*
 
 
 

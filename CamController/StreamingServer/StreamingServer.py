@@ -1,3 +1,7 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
 __author__ = 'teddycool'
 # Web streaming
 # Source code from the official PiCamera package
@@ -24,20 +28,28 @@ import request
 hostname = socket.gethostname()
 ipaddress = socket.gethostbyname(hostname) #TODO: Fix, now only returns 127.0.0.1 :-(
 
-from config import camconfig
+# Add project root to path for settings manager
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from Settings.settings_manager import settings_manager
 
-res = str(camconfig["Video"]["width"]) + "x" + str(camconfig["Video"]["height"])
-width = str(camconfig["Video"]["width"])
-height = str(camconfig["Video"]["height"])
-fr = camconfig["Video"]["framerate"]
-pagetitle = camconfig["Server"]["pagetitle"]
-pageheadline = camconfig["Server"]["pageheadline"]
-serverport = camconfig["Server"]["port"]
-camrottation = camconfig["Video"]["rotation"]
+# Get stream settings from unified settings system
+stream_resolution = settings_manager.get('Stream.resolution')
+width = str(stream_resolution[0])
+height = str(stream_resolution[1])
+res = width + "x" + height
+fr = settings_manager.get('Stream.framerate')
+pagetitle = settings_manager.get('Stream.pagetitle')
+pageheadline = settings_manager.get('Stream.h1title')
+serverport = settings_manager.get('Stream.port')
 
-imagetransform = camconfig["Video"]["transform"]
-itwidth = camconfig["Video"]["twidth"]
-itheight = camconfig["Video"]["theight"]
+# Note: Video rotation and transform settings may need to be added to Stream settings
+# For now, using safe defaults
+camrottation = 0  # Default rotation
+imagetransform = False  # Default no transform
+itwidth = int(width)  # Transform width same as stream width
+itheight = int(height)  # Transform height same as stream height
 
 PAGE="<html><head><title>" + pagetitle + "</title></head><body><center><h1>"
 

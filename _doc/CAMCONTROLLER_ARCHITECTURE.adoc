@@ -1,0 +1,523 @@
+:toc:
+:toc-title: Table of Contents
+:toc-placement: preamble
+= CamController Architecture and Implementation Guide
+
+This document provides a comprehensive overview of the CamController architecture, design patterns, and implementation details for developers working with or extending the PyRpiCamController system.
+
+== Overview
+
+The CamController is the core component of the PyRpiCamController system, responsible for camera control, image capture, hardware management, and data publishing. It follows a modular, state-driven architecture designed for extensibility and maintainability.
+
+=== Design Philosophy
+
+The CamController is built around several key principles:
+
+* **Separation of Concerns** - Each module has a specific, well-defined responsibility
+* **Extensibility** - New camera types, publishers, and hardware can be easily added
+* **State Management** - Camera behavior is modeled as distinct states with clear transitions
+* **Configuration-Driven** - Behavior is controlled through the unified settings system
+* **Hardware Abstraction** - Hardware-specific code is isolated in dedicated modules
+
+== Architecture Overview
+
+=== High-Level Structure
+
+----
+CamController/
+├── Main.py              # Application entry point and logging setup
+├── MainLoop.py          # Core execution loop and state management
+├── hwconfig.py          # Hardware configuration definitions
+├── Cam/                 # Camera abstraction layer
+│   ├── CamBase.py       # Abstract base class for all cameras
+│   ├── PiCam3.py        # Raspberry Pi Camera v3 implementation
+│   └── PiCamHQ.py       # Raspberry Pi HQ Camera implementation
+├── CamStates/           # State machine implementation
+│   ├── BaseState.py     # Abstract base class for all states
+│   ├── InitState.py     # Initialization and setup state
+│   ├── PostState.py     # Image capture and publishing state
+│   └── StreamState.py   # Video streaming state
+├── IO/                  # Hardware input/output modules
+│   ├── Display.py       # LED display control
+│   ├── Light.py         # Light/LED strip control
+│   └── Tempmonitor.py   # Temperature monitoring
+├── Publishers/          # Image and data publishing
+│   ├── PublisherBase.py # Abstract base class for publishers
+│   ├── FilePublisher.py # Local file system publisher
+│   └── HttpPublisher.py # HTTP/web service publisher
+├── Connectivity/        # Network and connectivity
+│   ├── cpuserial.py     # CPU serial number utilities
+│   └── Settings.py      # Legacy settings (deprecated)
+├── StreamingServer/     # Video streaming server
+│   └── StreamingServer.py # HTTP video streaming implementation
+└── Vision/              # Computer vision and analysis
+    ├── MotionDetector.py # Motion detection implementation
+    └── Vision.py        # Computer vision utilities
+----
+
+=== Component Interaction
+
+----
+Main.py
+    ↓
+MainLoop.py ←→ Settings Manager
+    ↓
+State Machine (InitState → PostState ↔ StreamState)
+    ↓
+Camera Abstraction (CamBase implementations)
+    ↓
+Publishers (File, HTTP)
+    ↓
+Hardware I/O (Display, Light, Temp)
+----
+
+== Design Patterns
+
+=== 1. State Pattern
+
+The core camera behavior is implemented using the State pattern, allowing the system to change behavior based on its current operational mode.
+
+==== Implementation
+
+**BaseState.py** - Abstract base class defining the state interface:
+[source,python]
+----
+class BaseState(object):
+    def __init__(self):
+        return
+    
+    def initialize(self):
+        self.lastUpdate = time.time()
+        return
+    
+    def update(self, context):
+        return
+    
+    def dispose(self):
+        return
+----
+
+**Concrete States:**
+
+* **InitState** - System initialization, camera setup, hardware configuration
+* **PostState** - Image capture, processing, and publishing mode
+* **StreamState** - Video streaming and real-time preview mode
+
+==== Benefits
+
+* Clear separation of different operational modes
+* Easy to add new behaviors without modifying existing code
+* State transitions are explicit and controllable
+* Each state can have its own initialization and cleanup logic
+
+=== 2. Strategy Pattern (Publishers)
+
+The publishing system uses the Strategy pattern to allow different methods of image distribution without changing the core capture logic.
+
+==== Implementation
+
+**PublisherBase.py** - Abstract publisher interface:
+[source,python]
+----
+class PublisherBase(object):
+    def initialize(self, settings):
+        raise NotImplementedError
+    
+    def publish(self, jpgimagedata, metadata):
+        raise NotImplementedError
+----
+
+**Concrete Publishers:**
+
+* **FilePublisher** - Saves images to local file system with Samba sharing
+* **HttpPublisher** - Uploads images to remote servers via HTTP/HTTPS
+
+==== Benefits
+
+* Multiple publishing destinations can be active simultaneously
+* New publishing methods can be added without changing capture logic
+* Each publisher can have its own configuration and error handling
+* Publishers can be enabled/disabled through configuration
+
+=== 3. Template Method Pattern (Cameras)
+
+Camera implementations follow the Template Method pattern, providing a consistent interface while allowing camera-specific implementations.
+
+==== Implementation
+
+**CamBase.py** - Abstract camera interface:
+[source,python]
+----
+class CamBase(object):
+    def __init__(self):
+        self._currentimg = None  # Must be a numpy array
+        self._currentMetaData = None  # Python dictionary
+        self._supportedImagesResolutions = []
+        self._supportedVideoResolutions = []
+    
+    def initialize(self):
+        raise NotImplementedError
+    
+    def update(self, context):
+        raise NotImplementedError
+----
+
+**Concrete Cameras:**
+
+* **PiCam3** - Raspberry Pi Camera Module 3 with libcamera/picamera2
+* **PiCamHQ** - Raspberry Pi HQ Camera with advanced features
+
+==== Benefits
+
+* Consistent interface across all camera types
+* Camera-specific optimizations and features
+* Easy to add support for new camera hardware
+* Resolution and capability checking built-in
+
+=== 4. Factory Pattern (Hardware Configuration)
+
+Hardware configurations are managed through a factory-like pattern using `hwconfig.py`, allowing different hardware setups to be easily supported.
+
+==== Implementation
+
+**hwconfig.py** - Hardware configuration definitions:
+[source,python]
+----
+hwconfig1 = {
+    "Description": "RPi3B+ with PiCam3 and lightbox",
+    "Version": 1,
+    "RpiBoard": "Rpi3B+",
+    "CamChip": "PiCam3",
+    "LightBox": True,
+    "Io": {
+        "lightcontrolgpio": 12,
+        "displaycontrolgpio": 18,
+        "displaysize": 1,
+    },
+}
+----
+
+==== Benefits
+
+* Hardware-specific configurations are centralized
+* Easy to support different hardware variants
+* GPIO and hardware features are clearly defined
+* Hardware capabilities can be queried programmatically
+
+== Core Components
+
+=== Main.py - Application Entry Point
+
+**Responsibilities:**
+
+* Application initialization and startup
+* Logging configuration and setup
+* CPU serial number detection
+* Settings manager integration
+* MainLoop instantiation and execution
+
+**Key Features:**
+
+* Configurable log levels (debug, info, warning, error, critical)
+* CPU ID injection into log records for multi-device deployments
+* File and console logging with rotation
+* Exception handling and graceful shutdown
+
+=== MainLoop.py - Core Execution Engine
+
+**Responsibilities:**
+
+* State management and transitions
+* Hardware component initialization
+* Periodic updates and monitoring
+* Temperature monitoring and thermal protection
+* Settings synchronization
+
+**Key Features:**
+
+* Game loop architecture with configurable update intervals
+* Hardware component lifecycle management (Display, Light, Temperature)
+* Thermal monitoring with automatic shutdown protection
+* Dynamic state switching based on configuration
+* Settings change detection and application
+
+**State Transition Logic:**
+[source,python]
+----
+# Simplified state transition logic
+if mode == "Cam":
+    if current_state != PostState:
+        switch_to_post_state()
+elif mode == "Stream":
+    if current_state != StreamState:
+        switch_to_stream_state()
+----
+
+=== State Implementations
+
+==== InitState.py - System Initialization
+
+**Purpose:** Handle system startup, hardware detection, and initial configuration.
+
+**Responsibilities:**
+
+* Hardware component discovery and initialization
+* Camera detection and configuration
+* Initial settings validation
+* System health checks
+* Transition to operational state
+
+==== PostState.py - Image Capture Mode
+
+**Purpose:** Continuous image capture and publishing according to configured schedule.
+
+**Key Features:**
+
+* Configurable capture intervals
+* Time-based scheduling (active hours)
+* Motion detection integration
+* Multiple publisher support
+* Metadata collection and enrichment
+* Error handling and recovery
+
+**Capture Flow:**
+----
+1. Check if within active time window
+2. Check motion detection (if enabled)
+3. Capture image from camera
+4. Generate metadata (timestamp, settings, etc.)
+5. Process image (crop, brightness adjustment)
+6. Publish to all configured publishers
+7. Log results and update statistics
+8. Sleep until next capture interval
+----
+
+==== StreamState.py - Video Streaming Mode
+
+**Purpose:** Provide real-time video streaming for monitoring and preview.
+
+**Key Features:**
+
+* HTTP-based video streaming
+* Configurable resolution and frame rate
+* Web interface integration
+* Low-latency preview
+* Concurrent access support
+
+=== Camera Abstraction Layer
+
+==== CamBase.py - Camera Interface
+
+**Design:** Abstract base class providing consistent interface for all camera implementations.
+
+**Key Methods:**
+
+* `initialize()` - Camera setup and configuration
+* `update()` - Capture new frame and metadata
+* `iResSupported()` / `vResSupported()` - Resolution capability checking
+* `getCurrentImage()` / `getCurrentMetaData()` - Access captured data
+
+==== PiCam3.py - Raspberry Pi Camera v3
+
+**Implementation Details:**
+* Uses picamera2 library for modern libcamera integration
+* Supports autofocus and advanced imaging features
+* Hardware-accelerated processing where available
+* Automatic exposure and white balance
+* High-resolution capture with efficient processing
+
+==== PiCamHQ.py - Raspberry Pi HQ Camera
+
+**Implementation Details:**
+* Higher resolution sensor support
+* Manual focus and exposure controls
+* Interchangeable lens support
+* Extended ISO and exposure ranges
+* Professional photography features
+
+=== Publishing System
+
+==== PublisherBase.py - Publisher Interface
+
+**Design:** Strategy pattern implementation for flexible image distribution.
+
+==== FilePublisher.py - Local File Publishing
+
+**Features:**
+* Organized directory structure (date-based folders)
+* Multiple image formats (JPEG, PNG)
+* Metadata files (JSON, EXIF)
+* Samba integration for network access
+* Automatic cleanup and rotation
+
+==== HttpPublisher.py - Remote Publishing
+
+**Features:**
+* RESTful API communication
+* Authentication and API key support
+* Retry logic with exponential backoff
+* Batch uploading capabilities
+* Error logging and monitoring
+
+=== Hardware I/O Modules
+
+==== Display.py - LED Display Control
+
+**Purpose:** Control addressable RGB LEDs for status indication.
+
+**Features:**
+* WS2812B/NeoPixel support
+* Color patterns and animations
+* Status indication (startup, capturing, error states)
+* Brightness control
+* PWM-based control
+
+==== Light.py - Illumination Control
+
+**Purpose:** Control LED strips or lighting for image capture.
+
+**Features:**
+* PWM-based brightness control
+* Configurable timing (flash, continuous)
+* Power management
+* Hardware safety limits
+
+==== Tempmonitor.py - Temperature Monitoring
+
+**Purpose:** Monitor CPU and system temperatures for thermal management.
+
+**Features:**
+
+* Real-time temperature monitoring
+* Configurable temperature thresholds
+* Automatic thermal protection
+* Temperature logging and trending
+* Alert generation
+
+=== Connectivity and Utilities
+
+==== cpuserial.py - Device Identification
+
+**Purpose:** Provide unique device identification based on CPU serial number.
+
+**Features:**
+
+* Hardware-based unique ID generation
+* Zero-padding removal for cleaner IDs
+* Cross-platform compatibility
+* Fallback identification methods
+
+== Configuration and Settings Integration
+
+=== Settings Manager Integration
+
+The CamController integrates with the unified settings management system for dynamic configuration:
+
+[source,python]
+----
+from Settings.settings_manager import settings_manager
+
+# Get camera resolution
+resolution = settings_manager.get('Cam.resolution')
+
+# Get capture interval
+interval = settings_manager.get('Cam.timeslot')
+
+# Check if motion detection is enabled
+motion_enabled = settings_manager.get('Cam.MotionDetector.active')
+----
+
+=== Configuration Schema
+
+Key settings categories:
+
+* **Cam.*** - Camera and capture settings
+* **Stream.*** - Video streaming configuration
+* **OTA.*** - Over-the-air update settings
+* **Hardware.*** - GPIO and hardware configuration
+* **Publishers.*** - Publishing and upload settings
+
+=== Dynamic Reconfiguration
+
+The system supports runtime configuration changes:
+* Settings are checked periodically during operation
+* State transitions can be triggered by configuration changes
+* Hardware components can be reconfigured without restart
+* Publishers can be enabled/disabled dynamically
+
+== Extension Points
+
+=== Adding New Camera Types
+
+1. **Create new camera class** inheriting from `CamBase`
+2. **Implement required methods** (`initialize`, `update`, etc.)
+3. **Add to hardware configuration** in `hwconfig.py`
+4. **Update state logic** to instantiate new camera type
+
+Example:
+[source,python]
+----
+class NewCamera(CamBase):
+    def __init__(self):
+        super().__init__()
+        self._supportedImagesResolutions = [(1920, 1080), (3840, 2160)]
+    
+    def initialize(self):
+        # Camera-specific initialization
+        pass
+    
+    def update(self, context):
+        # Capture and process image
+        pass
+----
+
+=== Adding New Publishers
+
+1. **Create publisher class** inheriting from `PublisherBase`
+2. **Implement publishing logic** in `publish()` method
+3. **Add configuration schema** to settings system
+4. **Register with state machine** for automatic instantiation
+
+Example:
+[source,python]
+----
+class CloudPublisher(PublisherBase):
+    def initialize(self, settings):
+        self.api_endpoint = settings['cloud_api_endpoint']
+        self.auth_token = settings['cloud_auth_token']
+    
+    def publish(self, jpgimagedata, metadata):
+        # Upload to cloud service
+        pass
+----
+
+=== Adding New States
+
+1. **Create state class** inheriting from `BaseState`
+2. **Implement state logic** in `update()` method
+3. **Add state transition logic** in `MainLoop.py`
+4. **Update configuration schema** if needed
+
+Example:
+[source,python]
+----
+class AnalysisState(BaseState):
+    def initialize(self):
+        super().initialize()
+        # Initialize computer vision components
+    
+    def update(self, context):
+        # Perform image analysis
+        pass
+----
+
+=== Adding Hardware Support
+
+1. **Update hardware configuration** in `hwconfig.py`
+2. **Create I/O module** in `IO/` directory if needed
+3. **Add initialization logic** in `MainLoop.py`
+4. **Update settings schema** for new hardware options
+
+
+
+This architecture provides a solid foundation for a maintainable, extensible camera control system while following established design patterns and best practices for embedded Python applications.

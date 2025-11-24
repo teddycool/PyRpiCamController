@@ -1,3 +1,9 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+
+__author__ = 'teddycool'
 
 import logging
 from urllib import request
@@ -14,7 +20,7 @@ sh.setFormatter(formatter)
 logger.addHandler(sh)
 
 
-fh = logging.handlers.RotatingFileHandler('/home/pi/logs/ota.log',maxBytes=150000, backupCount=10)
+fh = logging.handlers.RotatingFileHandler('/home/pi/shared/logs/ota.log',maxBytes=150000, backupCount=10)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 

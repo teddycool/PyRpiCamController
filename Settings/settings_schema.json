@@ -1,0 +1,631 @@
+{
+  "schema_version": "1.0",
+  "settings": {
+    "Version": {
+      "value": 1,
+      "type": "int",
+      "min": 1,
+      "max": 100,
+      "readonly": true,
+      "ui": {
+        "name": "Versionsnummer",
+        "section": "System",
+        "description": "Version of the settings structure",
+        "level": "advanced"
+      },
+      "web_editable": false
+    },
+    "Mode": {
+      "value": "Cam",
+      "type": "enum",
+      "options": [
+        "Cam",
+        "Stream"
+      ],
+      "ui": {
+        "name": "Kameraläge",
+        "section": "System",
+        "description": "Kamerans driftläge",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "basic"
+    },
+    "OtaEnable": {
+      "value": false,
+      "type": "bool",
+      "ui": {
+        "name": "OTA-uppdatering",
+        "section": "System",
+        "description": "Aktivera trådlösa uppdateringar över luften",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "OTA": {
+      "server_url": {
+        "value": "https://www.biwebben.se",
+        "type": "text",
+        "ui": {
+          "name": "OTA Server URL",
+          "section": "System",
+          "description": "Server-URL för OTA-uppdateringar",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "check_interval": {
+        "value": 3600,
+        "type": "int",
+        "min": 300,
+        "max": 86400,
+        "ui": {
+          "name": "Uppdateringsintervall (s)",
+          "section": "System",
+          "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
+          "level": "basic"
+        },
+        "web_editable": true
+      },
+      "api_key": {
+        "value": "",
+        "type": "password",
+        "ui": {
+          "name": "OTA API-nyckel",
+          "section": "System",
+          "description": "API-nyckel för OTA-serverautentisering",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "service_name": {
+        "value": "pycam.service",
+        "type": "text",
+        "ui": {
+          "name": "Tjänstnamn",
+          "section": "System",
+          "description": "Systemd service name for camera application",
+          "level": "advanced"
+        },
+        "web_editable": false
+      },
+      "install_path": {
+        "value": "/home/pi/PyRpiCamController",
+        "type": "text",
+        "ui": {
+          "name": "Installationssökväg",
+          "section": "System",
+          "description": "Path where application is installed",
+          "level": "advanced"
+        },
+        "web_editable": false
+      },
+      "backup_retention": {
+        "value": 3,
+        "type": "int",
+        "min": 1,
+        "max": 10,
+        "ui": {
+          "name": "Antal backup-versioner",
+          "section": "System",
+          "description": "Number of backup versions to keep",
+          "level": "advanced"
+        },
+        "web_editable": true
+      },
+      "health_check_timeout": {
+        "value": 120,
+        "type": "int",
+        "min": 30,
+        "max": 300,
+        "ui": {
+          "name": "Hälsokontroll timeout (s)",
+          "section": "System",
+          "description": "Time to wait for service to become healthy after update",
+          "level": "advanced"
+        },
+        "web_editable": true
+      },
+      "download_timeout": {
+        "value": 300,
+        "type": "int",
+        "min": 60,
+        "max": 1800,
+        "ui": {
+          "name": "Nedladdning timeout (s)",
+          "section": "System",
+          "description": "Maximum time to wait for update download",
+          "level": "advanced"
+        },
+        "web_editable": true
+      }
+    },
+    "Cam": {
+      "resolution": {
+        "value": [
+          4608,
+          2592
+        ],
+        "type": "tuple",
+        "ui": {
+          "name": "Bildupplösning",
+          "section": "Kamera",
+          "description": "Kameraupplösning (bredd x höjd)",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "timeslot": {
+        "value": 15,
+        "type": "int",
+        "min": 1,
+        "max": 3600,
+        "ui": {
+          "name": "Bildintervall (s)",
+          "section": "Kamera",
+          "description": "Tid mellan bilder i sekunder",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "publishers": {
+        "url": {
+          "publish": {
+            "value": true,
+            "type": "bool",
+            "ui": {
+              "name": "Publicera till URL",
+              "section": "Kamera",
+              "description": "Aktivera URL-publicering",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "basic"
+          },
+          "location": {
+            "value": "http://www.biwebben.se/filedump2.php",
+            "type": "text",
+            "ui": {
+              "name": "URL för publicering",
+              "section": "Kamera",
+              "description": "URL-slutpunkt för bildpublicering",
+              "level": "basic"
+            },
+            "web_editable": true,
+            "level": "basic"
+          },
+          "apikey": {
+            "value": "_your unique api key_",
+            "type": "text",
+            "ui": {
+              "name": "API-nyckel",
+              "section": "Kamera",
+              "description": "API-nyckel för URL-publicering",
+              "level": "basic"
+            },
+            "web_editable": true,
+            "level": "basic"
+          }
+        },
+        "file": {
+          "publish": {
+            "value": true,
+            "type": "bool",
+            "ui": {
+              "name": "Spara till fil",
+              "section": "Kamera",
+              "description": "Aktivera filpublicering",
+              "level": "basic"
+            },
+            "web_editable": true,
+            "level": "basic"
+          },
+          "location": {
+            "value": "/home/pi/shared/images/",
+            "type": "text",
+            "ui": {
+              "name": "Sökväg för bilder",
+              "section": "Kamera",
+              "description": "Lokal sökväg för bildlagring",
+              "level": "basic"
+            },
+            "web_editable": true,
+            "level": "basic"
+          },
+          "format": {
+            "value": "jpg",
+            "type": "enum",
+            "options": [
+              "jpg",
+              "png"
+            ],
+            "ui": {
+              "name": "Bildformat",
+              "section": "Kamera",
+              "description": "Bildfilformat",
+              "level": "basic"
+            },
+            "web_editable": true,
+            "level": "basic"
+          }
+        }
+      },
+      "brightness": {
+        "value": 0.1,
+        "type": "float",
+        "min": -1.0,
+        "max": 1.0,
+        "ui": {
+          "name": "Exponeringskompensation",
+          "section": "Kamera",
+          "description": "Justering av kamerans ljusstyrka",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "timeschedule": {
+        "value": [
+          6,
+          19
+        ],
+        "type": "tuple",
+        "ui": {
+          "name": "Tidschema (start, stopp)",
+          "section": "Kamera",
+          "description": "Aktiva timmar (start, stopp)",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "MotionDetector": {
+        "active": {
+          "value": false,
+          "type": "bool",
+          "ui": {
+            "name": "Rörelsedetektor aktiv",
+            "section": "Kamera",
+            "description": "Enable motion detection",
+            "level": "advanced"
+          },
+          "web_editable": true,
+          "level": "advanced"
+        },
+        "motioncount": {
+          "value": 200,
+          "type": "int",
+          "min": 1,
+          "max": 10000,
+          "ui": {
+            "name": "Rörelsedetektor antal",
+            "section": "Kamera",
+            "description": "Motion detection threshold",
+            "level": "advanced"
+          },
+          "web_editable": true,
+          "level": "advanced"
+        },
+        "history": {
+          "value": 50,
+          "type": "int",
+          "min": 1,
+          "max": 1000,
+          "ui": {
+            "name": "Rörelsedetektor historik",
+            "section": "Kamera",
+            "description": "Motion detection history frames",
+            "level": "advanced"
+          },
+          "web_editable": true,
+          "level": "advanced"
+        }
+      },
+      "crop": {
+        "value": false,
+        "type": "bool",
+        "ui": {
+          "name": "Beskär bild",
+          "section": "Kamera",
+          "description": "Enable image cropping",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "ctopleft": {
+        "value": [
+          300,
+          250
+        ],
+        "type": "tuple",
+        "ui": {
+          "name": "Beskärning övre vänster (x, y)",
+          "section": "Kamera",
+          "description": "Crop top-left coordinates",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "cbottomright": {
+        "value": [
+          4301,
+          2351
+        ],
+        "type": "tuple",
+        "ui": {
+          "name": "Beskärning nedre höger (x, y)",
+          "section": "Kamera",
+          "description": "Crop bottom-right coordinates",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      }
+    },
+    "Stream": {
+      "resolution": {
+        "value": [
+          640,
+          480
+        ],
+        "type": "tuple",
+        "ui": {
+          "name": "Streamupplösning",
+          "section": "Stream",
+          "description": "Stream resolution (width x height)",
+          "level": "basic"
+        },
+        "web_editable": true,
+        "level": "basic"
+      },
+      "framerate": {
+        "value": 20,
+        "type": "int",
+        "min": 1,
+        "max": 60,
+        "ui": {
+          "name": "Stream framerate",
+          "section": "Stream",
+          "description": "Frames per second for streaming",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "port": {
+        "value": 8080,
+        "type": "int",
+        "min": 1024,
+        "max": 65535,
+        "ui": {
+          "name": "Stream-port",
+          "section": "Stream",
+          "description": "Port for streaming server",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "pagetitle": {
+        "value": "Camera Stream",
+        "type": "text",
+        "ui": {
+          "name": "Webbsidans titel",
+          "section": "Stream",
+          "description": "Web page title for stream",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "h1title": {
+        "value": "Live Camera Stream",
+        "type": "text",
+        "ui": {
+          "name": "Webbsidans huvudrubrik",
+          "section": "Stream",
+          "description": "Main heading for stream page",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      }
+    },
+    "Limits": {
+      "maxcputemp": {
+        "value": 75,
+        "type": "int",
+        "min": 50,
+        "max": 100,
+        "ui": {
+          "name": "Max CPU-temp",
+          "section": "System",
+          "description": "Maximum CPU temperature before shutdown",
+          "level": "advanced"
+        },
+        "web_editable": false
+      },
+      "wcputemp": {
+        "value": 65,
+        "type": "int",
+        "min": 40,
+        "max": 90,
+        "ui": {
+          "name": "Varning CPU-temp",
+          "section": "System",
+          "description": "CPU temperature warning threshold",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      }
+    },
+    "Light": {
+      "value": 60,
+      "type": "int",
+      "min": 0,
+      "max": 100,
+      "ui": {
+        "name": "Ljusnivå (%)",
+        "section": "System",
+        "description": "Light intensity percentage",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "LogLevel": {
+      "value": "debug",
+      "type": "enum",
+      "options": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical"
+      ],
+      "ui": {
+        "name": "Loggnivå",
+        "section": "System",
+        "description": "Logging verbosity level",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "LogToFile": {
+      "value": true,
+      "type": "bool",
+      "ui": {
+        "name": "Logga till fil",
+        "section": "System",
+        "description": "Enable file logging",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "basic"
+    },
+    "LogFilePath": {
+      "value": "/home/pi/shared/logs/cam.log",
+      "type": "text",
+      "ui": {
+        "name": "Loggfilssökväg",
+        "section": "System",
+        "description": "Path to log file",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "basic"
+    },
+    "LogFileSize": {
+      "value": 1000000,
+      "type": "int",
+      "min": 10000,
+      "max": 10000000,
+      "ui": {
+        "name": "Max loggfilstorlek (bytes)",
+        "section": "System",
+        "description": "Maximum log file size before rotation",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "basic"
+    },
+    "LogFileBuCount": {
+      "value": 5,
+      "type": "int",
+      "min": 1,
+      "max": 20,
+      "ui": {
+        "name": "Antal logg-backuper",
+        "section": "System",
+        "description": "Number of backup log files to keep",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "basic"
+    },
+    "LogToServer": {
+      "value": false,
+      "type": "bool",
+      "ui": {
+        "name": "Logga till server",
+        "section": "System",
+        "description": "Enable remote server logging",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "LogHost": {
+      "value": "your server",
+      "type": "text",
+      "ui": {
+        "name": "Loggserver",
+        "section": "System",
+        "description": "Remote logging server hostname",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "LogUrl": {
+      "value": "/your script",
+      "type": "text",
+      "ui": {
+        "name": "Loggserver-URL",
+        "section": "System",
+        "description": "Remote logging endpoint URL",
+        "level": "basic"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "CheckNewSettings": {
+      "value": 3600,
+      "type": "int",
+      "min": 60,
+      "max": 86400,
+      "ui": {
+        "name": "Kolla nya inställningar (s)",
+        "section": "System",
+        "description": "Interval for checking new settings",
+        "level": "basic"
+      },
+      "web_editable": false
+    },
+    "CheckCpuTemp": {
+      "value": 60,
+      "type": "int",
+      "min": 10,
+      "max": 3600,
+      "ui": {
+        "name": "Kolla CPU-temp (s)",
+        "section": "System",
+        "description": "Interval for CPU temperature checks",
+        "level": "basic"
+      },
+      "web_editable": false
+    },
+    "Connectivity": {
+      "inetdetectionurl": {
+        "value": "http://www.google.com",
+        "type": "text",
+        "ui": {
+          "name": "URL för internetdetektering",
+          "section": "System",
+          "description": "URL for internet connectivity tests",
+          "level": "basic"
+        },
+        "web_editable": false
+      }
+    }
+  }
+}

@@ -1,5 +1,4 @@
 <?php
-<?php
 /*
  This file is a secure backend receiving script for log-items that are stored in a database table.
  It validates the API key before processing the log data.

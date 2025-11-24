@@ -1,0 +1,64 @@
+{
+  "LogLevel": "info",
+  "LogToServer": true,
+  "LogHost": "your-log-server.com",
+  "LogUrl": "/api/logs",
+  "LogApiKey": "your-api-key-here",
+  "LogToFile": true,
+  "LogFilePath": "/home/pi/shared/logs/camera.log",
+  "LogFileSize": 5242880,
+  "LogFileBuCount": 3,
+  "Cam": {
+    "timeslot": 15,
+    "preview_resolution": [
+      640,
+      480
+    ],
+    "resolution": [
+      1920,
+      1080
+    ],
+    "framerate": 30,
+    "gain": 1.0,
+    "awb_mode": "auto",
+    "exposure_mode": "auto",
+    "shutter_speed": 0,
+    "iso": 100
+  },
+  "Stream": {
+    "port": 8080,
+    "width": 640,
+    "height": 480,
+    "framerate": 15,
+    "bitrate": 1000000
+  },
+  "Motion": {
+    "enabled": true,
+    "sensitivity": 75,
+    "min_area": 1000,
+    "blur_size": 21
+  },
+  "Hardware": {
+    "camera_type": "PiCam3",
+    "display_enabled": true,
+    "temp_monitor_enabled": true,
+    "light_enabled": false
+  },
+  "Publishing": {
+    "file_publisher_enabled": true,
+    "file_path": "/home/pi/images",
+    "http_publisher_enabled": false,
+    "http_url": "https://your-server.com/upload",
+    "http_api_key": ""
+  },
+  "WiFi": {
+    "ssid": "",
+    "password": "",
+    "country": "SE"
+  },
+  "System": {
+    "timezone": "Europe/Stockholm",
+    "auto_start": true,
+    "debug_mode": false
+  }
+}

@@ -1,0 +1,15 @@
+# /etc/systemd/system/webgui.service
+[Unit]
+Description=Gunicorn-instans för att servera Flask kamerainställningar
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/webgui
+# If installed via apt:
+ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:8000 web_app:app
+Restart=always
+Environment="PYTHONUNBUFFERED=1"
+[Install]
+WantedBy=multi-user.target

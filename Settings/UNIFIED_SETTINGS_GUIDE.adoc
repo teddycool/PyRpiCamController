@@ -1,0 +1,251 @@
+:toc:
+:toc-title: Table of Contents
+:toc-placement: preamble
+= Unified Settings System Setup Guide
+
+This new unified settings system solves the dual requirement:
+
+* **Code Interface**: Easy programmatic access to settings from Python modules
+* **Web GUI**: Dynamic form generation for user-friendly configuration
+
+Both interfaces use the **same** underlying settings schema, ensuring consistency and eliminating duplication.
+
+== File Structure
+
+----
+PyRpiCamController/
+├── Settings/
+│   ├── settings_schema.json       # Single source of truth - defines all settings
+│   ├── settings_manager.py        # Python interface for code access
+│   ├── user_settings.json         # User customizations (overrides defaults)
+│   ├── demo_settings.py           # Demonstration script
+│   └── add_setting_levels.py      # Schema categorization tool
+└── webgui/                        # Web interface
+    ├── web_app.py                 # Flask web application
+    └── templates/
+        └── settings_form.html     # Auto-generated web form
+----
+
+== Quick Start
+
+=== 1. Test the System
+
+----
+cd /home/psk/Dropbox/dev/PyRpiCamController
+python demo_settings.py
+----
+
+=== 2. Start Web GUI
+
+----
+cd webgui
+python web_app.py
+----
+
+Then visit: http://localhost:5000
+
+**Web Interface Features:**
+* 🇸🇪 **Swedish language interface** for easy local use
+* 📋 **Basic/Advanced tabs** - organized by user experience level  
+* 🔒 **Secure password fields** for API keys
+* ✅ **Real-time validation** with helpful error messages
+
+=== 3. Use in Your Code
+
+[source,python]
+----
+from Settings.settings_manager import settings_manager
+
+# Read settings
+log_level = settings_manager.get('LogLevel')
+camera_resolution = settings_manager.get('Cam.resolution')
+
+# Write settings
+settings_manager.set('LogLevel', 'DEBUG')
+settings_manager.set('Cam.timeslot', 15)
+----
+
+== Key Features
+
+=== Single Source of Truth
+
+* `settings_schema.json` defines ALL settings once
+* Includes default values, types, validation rules, and UI metadata
+* Both code and web GUI use this same schema
+
+=== Backwards Compatibility
+
+[source,python]
+----
+# New way (recommended)
+value = settings_manager.get('Cam.timeslot')
+
+# Old way (still works)
+settings_dict = settings_manager.get_dict()
+value = settings_dict['Cam']['timeslot']
+----
+
+=== Web GUI Auto-Generation
+
+* Forms automatically generated from schema
+* Organized by sections
+* Proper input types (text, number, checkbox, select)
+* Validation feedback
+* Read-only fields for system values
+
+=== Validation
+
+* Type checking (int, float, bool, text, enum, tuple)
+* Range validation (min/max values)
+* Enum validation (predefined choices)
+* Immediate feedback on invalid values
+
+== Configuration Sections
+
+The settings are organized into logical sections:
+
+* **Logging**: Log levels, destinations, file rotation
+* **Camera**: Resolution, framerate, image settings
+* **Streaming**: Video streaming configuration
+* **Motion Detection**: Motion detection parameters
+* **Hardware**: Camera type, display, sensors
+* **Publishing**: File and HTTP publishing options
+* **Network**: WiFi configuration
+* **System**: Timezone, startup options
+
+== Migration from Old System
+
+=== Step 1: Update imports in your modules
+
+[source,python]
+----
+# OLD:
+from camconfig import defaultsettings
+value = defaultsettings['LogLevel']
+
+# NEW:
+from Settings.settings_manager import settings_manager
+value = settings_manager.get('LogLevel')
+----
+
+=== Step 2: Convert nested access
+
+[source,python]
+----
+# OLD:
+resolution = defaultsettings['Cam']['resolution']
+
+# NEW:
+resolution = settings_manager.get('Cam.resolution')
+----
+
+=== Step 3: Update web GUI (if replacing existing)
+
+* Replace manual form definitions with schema-driven forms
+* Use provided `webgui/web_app.py` and `webgui/templates/settings_form.html`
+* API endpoints available for AJAX updates
+
+== API Endpoints
+
+The web application provides REST API access:
+
+----
+# Get all settings
+GET /api/settings
+
+# Get specific setting
+GET /api/settings/LogLevel
+GET /api/settings/Cam.resolution
+
+# Update setting
+POST /api/settings/LogLevel
+Content-Type: application/json
+{"value": "DEBUG"}
+
+# Get UI schema
+GET /api/schema
+----
+
+== File Locations
+
+=== Schema Files
+
+* `Settings/settings_schema.json`: Master schema (version controlled)
+* `Settings/user_settings.json`: User overrides (gitignored/user-specific)
+
+=== User Settings Persistence
+
+User changes are saved to `Settings/user_settings.json` and automatically override defaults from the schema. This allows:
+
+* Version control of default settings
+* User-specific customizations without modifying defaults
+* Easy reset to defaults by deleting Settings/user_settings.json
+
+== Development Workflow
+
+=== Adding New Settings
+
+1. Add to `Settings/settings_schema.json`:
++
+[source,json]
+----
+{
+  "NewSetting": {
+    "value": "default_value",
+    "type": "text",
+    "name": "New Setting",
+    "section": "System",
+    "description": "Description of the setting",
+    "readonly": false,
+    "web_editable": true
+  }
+}
+----
+
+2. Access in code:
++
+[source,python]
+----
+value = settings_manager.get('NewSetting')
+----
+
+3. Web form automatically includes the new setting!
+
+=== Testing Changes
+
+1. Run `demo_settings.py` to verify Python interface
+2. Start `webgui/web_app.py` to test web interface
+3. Check validation with invalid values
+
+== Troubleshooting
+
+=== Settings Not Loading
+
+* Check `Settings/settings_schema.json` syntax with JSON validator
+* Verify file permissions
+* Look for import errors in Python modules
+
+=== Web GUI Issues
+
+* Ensure Flask is installed: `pip install flask`
+* Check browser developer console for JavaScript errors
+* Verify template path in webgui/web_app.py
+
+=== Validation Errors
+
+* Check setting type matches schema definition
+* Verify min/max ranges for numeric values
+* Ensure enum values match defined options
+
+== Benefits
+
+✅ **Single Source**: One schema file defines everything +
+✅ **Type Safety**: Automatic validation prevents errors +
+✅ **Auto UI**: Web forms generated automatically +
+✅ **Backwards Compatible**: Existing code continues working +
+✅ **API Ready**: REST endpoints for external integration +
+✅ **User Friendly**: Clean web interface with descriptions +
+✅ **Developer Friendly**: Simple dot notation access +
+✅ **Maintainable**: Changes in one place affect everywhere +
+
+This system eliminates the dual maintenance burden while providing both programmatic and user interfaces from the same configuration source.

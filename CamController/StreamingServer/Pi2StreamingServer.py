@@ -1,3 +1,9 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+__author__ = 'teddycool'
+
 #!/usr/bin/python3
 
 # Mostly copied from https://picamera.readthedocs.io/en/release-1.13/recipes2.html

@@ -1,0 +1,609 @@
+= PyRpiCam OTA Security Guide
+:toc: left
+:toclevels: 4
+:sectlinks:
+:sectanchors:
+
+This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+The complete project is available at: https://github.com/teddycool/PyRpiCamController
+The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+@author teddycool
+
+== Overview
+
+The PyRpiCamController OTA system implements multiple layers of security to protect against unauthorized access, data tampering, and malicious attacks. This document provides comprehensive guidance on the security architecture, threat model, and best practices for secure deployment.
+
+== Security Architecture
+
+=== Multi-Layer Security Model
+
+The security implementation follows a defense-in-depth approach with multiple security layers:
+
+1. **Transport Layer Security**: HTTPS/TLS encryption for all communications
+2. **Authentication Layer**: Device-specific API keys and CPU ID validation
+3. **Authorization Layer**: Role-based access control and permission validation
+4. **Data Validation Layer**: Input sanitization and SQL injection prevention
+5. **Rate Limiting Layer**: DDoS protection and abuse prevention
+6. **Audit Layer**: Comprehensive logging and monitoring
+
+=== Threat Model
+
+The system is designed to protect against:
+
+* **Unauthorized device access** - Rogue devices attempting to join the network
+* **Man-in-the-middle attacks** - Interception of update communications
+* **Data tampering** - Modification of firmware during transit
+* **Replay attacks** - Reuse of captured authentication tokens
+* **Denial of service** - Resource exhaustion attacks
+* **SQL injection** - Database compromise attempts
+* **Cross-site scripting** - Web interface exploitation
+* **Privilege escalation** - Unauthorized administrative access
+
+== Device Communication Security
+
+=== Authentication Mechanism
+
+==== Device Registration
+Each device must be registered with the OTA server before participating in updates:
+
+[source,json]
+----
+POST /api/devices
+{
+    "cpu_id": "b827eb123456789a",
+    "device_name": "Camera-01",
+    "location": "Front Door",
+    "update_group": "stable"
+}
+----
+
+**Security Features:**
+* **Unique CPU ID**: Hardware-based identifier prevents device spoofing
+* **API Key Generation**: Server generates cryptographically secure 64-character API key
+* **Registration Validation**: CPU ID format validation and uniqueness enforcement
+
+==== Authentication Flow
+All OTA operations require dual-factor authentication:
+
+[source,json]
+----
+{
+    "cpu_id": "b827eb123456789a",
+    "api_key": "a1b2c3d4e5f6...64chars",
+    "timestamp": "2025-11-14T10:30:00Z",
+    "signature": "sha256_hmac_signature"
+}
+----
+
+**Components:**
+* **CPU ID**: Immutable hardware identifier from Raspberry Pi
+* **API Key**: Server-issued secret key (64 characters, base64 encoded)
+* **Timestamp**: Request timestamp for replay attack prevention
+* **Signature**: HMAC-SHA256 signature of request payload
+
+=== Cryptographic Security
+
+==== Transport Security
+* **TLS 1.3**: Modern encryption standard with perfect forward secrecy
+* **Certificate Validation**: Strict certificate chain validation
+* **HSTS Headers**: HTTP Strict Transport Security enforcement
+* **Cipher Suite Selection**: Only strong cipher suites allowed
+
+[source,apache]
+----
+# Apache SSL Configuration
+SSLProtocol TLSv1.3
+SSLCipherSuite ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384
+SSLHonorCipherOrder on
+Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+----
+
+==== Data Integrity
+* **SHA-256 Checksums**: File integrity verification for all firmware updates
+* **Digital Signatures**: Optional firmware signing with RSA-4096 keys
+* **Checksum Validation**: Client-side verification before installation
+
+[source,python]
+----
+def verify_download(file_path, expected_checksum):
+    """Verify downloaded file integrity"""
+    actual_checksum = hashlib.sha256()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            actual_checksum.update(chunk)
+    
+    if actual_checksum.hexdigest() != expected_checksum:
+        raise SecurityError("Checksum verification failed")
+    
+    return True
+----
+
+=== Request Validation
+
+==== Input Sanitization
+All API inputs undergo strict validation:
+
+[source,php]
+----
+function validateInput($data, $rules) {
+    $errors = [];
+    
+    foreach ($rules as $field => $rule) {
+        $value = $data[$field] ?? null;
+        
+        // Required field validation
+        if ($rule['required'] && empty($value)) {
+            $errors[$field] = "Field is required";
+            continue;
+        }
+        
+        // Type validation
+        switch ($rule['type']) {
+            case 'cpu_id':
+                if (!preg_match('/^[a-f0-9]{16}$/', $value)) {
+                    $errors[$field] = "Invalid CPU ID format";
+                }
+                break;
+            case 'api_key':
+                if (strlen($value) < API_KEY_LENGTH) {
+                    $errors[$field] = "API key too short";
+                }
+                break;
+            case 'version':
+                if (!preg_match('/^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/', $value)) {
+                    $errors[$field] = "Invalid version format";
+                }
+                break;
+        }
+        
+        // Length validation
+        if (isset($rule['length']) && strlen($value) > $rule['length']) {
+            $errors[$field] = "Value too long (max {$rule['length']} chars)";
+        }
+    }
+    
+    return $errors;
+}
+----
+
+==== SQL Injection Prevention
+* **Prepared Statements**: All database queries use parameterized statements
+* **Input Escaping**: Additional escaping for dynamic query components
+* **Stored Procedures**: Critical operations use stored procedures with validation
+
+[source,php]
+----
+// Secure database query example
+function getDeviceUpdate($pdo, $cpuId, $currentVersion, $updateGroup) {
+    $stmt = $pdo->prepare("CALL GetDeviceUpdate(?, ?, ?)");
+    $stmt->execute([$cpuId, $currentVersion, $updateGroup]);
+    return $stmt->fetch();
+}
+----
+
+=== Rate Limiting and DDoS Protection
+
+==== Request Rate Limiting
+Protection against automated attacks and resource exhaustion:
+
+[source,php]
+----
+function checkRateLimit($clientIp, $endpoint) {
+    $key = "rate_limit:{$endpoint}:{$clientIp}";
+    $current = $redis->get($key) ?? 0;
+    
+    if ($current >= RATE_LIMIT_REQUESTS) {
+        throw new RateLimitException("Rate limit exceeded");
+    }
+    
+    $redis->incr($key);
+    $redis->expire($key, 3600); // 1 hour window
+    
+    return true;
+}
+----
+
+**Rate Limits:**
+* **Update Checks**: 10 requests per hour per device
+* **Status Reports**: 20 requests per hour per device
+* **Admin API**: 100 requests per hour per IP
+* **Version Downloads**: 5 downloads per hour per device
+
+==== DDoS Mitigation
+* **Connection Limits**: Maximum concurrent connections per IP
+* **Request Size Limits**: 1MB maximum request size
+* **Timeout Protection**: Request timeout after 30 seconds
+* **IP Blacklisting**: Automatic blocking of abusive IPs
+
+== Admin Dashboard Security
+
+=== Authentication and Authorization
+
+==== Multi-Factor Authentication
+The admin dashboard implements comprehensive authentication:
+
+[source,html]
+----
+<!-- Login Form with Security Features -->
+<form id="admin-login" class="secure-form">
+    <div class="form-group">
+        <label>Username:</label>
+        <input type="text" name="username" required autocomplete="username">
+    </div>
+    <div class="form-group">
+        <label>Password:</label>
+        <input type="password" name="password" required autocomplete="current-password">
+    </div>
+    <div class="form-group">
+        <label>2FA Code:</label>
+        <input type="text" name="totp" pattern="[0-9]{6}" required>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn-secure">Login</button>
+    </div>
+</form>
+----
+
+**Authentication Methods:**
+* **Username/Password**: Strong password requirements (12+ chars, mixed case, numbers, symbols)
+* **Time-based OTP**: TOTP tokens via Google Authenticator or similar apps
+* **Session Tokens**: Cryptographically secure session management
+* **IP Whitelisting**: Optional restriction to specific IP addresses
+
+==== Role-Based Access Control
+Multiple user roles with different permission levels:
+
+[source,php]
+----
+class UserRole {
+    const SUPER_ADMIN = 'super_admin';
+    const ADMIN = 'admin';
+    const OPERATOR = 'operator';
+    const VIEWER = 'viewer';
+    
+    private static $permissions = [
+        self::SUPER_ADMIN => ['*'],
+        self::ADMIN => [
+            'devices:create', 'devices:read', 'devices:update', 'devices:delete',
+            'versions:create', 'versions:read', 'versions:update', 'versions:delete',
+            'logs:read', 'settings:update'
+        ],
+        self::OPERATOR => [
+            'devices:read', 'devices:update',
+            'versions:read', 'versions:promote',
+            'logs:read'
+        ],
+        self::VIEWER => [
+            'devices:read', 'versions:read', 'logs:read'
+        ]
+    ];
+    
+    public static function hasPermission($role, $permission) {
+        $rolePerms = self::$permissions[$role] ?? [];
+        return in_array('*', $rolePerms) || in_array($permission, $rolePerms);
+    }
+}
+----
+
+=== Web Application Security
+
+==== Cross-Site Scripting (XSS) Prevention
+* **Content Security Policy**: Strict CSP headers prevent script injection
+* **Input Sanitization**: HTML encoding of all user inputs
+* **Output Encoding**: Context-aware output encoding
+* **DOM Purification**: Client-side XSS filtering
+
+[source,html]
+----
+<!-- CSP Header -->
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; 
+               script-src 'self' 'unsafe-inline'; 
+               style-src 'self' 'unsafe-inline'; 
+               img-src 'self' data:; 
+               connect-src 'self'">
+----
+
+==== Cross-Site Request Forgery (CSRF) Protection
+* **CSRF Tokens**: Unique tokens for each form submission
+* **SameSite Cookies**: Prevent cross-site cookie submission
+* **Referrer Validation**: Origin header verification
+
+[source,javascript]
+----
+// CSRF Token Implementation
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+function apiRequest(method, endpoint, data = null) {
+    const options = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken()
+        }
+    };
+    
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+    
+    return fetch(endpoint, options);
+}
+----
+
+==== Session Security
+* **Secure Cookies**: HTTPOnly and Secure flags set
+* **Session Rotation**: New session ID after login
+* **Timeout Protection**: Automatic logout after inactivity
+* **Concurrent Session Limits**: Maximum active sessions per user
+
+[source,php]
+----
+// Secure session configuration
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', 1);
+ini_set('session.use_strict_mode', 1);
+ini_set('session.gc_maxlifetime', 3600); // 1 hour timeout
+
+function createSecureSession($userId, $role) {
+    session_regenerate_id(true);
+    $_SESSION['user_id'] = $userId;
+    $_SESSION['role'] = $role;
+    $_SESSION['created'] = time();
+    $_SESSION['last_activity'] = time();
+}
+----
+
+=== File Upload Security
+
+==== Upload Validation
+Firmware uploads undergo rigorous security validation:
+
+[source,php]
+----
+function validateUpload($uploadedFile) {
+    // File type validation
+    $allowedMimes = ['application/gzip', 'application/x-gzip'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $uploadedFile['tmp_name']);
+    
+    if (!in_array($mimeType, $allowedMimes)) {
+        throw new SecurityException("Invalid file type");
+    }
+    
+    // File size validation
+    if ($uploadedFile['size'] > MAX_FILE_SIZE) {
+        throw new SecurityException("File too large");
+    }
+    
+    // File extension validation
+    $extension = pathinfo($uploadedFile['name'], PATHINFO_EXTENSION);
+    if (!in_array($extension, ['tar.gz', 'tgz'])) {
+        throw new SecurityException("Invalid file extension");
+    }
+    
+    // Virus scanning (if available)
+    if (function_exists('clamav_scan_file')) {
+        $scanResult = clamav_scan_file($uploadedFile['tmp_name']);
+        if ($scanResult !== false) {
+            throw new SecurityException("Malware detected");
+        }
+    }
+    
+    return true;
+}
+----
+
+==== File Storage Security
+* **Isolated Storage**: Uploaded files stored outside web root
+* **Access Controls**: File permissions restricted to web server user
+* **Cleanup Procedures**: Automatic removal of failed uploads
+* **Backup Encryption**: Encrypted backups of critical files
+
+== Network Security
+
+=== Firewall Configuration
+
+==== Server-Side Firewall Rules
+[source,bash]
+----
+#!/bin/bash
+# UFW Firewall Rules for OTA Server
+
+# Reset to defaults
+ufw --force reset
+
+# Default policies
+ufw default deny incoming
+ufw default allow outgoing
+
+# SSH access (admin only)
+ufw allow from 192.168.1.0/24 to any port 22
+
+# HTTPS only for web interface
+ufw allow 443/tcp
+ufw deny 80/tcp
+
+# MySQL (local only)
+ufw allow from 127.0.0.1 to any port 3306
+
+# Enable firewall
+ufw --force enable
+----
+
+==== Network Segmentation
+* **Management VLAN**: Separate network for admin access
+* **Device VLAN**: Isolated network for IoT devices
+* **DMZ Placement**: OTA server in demilitarized zone
+* **VPN Access**: Secure remote administration via VPN
+
+=== Intrusion Detection
+
+==== Log-Based Detection
+[source,bash]
+----
+# Fail2ban Configuration for OTA API
+[ota-api]
+enabled = true
+port = 443
+protocol = tcp
+filter = ota-api
+logpath = /var/log/pyrpicam/ota_api.log
+maxretry = 5
+bantime = 3600
+findtime = 600
+
+# Custom filter for OTA API abuse
+[Definition]
+failregex = ^.*Authentication failed.*client_ip: <HOST>$
+            ^.*Rate limit exceeded.*client_ip: <HOST>$
+            ^.*Invalid request.*client_ip: <HOST>$
+ignoreregex =
+----
+
+==== Real-time Monitoring
+* **Log Analysis**: Real-time parsing of security events
+* **Anomaly Detection**: Unusual access pattern identification
+* **Alert System**: Immediate notification of security incidents
+* **Automated Response**: Automatic IP blocking for severe threats
+
+== Compliance and Best Practices
+
+=== Security Standards Compliance
+
+==== OWASP Top 10 Mitigation
+The system addresses all OWASP Top 10 vulnerabilities:
+
+1. **Injection**: Parameterized queries and input validation
+2. **Broken Authentication**: Strong MFA and session management
+3. **Sensitive Data Exposure**: Encryption and access controls
+4. **XML External Entities**: JSON-only API design
+5. **Broken Access Control**: Role-based permissions
+6. **Security Misconfiguration**: Hardened default settings
+7. **Cross-Site Scripting**: CSP and output encoding
+8. **Insecure Deserialization**: Minimal serialization usage
+9. **Components with Vulnerabilities**: Regular security updates
+10. **Insufficient Logging**: Comprehensive audit trails
+
+==== Industry Standards
+* **ISO 27001**: Information security management alignment
+* **NIST Cybersecurity Framework**: Risk management approach
+* **IEC 62443**: Industrial security standards for IoT
+* **Common Criteria**: Security evaluation methodology
+
+=== Security Monitoring
+
+==== Audit Logging
+Comprehensive logging of all security-relevant events:
+
+[source,php]
+----
+function logSecurityEvent($event, $details) {
+    $logEntry = [
+        'timestamp' => date('c'),
+        'event' => $event,
+        'client_ip' => $_SERVER['REMOTE_ADDR'],
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+        'details' => $details,
+        'severity' => getSeverityLevel($event)
+    ];
+    
+    // Log to secure audit log
+    error_log(json_encode($logEntry), 3, SECURITY_LOG_FILE);
+    
+    // Send to SIEM if critical
+    if ($logEntry['severity'] === 'CRITICAL') {
+        sendToSIEM($logEntry);
+    }
+}
+----
+
+**Logged Events:**
+* Authentication attempts (success/failure)
+* Authorization violations
+* API rate limit violations
+* File upload attempts
+* Configuration changes
+* Database query failures
+* System errors and exceptions
+
+==== Security Metrics
+* **Authentication Success Rate**: Monitor for brute force attacks
+* **API Response Times**: Detect performance anomalies
+* **Error Rates**: Identify potential attacks or misconfigurations
+* **Geographic Access Patterns**: Unusual location access attempts
+* **File Integrity Checks**: Regular verification of system files
+
+=== Incident Response
+
+==== Security Incident Procedures
+1. **Detection**: Automated monitoring and manual reporting
+2. **Assessment**: Severity classification and impact analysis
+3. **Containment**: Immediate threat isolation and mitigation
+4. **Eradication**: Root cause elimination and system hardening
+5. **Recovery**: Secure system restoration and validation
+6. **Lessons Learned**: Post-incident review and improvement
+
+==== Emergency Response Contacts
+[source]
+----
+Security Team: security@domain.com
+Incident Hotline: +1-555-SECURITY
+Emergency Escalation: incident-response@domain.com
+Vendor Support: support@vendor.com
+----
+
+== Deployment Security Checklist
+
+=== Pre-Deployment Security Validation
+
+==== Server Hardening Checklist
+- [ ] Operating system fully updated
+- [ ] Unnecessary services disabled
+- [ ] Firewall rules configured and tested
+- [ ] SSH key-based authentication only
+- [ ] Strong passwords for all accounts
+- [ ] File permissions properly set
+- [ ] Backup and recovery procedures tested
+
+==== Application Security Checklist
+- [ ] HTTPS/TLS properly configured
+- [ ] Database credentials secure
+- [ ] API keys generated and distributed
+- [ ] Input validation implemented
+- [ ] Error handling configured
+- [ ] Logging and monitoring active
+- [ ] Rate limiting configured
+
+==== Network Security Checklist
+- [ ] Network segmentation implemented
+- [ ] VPN access configured
+- [ ] Intrusion detection active
+- [ ] DNS security configured
+- [ ] Certificate management planned
+- [ ] Backup connectivity available
+
+=== Post-Deployment Security Maintenance
+
+==== Regular Security Tasks
+* **Weekly**: Security log review and analysis
+* **Monthly**: Security patch assessment and application
+* **Quarterly**: Penetration testing and vulnerability assessment
+* **Annually**: Full security audit and compliance review
+
+==== Security Updates
+* **Critical Patches**: Applied within 24 hours
+* **Security Updates**: Applied within 7 days
+* **Regular Updates**: Applied monthly during maintenance window
+* **Emergency Patches**: Applied immediately with proper testing
+
+== Conclusion
+
+The PyRpiCamController OTA security implementation provides enterprise-grade protection through multiple security layers, comprehensive monitoring, and industry-standard best practices. Regular security assessments and updates ensure ongoing protection against evolving threats.
+
+For security incident reporting or questions about this security guide, please contact the security team at the addresses provided in the incident response section.
+
+Remember: Security is an ongoing process, not a one-time configuration. Stay vigilant and keep systems updated!

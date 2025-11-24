@@ -1,5 +1,5 @@
 <?php
-/* This file is an example of a receiving-script for images posted by the PyCam software.
+/* This file is an example of a simple receiving-script for images posted by the PyCam software.
     
     In the http request the cpuid of the camera is one key and then a second key is created from the timestamp when the 
     call was received to the server. All files are stored in a structure with camera cpuid at the top and one folder for each date.

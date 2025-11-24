@@ -1,0 +1,258 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamerainställningar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .section-title {
+            background-color: #f8f9fa;
+            padding: 12px 20px;
+            margin: 0;
+            font-size: 18px;
+            color: #555;
+            border-bottom: 1px solid #ddd;
+        }
+        .section-content {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .form-group .description {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        .form-group input[readonly] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        .submit-button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .submit-button:hover {
+            background-color: #0056b3;
+        }
+        .validation-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .readonly-field {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 12px 24px;
+            background-color: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            color: #555;
+            border-radius: 4px 4px 0 0;
+            margin-right: 4px;
+            font-weight: 500;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab:hover:not(.active) {
+            background-color: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kamerakontroller Inställningar</h1>
+        
+        <!-- Basic/Advanced Tabs -->
+        <div class="tabs">
+            <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Grundinställningar</a>
+            <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Avancerade inställningar</a>
+        </div>
+        
+        <div style="background-color: {% if current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
+                    color: {% if current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
+                    padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <strong>{% if current_level == 'basic' %}Grundinställningar{% else %}Avancerade inställningar{% endif %}:</strong> 
+            {% if current_level == 'basic' %}
+                Viktiga kamerainställningar för normal drift. 
+                <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Behöver du fler alternativ?</a>
+            {% else %}
+                Avancerade konfigurationsalternativ för erfarna användare.
+                <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Tillbaka till grundinställningar</a>
+            {% endif %}
+        </div>
+        
+        <form method="post">
+            <input type="hidden" name="current_level" value="{{ current_level }}">
+            {% for section_name, section_fields in grouped_schema.items() %}
+            <div class="section">
+                <h2 class="section-title">{{ section_name }}</h2>
+                <div class="section-content">
+                    {% for field_path, field_info in section_fields %}
+                    <div class="form-group">
+                        <label for="{{ field_path }}">{{ field_info.name }}</label>
+                        
+                        {% if field_info.description %}
+                        <div class="description">{{ field_info.description }}</div>
+                        {% endif %}
+                        
+                        {% set current_value = current_values[field_path] %}
+                        {% set is_readonly = field_info.get('readonly', false) %}
+                        
+                        {% if field_info.type == 'bool' %}
+                            <input type="checkbox" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="true"
+                                   {% if current_value %}checked{% endif %}
+                                   {% if is_readonly %}disabled class="readonly-field"{% endif %}>
+                        
+                        {% elif field_info.get('options') %}
+                            <select id="{{ field_path }}" 
+                                    name="{{ field_path }}"
+                                    {% if is_readonly %}disabled class="readonly-field"{% endif %}>
+                                {% for option in field_info.options %}
+                                <option value="{{ option }}" 
+                                        {% if current_value == option %}selected{% endif %}>
+                                    {{ option }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        
+                        {% elif field_info.type == 'tuple' %}
+                            <input type="text" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="{{ current_value|join(', ') if current_value else '' }}"
+                                   {% if is_readonly %}readonly class="readonly-field"{% endif %}
+                                   placeholder="Ange kommaseparerade värden">
+                            <div class="validation-info">Ange värden separerade med kommatecken (t.ex. 640, 480)</div>
+                        
+                        {% else %}
+                            <input type="{% if field_info.type == 'password' %}password{% elif field_info.type == 'int' or field_info.type == 'float' %}number{% else %}text{% endif %}" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="{{ current_value if current_value is not none else '' }}"
+                                   {% if is_readonly %}readonly class="readonly-field"{% endif %}
+                                   {% if field_info.type == 'float' %}step="any"{% endif %}
+                                   {% if field_info.get('min') is not none %}min="{{ field_info.min }}"{% endif %}
+                                   {% if field_info.get('max') is not none %}max="{{ field_info.max }}"{% endif %}>
+                        {% endif %}
+                        
+                        {% if field_info.get('min') is not none or field_info.get('max') is not none %}
+                        <div class="validation-info">
+                            {% if field_info.get('min') is not none and field_info.get('max') is not none %}
+                                Intervall: {{ field_info.min }} - {{ field_info.max }}
+                            {% elif field_info.get('min') is not none %}
+                                Minimum: {{ field_info.min }}
+                            {% elif field_info.get('max') is not none %}
+                                Maximum: {{ field_info.max }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <button type="submit" class="submit-button">Spara inställningar</button>
+        </form>
+    </div>
+
+    <script>
+        // Add some client-side validation if needed
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Add any client-side validation here
+            console.log('Skickar inställningsformulär');
+        });
+
+        // Auto-save functionality (optional)
+        let autoSaveTimeout;
+        function setupAutoSave() {
+            const inputs = document.querySelectorAll('input:not([readonly]), select:not([disabled])');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    clearTimeout(autoSaveTimeout);
+                    autoSaveTimeout = setTimeout(() => {
+                        // Could implement auto-save via AJAX here
+                        console.log('Autospara aktiverat för:', this.name);
+                    }, 2000);
+                });
+            });
+        }
+
+        // Initialize auto-save when page loads
+        document.addEventListener('DOMContentLoaded', setupAutoSave);
+    </script>
+</body>
+</html>

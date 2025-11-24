@@ -1,3 +1,9 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+
+__author__ = 'teddycool'
 
 # creating timelapse from still images (jpg) to mp4 using ffmpeg
 # https://superuser.com/questions/1499968/creating-timelapse-from-still-images-jpg-to-mp4-using-ffmpeg

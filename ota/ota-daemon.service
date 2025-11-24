@@ -1,0 +1,35 @@
+[Unit]
+Description=PyRpiCamController OTA Update Daemon
+Documentation=https://github.com/teddycool/PyRpiCamController
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/PyRpiCamController
+Environment=PYTHONPATH=/home/pi/PyRpiCamController
+ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/ota/install/ota_daemon.py --daemon
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/home/pi/PyRpiCamController /home/pi/shared/logs /home/pi/ota
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Resource limits
+MemoryHigh=256M
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

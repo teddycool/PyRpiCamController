@@ -1,3 +1,9 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+__author__ = 'teddycool'
+
 from Cam import CamBase
 from picamera2 import Picamera2, Preview
 import libcamera
@@ -17,11 +23,11 @@ class PiCam3(CamBase.CamBase):
     
  #Cam mode   
     def start(self, settings):
-        res = (settings["Cam"]["width"], settings["Cam"]["height"])
+        res = (settings["Cam"]["resolution"])
 
         if not self.iResSupported(res):
-            logger.warning("Cam resolution " + str(res) + " requested in config, but not supported!")            
-            logger.info("Setting first valid res from list " + str(self._supportedImagesResolutions) )
+            logger.warning("Cam resolution " + str(res) + " requested in config, but not supported!")
+            logger.info("Setting first valid res from list " + str(self._supportedImagesResolutions))
             res = self._supportedImagesResolutions[0]
 
         self._cam = Picamera2()
@@ -46,9 +52,8 @@ class PiCam3(CamBase.CamBase):
         try:
             success = self._cam.autofocus_cycle()
             if not success:
-                logger.info("Current image might be blurry. Autofocus cycle failed.")  
-            request = self._cam.capture_request()            
-          #  self._currentimg = self._cam.capture_array("main")    #How to avoid lock-up here? 
+                logger.info("Current image might be blurry. Autofocus cycle failed.")
+            request = self._cam.capture_request()   
             self._currentMetaData = request.get_metadata()
             self._currentimg = request.make_array("main")
              
@@ -58,6 +63,8 @@ class PiCam3(CamBase.CamBase):
             logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
         except:
             logger.warning("Failed to update image buffer %s" % str(sys.exc_info()))
+            self._currentimg = None
+            self._currentMetaData = None
         
 #Stream mode
 

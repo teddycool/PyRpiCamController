@@ -1,6 +1,11 @@
-#Default settings and hw config
-from camconfig import defaultsettings
-from camconfig import hwconfig
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+__author__ = 'teddycool'
+
+#Hardware config
+from hwconfig import hwconfig1 as hwconfig
 
 import time
 import os
@@ -14,9 +19,14 @@ from CamStates import PostState
 from CamStates import StreamState
 
 import RPi.GPIO as GPIO
-from Connectivity import Settings
-from camconfig import defaultsettings
+from hwconfig import hwconfig1 as hwconfig
 import time
+
+# Add project root to path for settings manager
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Settings.settings_manager import settings_manager
 
 import logging
 logger = logging.getLogger("cam.mainloop")
@@ -30,7 +40,6 @@ class MainLoop(object):
         #TODO: add and check settings for IO enabled
         GPIO.setmode(GPIO.BCM)
         self.mycpuserial = cpuserial.getserial()
-        self._settingsMngr = Settings.Settings(defaultsettings)
         logger.info("My serial is : " + self.mycpuserial)
 
         self._lastconfigcheck = 0
@@ -59,7 +68,7 @@ class MainLoop(object):
     def initialize(self):
         logger.info("Mainloop initialize")      
         if (hwconfig["LightBox"]):
-            light =self._settingsMngr.curSettings["Light"]
+            light = settings_manager.get("Light")
             self._lightbox.start(light)
             logger.info("Lightbox started with " + str(light) + "%")  
         self.setState("InitState")
@@ -74,17 +83,17 @@ class MainLoop(object):
 
         #TODO: Check temperatures and other 'house-keeping'
 
-        if time.time() - self._lasttempcheck > self._settingsMngr.curSettings["CheckCpuTemp"]:
+        if time.time() - self._lasttempcheck > settings_manager.get("CheckCpuTemp"):
             self._cputemp=self._cputempmonitor.get_cpu_temperature()
             self._lasttempcheck = time.time()
             logger.debug("Current CPU-temperature: " + str(self._cputemp))
-            if self._cputemp > self._settingsMngr.curSettings["Limits"]["maxcputemp"]:
+            if self._cputemp > settings_manager.get("Limits.maxcputemp"):
                 logger.error("Critical CPU-temperature: " + str(self._cputemp))
                 logger.error("Will halt system for 5 minutes to cool off")
                 time.sleep(300)
                 logger.info("CPU-temperature after cool-off is now: " + str(self._cputempmonitor.get_cpu_temperature()))
             else:   
-                if self._cputemp > self._settingsMngr.curSettings["Limits"]["wcputemp"]:
+                if self._cputemp > settings_manager.get("Limits.wcputemp"):
                     logger.warning("High CPU-temperature: " + str(self._cputemp))
         #Finally, update the current state logic..                  
         self._currentstate.update(self)      
@@ -94,7 +103,7 @@ class MainLoop(object):
         logger.info("State changed to: " + statename)
         #TODO: dispose resources from previous state
         self._currentstate = self.states[statename]
-        self._currentstate.initialize(self._settingsMngr.curSettings)
+        self._currentstate.initialize(settings_manager.get_dict())
 
     def stop(self):
         logger.info("Mainloop stopped")

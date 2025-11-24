@@ -1,14 +1,37 @@
-#Install-script for CamController, run as root
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
-# NOTE:  For zero and zero v2 the swap-file needs to be enlarged or the install fails.
+__author__ = 'teddycool'
+
+# Install-script for PyRpiCamController - Complete system setup
+# Installs all dependencies, services, and configures the system for camera operation
+# 
+# Features installed:
+# - Camera controller with unified settings system
+# - Swedish web interface for configuration  
+# - Samba file sharing for remote access
+# - ComitUp for easy WiFi setup
+# - OTA update system (ready but commented out)
+# 
+# NOTE: Intended for RPi3B+ but works with other models
+# For Pi Zero models: enlarge swap file before installation
 # Adjust swap: https://pimylifeup.com/raspberry-pi-swap-file/
 
-
-#Need to be changed to fit the hardware and wanted config
+# Legacy config file path (for backward compatibility)
 configfilepath = "/home/pi/tools/camconfig-tmpl.py"
+
+# NOTE: This script assumes the PyRpiCamController project has been cloned/copied to:
+#       /home/pi/PyRpiCamController/
+# 
+# To deploy the project before running this installer:
+# 1. Clone: git clone https://github.com/teddycool/PyRpiCamController.git /home/pi/PyRpiCamController
+# 2. OR: Copy the entire project directory to /home/pi/PyRpiCamController/
 
 import os
 import time
+
+startime = time.time()
 
 def getserial():
   # Extract serial from cpuinfo file
@@ -20,8 +43,8 @@ def getserial():
         cpuserial = line[10:26]
     f.close()
   except:
-    cpuserial = "ERROR000000000"  
-  return cpuserial
+    cpuserial = "ERROR000000000"   
+  return cpuserial.lstrip("0") #Remove leading zeros
 
 
 def detect_model() -> str:
@@ -35,6 +58,29 @@ try:
   print("Serial number: " + getserial())
   print("Model: " + detect_model())
   print("*****************************************")
+  
+  # Pre-flight checks
+  print("* Checking project deployment...")
+  if not os.path.exists("/home/pi/PyRpiCamController"):
+      print("ERROR: PyRpiCamController project not found at /home/pi/PyRpiCamController/")
+      print("Please clone or copy the project first:")
+      print("git clone https://github.com/teddycool/PyRpiCamController.git /home/pi/PyRpiCamController")
+      exit(1)
+      
+  required_dirs = [
+      "/home/pi/PyRpiCamController/CamController",
+      "/home/pi/PyRpiCamController/Settings", 
+      "/home/pi/PyRpiCamController/webgui",
+      "/home/pi/PyRpiCamController/tools"
+  ]
+  
+  for dir_path in required_dirs:
+      if not os.path.exists(dir_path):
+          print(f"ERROR: Required directory not found: {dir_path}")
+          print("Please ensure the complete project is deployed.")
+          exit(1)
+  
+  print("* Project deployment verified ✓")
 
   os.system("sudo apt update -y")
 
@@ -42,26 +88,62 @@ try:
   print("Installing needed packages")
   print("*****************************************")
 
+  # Core Python and camera support
   os.system("sudo apt install -y python3-pip")
   os.system("sudo apt install -y python3-picamera2")
-  os.system("sudo pip install rpi-ws281x --break-system-packages")  #System-wide, without venv
-
+  os.system("sudo apt install -y libcamera-apps")  # Camera applications
+  os.system("sudo apt install -y python3-libcamera")
+  
+  # LED strip control (system-wide for hardware access)
+  os.system("sudo pip install rpi-ws281x --break-system-packages")
+  
+  # Computer vision and image processing
   os.system("sudo apt install -y python3-opencv")
   os.system("sudo apt install -y opencv-data")
   os.system("sudo apt install -y ffmpeg")
-  #is this needed?
-  #os.system("sudo apt install -y libcamera-dev libepoxy-dev libjpeg-dev libtiff5-dev")
   os.system("sudo pip install simplejpeg --break-system-packages")
+  
+  # HTTP requests and web functionality  
+  os.system("sudo pip install requests --break-system-packages")
+  
+  # System utilities
+  os.system("sudo apt install -y git")  # For OTA and general development
+  os.system("sudo apt install -y curl")  # For web requests
+  
+  # Additional camera dependencies (if needed)
+  #os.system("sudo apt install -y libcamera-dev libepoxy-dev libjpeg-dev libtiff5-dev")
 
   print("*****************************************")
-  print("* Copy correct settings for CamController...")
-  os.system("sudo cp " + configfilepath + " /home/pi/CamController/config.py")
+  print("* Setting up unified settings system...")
+  print("*****************************************")
+  
+  # Note: Assumes the PyRpiCamController project is already copied to /home/pi/PyRpiCamController
+  # during initial deployment. The unified settings system is already in place.
+  
+  # Verify settings system is in place
+  if not os.path.exists("/home/pi/PyRpiCamController/Settings"):
+      print("* ERROR: Settings directory not found. Ensure PyRpiCamController is properly deployed.")
+      exit(1)
+  
+  if not os.path.exists("/home/pi/PyRpiCamController/webgui"):
+      print("* ERROR: webgui directory not found. Ensure PyRpiCamController is properly deployed.")
+      exit(1)
+      
+  print("* Unified settings system and web interface found and ready.")
+  
+  # Copy legacy config for backward compatibility (if exists)
+  if os.path.exists(configfilepath):
+      print("* Copying legacy config file for backward compatibility...")
+      os.system("sudo cp " + configfilepath + " /home/pi/PyRpiCamController/CamController/config.py")
+  else:
+      print("* Legacy config file not found, using unified settings only...")
 
   print("*****************************************")
   print("* Setting up the pycam service")
   print("*****************************************")
 
-  os.system("sudo cp /home/pi/tools/pycam.service  /etc/systemd/system/pycam.service") #Changd.. https://www.thedigitalpictureframe.com/ultimate-guide-systemd-autostart-scripts-raspberry-pi/
+  os.system("sudo cp /home/pi/PyRpiCamController/tools/pycam.service  /etc/systemd/system/pycam.service") 
+  #Changed.. https://www.thedigitalpictureframe.com/ultimate-guide-systemd-autostart-scripts-raspberry-pi/
   #sudo chmod 644 /etc/systemd/system/name-of-your-service.service
   os.system("sudo systemctl daemon-reload")
   os.system("sudo systemctl enable pycam.service")
@@ -73,12 +155,11 @@ try:
   print("*****************************************")
 
 
-
   os.system("sudo wget https://davesteele.github.io/comitup/deb/davesteele-comitup-apt-source_1.3_all.deb")
   os.system("sudo dpkg -i davesteele-comitup-apt-source*.deb")
   os.system("sudo apt-get update")
   os.system("sudo apt-get install -y comitup comitup-watch")
-  os.system("sudo cp /home/pi/tools/comitup.conf /etc/comitup.conf")
+  os.system("sudo cp /home/pi/PyRpiCamController/tools/comitup.conf /etc/comitup.conf")
   os.system("sudo rm /etc/network/interfaces")
   os.system("sudo systemctl mask dnsmasq.service")
   os.system("sudo systemctl mask systemd-resolved.service")
@@ -88,26 +169,150 @@ try:
   os.system("sudo systemctl enable NetworkManager.service")
   os.system("sudo touch /boot/ssh")
 
+
+  print("*****************************************")
+  print("Create the project directory structure")
+  print("*****************************************")
+
+  # Main shared directories
+  os.system("mkdir -p /home/pi/shared")
+  os.system("chmod 777 /home/pi/shared")
+  os.system("mkdir -p /home/pi/shared/images")
+  os.system("chmod 777 /home/pi/shared/images")
+  os.system("mkdir -p /home/pi/shared/logs")
+  os.system("chmod 777 /home/pi/shared/logs")
+  
+  # Additional project directories
+  os.system("mkdir -p /home/pi/PyRpiCamController")
+  
+  # Timelapse directory (optional)
+  os.system("mkdir -p /home/pi/timelapse")
+  os.system("chmod 755 /home/pi/timelapse")
+  
+
+  print("*****************************************")
+  print("*Install SAMBA file-sharing")
+  print("*****************************************")
+  os.system("sudo apt update")
+  os.system("sudo apt install -y samba samba-common-bin")
+  os.system("sudo cp /home/pi/PyRpiCamController/tools/smb.conf /etc/samba/smb.conf")
+  os.system("sudo systemctl restart smbd")
+
+  print("*****************************************")
+  print("*Install Flask web-server and web-gui for config")
+  print("*****************************************")
+  os.system("sudo pip3 install flask --break-system-packages")
+
+  os.system("sudo apt install -y gunicorn")
+  os.system("sudo cp /home/pi/PyRpiCamController/webgui/webgui.service  /etc/systemd/system/webgui.service")
+  os.system("sudo systemctl daemon-reload")
+  os.system("sudo systemctl enable webgui")
+  os.system("sudo systemctl start webgui")
+  
+  # OTA (Over-The-Air) Update System Setup (COMMENTED OUT - API not yet deployed)
+  # print("*****************************************")
+  # print("*Install OTA update system")
+  # print("*****************************************")
+  # 
+  # # Create OTA directories
+  # os.system("sudo mkdir -p /home/pi/ota")
+  # os.system("sudo mkdir -p /home/pi/ota/bu")      # Backup directory
+  # os.system("sudo mkdir -p /home/pi/ota/sw")      # Software staging directory
+  # os.system("sudo chmod 755 /home/pi/ota")
+  # 
+  # # Copy OTA system files
+  # os.system("sudo cp -r /home/pi/ota/install /home/pi/ota/")
+  # os.system("sudo cp /home/pi/ota/recovery.sh /home/pi/ota/")
+  # os.system("sudo chmod +x /home/pi/ota/recovery.sh")
+  # 
+  # # Install and enable OTA daemon service
+  # os.system("sudo cp /home/pi/ota/ota-daemon.service /etc/systemd/system/ota-daemon.service")
+  # os.system("sudo systemctl daemon-reload")
+  # os.system("sudo systemctl enable ota-daemon")
+  # # Note: Don't start OTA daemon until server API is ready and settings are configured
+  # print("* OTA daemon installed but not started - configure settings first")
+
+
   print("*****************************************")
   print("* Setting new hostname...")
-  os.system("sudo hostnamectl set-hostname " + getserial())
-  print("Hostname is now: " + getserial())
+  print("*****************************************")
+  hostname = getserial()
+  os.system("sudo hostnamectl set-hostname " + hostname)
+  print("Hostname is now: " + hostname + " (activates after reboot)")
+  print("")
+  print("")
+  print("*****************************************")  
+  print("Installation Summary:")
+  print("*****************************************") 
+  print("Project structure created:")
+  print("- /home/pi/PyRpiCamController/ - Main application")
+  print("- /home/pi/shared/images/      - Image storage")
+  print("- /home/pi/shared/logs/        - All system logs (accessible via network)")
+  print("- /home/pi/timelapse/         - Timelapse directory")
+  print("- /home/pi/Settings/          - Unified settings system")
+  print("- /home/pi/webgui/            - Web interface")
+  # print("- /home/pi/ota/               - OTA update system (ready but not active)")
+  print("")
+  
+  print("Services installed and enabled:")
+  print("- pycam.service    - Main camera application")
+  print("- webgui.service   - Web configuration interface")
+  # print("- ota-daemon.service - OTA update daemon (installed but not started)")
+  print("- smbd.service     - Samba file sharing")
+  print("")
+  
+  print("Network access:")
+  print("- Hostname: " + getserial() + ".local")
+  print("- Web GUI: http://"+ getserial() +".local:8000")
+  print("- Samba share: \\\\"+ getserial() +".local\\shared")
+  print("")
+  
+  print("Available disk space:")
+  os.system("df -h")
+  print("")
+  
+  endtime = time.time()
 
-  #TODO: setup instance in db with ssh pw and basic config
+  #sudo nano /etc/hosts
+  #edit to add/change the line: 127.0.1.1   <new hostname>
 
   print("*****************************************")
-  print("Network needs to be re-configurated with commitup after restart!")
-  input("Press Enter to continue and reboot with new services, or cntrl+C to return to prompt...")
+  print("* Installation is now completed!")
+  print("* Time for the install: " + str(int(endtime-startime)) + " seconds")
+  print("* Network might need to be re-configured with commitup after restart!")
   print("*****************************************")
-  print("Now rebooting in 5 sec.")
+  print("")
+  print("To get started:")
+  print("1: Connect to the CamController AP (ComitUp) and configure WiFi:")
+  print("   - Open http://10.41.0.1 to set up network connection")
+  print("2: Configure camera settings via web interface:")
+  print("   - Open http://"+ getserial() +".local:8000 after reboot")
+  print("   - Use Basic/Advanced tabs for different setting levels")
+  print("3: Access files via Samba network share:")
+  print("   - Windows: \\\\"+ getserial() +".local\\shared")
+  print("   - Linux/Mac: smb://"+ getserial() +".local/shared")
+  print("4: Monitor logs and images via network share:")
+  print("   - All logs are in /home/pi/shared/logs/ (accessible via Samba)")
+  print("   - Images are in /home/pi/shared/images/ (accessible via Samba)")
+  # print("5: Enable OTA updates (when server API is ready):")
+  # print("   - Configure OTA settings in web interface")
+  # print("   - Start ota-daemon service: sudo systemctl start ota-daemon")
 
-  time.sleep(5)
-  os.system("sudo reboot")
+except KeyboardInterrupt:
+  print("Install aborted by user...")
+  exit(0)
+except Exception as e:
+  print("Install catched an exception:", e)
+  exit(1)
 
+try:
+  input("Press Enter to continue and reboot with the new services, or ctrl+C to return to prompt...")
+except KeyboardInterrupt:
+  print("Stopped by user, returning to prompt...")
+  print("A reboot is needed to activate the new services, run 'sudo reboot' to do so.")
+  exit(0)
 
-except (KeyboardInterrupt):
-   print("Stopped by user...")
-except:
-   print("Installed catched exception: ", exc_info=1)
-
-  # #TODO
+print("*****************************************")
+print("Now rebooting in 5 sec.....")
+time.sleep(5)
+os.system("sudo reboot")

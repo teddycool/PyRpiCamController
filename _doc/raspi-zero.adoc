@@ -1,0 +1,18 @@
+=== How to adjust swap on zero and zero v2
+For Raspberry Pi Zero and Zero v2 the swap-file needs to be enlarged to at least 2GB for the install to work.
+This is done by editing the file /etc/dphys-swapfile and changing the CONF_SWAPSIZE to 2048 (or more if you want).
+You can do this by running the following commands: 
+
+[source]
+----
+sudo dphys-swapfile swapoff
+sudo nano /etc/dphys-swapfile
+----
+
+Change CONF_SWAPSIZE to 2048 (or more if you want) and save the file. Then run:
+
+[source]
+----
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+----

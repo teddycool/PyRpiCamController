@@ -1,3 +1,9 @@
+# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+# The complete project is available at: https://github.com/teddycool/PyRpiCamController
+# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+
+__author__ = 'teddycool'
+
 import MainLoop
 import time
 import os
@@ -5,21 +11,24 @@ import sys
 import logging
 import logging.handlers
 from Connectivity import cpuserial
-from camconfig import defaultsettings
 import json
+# Import the new settings manager
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Settings.settings_manager import settings_manager
+
 # TODO: check for OTA at start, if enabled start with new thread, close current and restart after install
 
 #if(ota):
 #    os.system("python /home/pi/ota/installota.py &")
  
-mycpuserial = cpuserial.getserial()
+mycpuserial = cpuserial.getserial().lstrip("0")
 
 # TODO: get all settings from server at start...
 
 import logging
-loglevels = {"debug": logging.DEBUG, "info": logging.INFO}
+loglevels = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR, "critical": logging.CRITICAL}
 try:
-    loglevel = loglevels[defaultsettings["LogLevel"]]
+    loglevel = loglevels[settings_manager.get("LogLevel").lower()]
 except:
     loglevel = logging.DEBUG
 
@@ -51,12 +60,33 @@ sh = logging.StreamHandler()
 sh.setFormatter(formatter)
 logger.addHandler(sh)
 
-if defaultsettings["LogToServer"]:
-    httph = logging.handlers.HTTPHandler(host=defaultsettings["LogHost"], url=defaultsettings["LogUrl"], method="GET", secure=False)
-    logger.addHandler(httph)
+if settings_manager.get("LogToServer"):
+    # Use secure logging if API key is configured
+    log_api_key = settings_manager.get("LogApiKey")
+    if log_api_key:
+        from LoggingSecure import LoggingSecureHandler
+        secure_handler = LoggingSecureHandler(
+            host=settings_manager.get("LogHost"),
+            url=settings_manager.get("LogUrl"),
+            api_key=log_api_key
+        )
+        secure_handler.setFormatter(jsonformatter)
+        logger.addHandler(secure_handler)
+    else:
+        httph = logging.handlers.HTTPHandler(
+            host=settings_manager.get("LogHost"), 
+            url=settings_manager.get("LogUrl"), 
+            method="GET", 
+            secure=False
+        )
+        logger.addHandler(httph)
 
-if defaultsettings["LogToFile"]:
-    fh = logging.handlers.RotatingFileHandler(defaultsettings["LogFilePath"],maxBytes=defaultsettings["LogFileSize"], backupCount=defaultsettings["LogFileBuCount"])
+if settings_manager.get("LogToFile"):
+    fh = logging.handlers.RotatingFileHandler(
+        settings_manager.get("LogFilePath"),
+        maxBytes=settings_manager.get("LogFileSize"), 
+        backupCount=settings_manager.get("LogFileBuCount")
+    )
     fh.setFormatter(jsonformatter)
     logger.addHandler(fh)
 
