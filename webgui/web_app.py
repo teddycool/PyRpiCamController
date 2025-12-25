@@ -58,7 +58,14 @@ def convert_form_value(raw_value, schema_info):
     elif setting_type == 'float':
         value = float(raw_value)
     elif setting_type == 'bool':
-        value = raw_value.lower() in ('true', '1', 'on', 'yes')
+        # Handle both string values (from forms) and boolean values (from AJAX)
+        if isinstance(raw_value, bool):
+            value = raw_value
+        elif isinstance(raw_value, str):
+            value = raw_value.lower() in ('true', '1', 'on', 'yes')
+        else:
+            # Convert other types to boolean
+            value = bool(raw_value)
     elif setting_type == 'tuple':
         # Handle tuple input - expect comma-separated values
         try:
