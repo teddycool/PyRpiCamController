@@ -13,7 +13,7 @@ hwconfig1 = {
     "Description": "RPi3B+ with PiCam3 and lightbox",
     "Version": 1, # version of the settings structure      
     "RpiBoard": "Rpi3B+", 
-    "CamChip": "PiCam3",  # PiCam2, PiCamHQ, PiCam3
+    "CamChip": "PiCam3",  # PiCam2, PiCamHQ, PiCam3, WebCam
     "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin
@@ -21,4 +21,5 @@ hwconfig1 = {
         "displaysize": 1,  # number of leds
     },
 }
+
 

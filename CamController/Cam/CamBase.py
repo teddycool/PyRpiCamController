@@ -44,4 +44,8 @@ def getCam(camtype):
     if (camtype == "PiCamHQ"):
         from Cam import PiCamHQ
         return PiCamHQ.PiCamHQ()
+    if (camtype == "WebCam"):
+        from Cam import WebCam
+        return WebCam.WebCam()
     
+    raise ValueError("Unknown camera type: " + str(camtype))

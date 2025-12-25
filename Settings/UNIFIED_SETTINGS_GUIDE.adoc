@@ -119,11 +119,11 @@ The settings are organized into logical sections:
 
 [source,python]
 ----
-# OLD:
-from camconfig import defaultsettings
-value = defaultsettings['LogLevel']
+# LEGACY (removed):
+# from camconfig import defaultsettings
+# value = defaultsettings['LogLevel']
 
-# NEW:
+# CURRENT: Using unified settings system
 from Settings.settings_manager import settings_manager
 value = settings_manager.get('LogLevel')
 ----
@@ -132,10 +132,10 @@ value = settings_manager.get('LogLevel')
 
 [source,python]
 ----
-# OLD:
-resolution = defaultsettings['Cam']['resolution']
+# LEGACY (removed):
+# resolution = defaultsettings['Cam']['resolution']
 
-# NEW:
+# CURRENT: Using unified settings system
 resolution = settings_manager.get('Cam.resolution')
 ----
 

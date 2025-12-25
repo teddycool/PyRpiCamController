@@ -40,7 +40,13 @@ The main application folder containing the core camera control software written 
 * **IO/** - Input/output modules for hardware control (Display, lighting, etc.)
 * **Publishers/** - Publishing modules for saving images and metadata (FilePublisher, HttpPublisher)
 * **Connectivity/** - Network and connectivity management modules
-* **camconfig.py** - Main configuration file with all settings and defaults
+
+=== Settings
+Unified settings system provides configuration management:
+
+* **settings_manager.py** - Central settings manager with Python interface
+* **settings_schema.json** - Single source of truth for all settings definitions
+* **user_settings.json** - User customizations that override defaults
 
 === webgui
 Flask-based web interface for remote camera system configuration:
@@ -196,11 +202,19 @@ https://github.com/davesteele/comitup/wiki/Installing-Comitup
 == How the cam-software works
 The basic function is to take pictures and publish those to a file or/and a backend.
 
-There is a settings-file (camsettings.py) with a lot of different settings such as resolution, image-interval, backend-receive-script-url, loglevel etc. This file contains both the hardware settings and a default userconfig.
+The software uses a **unified settings system** with three key components:
 
-The software acts like a 'game-loop' with a main that starts a mainloop and run update on all activated objects. The mainloop is a while-loop that runs until the program is stopped or killed. Different behaivior is implemented as different cam-states and the mainloop updates the state that is currently active.
+* **settings_schema.json** - Defines all available settings, types, and validation rules
+* **settings_manager.py** - Python interface for accessing settings programmatically
+* **user_settings.json** - User customizations that override schema defaults
 
-Logging is implemented with python's logging module and the loglevel is set in the settings-file. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an exaple is provided in the 'backend' folder.
+Configuration can be managed in two ways:
+* **Web interface** - Swedish language GUI at http://localhost:5000 for user-friendly editing
+* **Python code** - Direct programmatic access via the settings manager
+
+The software acts like a 'game-loop' with a main that starts a mainloop and runs update on all activated objects. The mainloop is a while-loop that runs until the program is stopped or killed. Different behavior is implemented as different cam-states and the mainloop updates the state that is currently active.
+
+Logging is implemented with python's logging module and the loglevel is set in the unified settings. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an example is provided in the 'backend' folder.
 
 == Changing the settings
 

@@ -4,14 +4,17 @@
 
 __author__ = 'teddycool'
 
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, jsonify, flash
 import sys
 import os
+import json
+import socket
 # Add parent directory to path to access Settings module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Settings.settings_manager import settings_manager
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -27,7 +30,12 @@ def index():
                 continue  # Skip read-only or non-web-editable fields
             
             raw_value = request.form.get(field)
+            
+            # Handle unchecked checkboxes (boolean fields that aren't in form data)
             if raw_value is None:
+                if schema_info['type'] == 'bool':
+                    # Unchecked checkbox - set to False
+                    settings_manager.set(field, False, save=False)
                 continue
             
             try:
@@ -41,6 +49,10 @@ def index():
         
         # Save all changes at once
         settings_manager.save_user_settings()
+        
+        # Flash success message
+        flash("Inställningar sparade! Klicka 'Ladda om inställningar' för att aktivera ändringarna.", "success")
+        
         return redirect(f"/?level={request.form.get('current_level', 'basic')}")
     
     # GET request - display form
@@ -112,6 +124,114 @@ def convert_form_value(raw_value, schema_info):
         value = raw_value
     
     return value
+
+
+@app.route("/api/stream/status")
+def stream_status():
+    """Get current streaming status"""
+    try:
+        # Check if streaming server is running
+        port = settings_manager.get('Stream.port', 8000)
+        hostname = socket.gethostname()
+        
+        # Try to connect to streaming server to check if it's running
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('localhost', port))
+            sock.close()
+            is_running = (result == 0)
+        except:
+            is_running = False
+        
+        # Get actual FPS if streaming is running
+        actual_fps = 0.0
+        if is_running:
+            try:
+                import requests
+                response = requests.get(f'http://localhost:{port}/api/info', timeout=2)
+                if response.status_code == 200:
+                    stream_info = response.json()
+                    actual_fps = stream_info.get('actual_fps', 0.0)
+            except:
+                # Fallback if streaming server API is not available
+                actual_fps = 0.0
+        
+        return jsonify({
+            'running': is_running,
+            'port': port,
+            'url': f"http://{hostname}:{port}",
+            'resolution': settings_manager.get('Stream.resolution', [800, 600]),
+            'framerate': settings_manager.get('Stream.framerate', 15),
+            'actual_fps': actual_fps
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/stream/start", methods=["POST"])
+def start_stream():
+    """Start streaming mode"""
+    try:
+        # Write a state change file that the main loop can monitor
+        state_file = "/tmp/cam_state_request.txt"
+        with open(state_file, 'w') as f:
+            f.write("StreamState\n")
+        
+        return jsonify({'success': True, 'message': 'Streaming mode requested'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/stream/stop", methods=["POST"])  
+def stop_stream():
+    """Stop streaming mode and return to normal operation"""
+    try:
+        # Write a state change file that the main loop can monitor
+        state_file = "/tmp/cam_state_request.txt"
+        with open(state_file, 'w') as f:
+            f.write("PostState\n")
+        
+        return jsonify({'success': True, 'message': 'Normal mode requested'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/settings/reload", methods=["POST"])
+def reload_settings():
+    """Reload settings without full service restart"""
+    try:
+        # Write a settings reload request file
+        reload_file = "/tmp/cam_reload_settings.txt"
+        with open(reload_file, 'w') as f:
+            f.write("reload_settings\n")
+        
+        return jsonify({'success': True, 'message': 'Settings reload requested'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/restart", methods=["POST"])
+def restart_service():
+    """Restart the entire pycam service"""
+    try:
+        # Write a service restart request file
+        reload_file = "/tmp/cam_reload_settings.txt"
+        with open(reload_file, 'w') as f:
+            f.write("restart_service\n")
+        
+        return jsonify({'success': True, 'message': 'Service restart requested'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/stream")
+def stream_redirect():
+    """Redirect to streaming server"""
+    port = settings_manager.get('Stream.port', 8000)
+    hostname = socket.gethostname()
+    return redirect(f"http://{hostname}:{port}")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

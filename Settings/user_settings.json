@@ -1,6 +1,6 @@
 {
   "LogLevel": "info",
-  "LogToServer": true,
+  "LogToServer": false,
   "LogHost": "your-log-server.com",
   "LogUrl": "/api/logs",
   "LogApiKey": "your-api-key-here",
@@ -23,7 +23,12 @@
     "awb_mode": "auto",
     "exposure_mode": "auto",
     "shutter_speed": 0,
-    "iso": 100
+    "iso": 100,
+    "publishers": {
+      "file": {
+        "publish": false
+      }
+    }
   },
   "Stream": {
     "port": 8080,
@@ -33,7 +38,7 @@
     "bitrate": 1000000
   },
   "Motion": {
-    "enabled": true,
+    "enabled": false,
     "sensitivity": 75,
     "min_area": 1000,
     "blur_size": 21
@@ -60,5 +65,16 @@
     "timezone": "Europe/Stockholm",
     "auto_start": true,
     "debug_mode": false
+  },
+  "Vision": {
+    "enabled": false,
+    "processors": {
+      "CropProcessor": {
+        "validate_coordinates": false
+      },
+      "MotionDetectionProcessor": {
+        "detect_motion_areas": false
+      }
+    }
   }
 }

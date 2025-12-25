@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User=pi
 Group=pi
-WorkingDirectory=/home/pi/webgui
+WorkingDirectory=/home/pi/PyRpiCamController/webgui
 # If installed via apt:
 ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:8000 web_app:app
 Restart=always

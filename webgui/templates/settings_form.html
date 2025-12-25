@@ -126,6 +126,196 @@
         .tab:hover:not(.active) {
             background-color: #e9ecef;
         }
+        
+        /* Streaming Control Styles */
+        .streaming-controls {
+            background-color: #f8f9fa !important;
+            border: 2px solid #007bff !important;
+        }
+        .streaming-controls .section-title {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+        .stream-status {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background-color: white;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        .status-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: #6c757d;
+            animation: pulse 2s infinite;
+        }
+        .status-light.running {
+            background-color: #28a745;
+        }
+        .status-light.stopped {
+            background-color: #dc3545;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .stream-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stream-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 140px;
+        }
+        .stream-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .start-stream {
+            background-color: #28a745;
+            color: white;
+        }
+        .start-stream:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        .stop-stream {
+            background-color: #dc3545;
+            color: white;
+        }
+        .stop-stream:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        .view-stream {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .view-stream:hover:not(:disabled) {
+            background-color: #138496;
+        }
+        .stream-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .info-item label {
+            font-weight: 500;
+            color: #555;
+        }
+        .fps-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .fps-good {
+            color: #28a745 !important;
+        }
+        .fps-warning {
+            color: #ffc107 !important;
+        }
+        .fps-poor {
+            color: #dc3545 !important;
+        }
+        
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-message {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .flash-success {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        .flash-error {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .flash-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0.7;
+            margin-left: 10px;
+        }
+        .flash-close:hover {
+            opacity: 1;
+        }
+        
+        /* Settings Management */
+        .settings-management {
+            background-color: #fff3cd !important;
+            border: 2px solid #ffc107 !important;
+        }
+        .settings-management .section-title {
+            background-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        .settings-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .settings-button {
+            background: linear-gradient(135deg, #ffc107 0%, #ffab00 100%);
+            color: #212529;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .settings-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .settings-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .settings-info {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+        }
+        .settings-info-text {
+            color: #6c757d;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -150,6 +340,20 @@
                 <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Tillbaka till grundinställningar</a>
             {% endif %}
         </div>
+        
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            <span class="flash-text">{{ message }}</span>
+                            <button type="button" class="flash-close" onclick="this.parentElement.style.display='none'">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
         
         <form method="post">
             <input type="hidden" name="current_level" value="{{ current_level }}">
@@ -225,11 +429,101 @@
             </div>
             {% endfor %}
             
+            <!-- Streaming Control Panel -->
+            <div class="section streaming-controls">
+                <h3 class="section-title">📹 Stream Control</h3>
+                <div class="section-content">
+                    <div class="stream-status" id="streamStatus">
+                        <div class="status-indicator">
+                            <span class="status-light" id="statusLight"></span>
+                            <span id="statusText">Checking status...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stream-buttons">
+                        <button type="button" class="stream-button start-stream" id="startStreamBtn" disabled>
+                            📺 Start Streaming
+                        </button>
+                        <button type="button" class="stream-button stop-stream" id="stopStreamBtn" disabled>
+                            ⏹️ Stop Streaming
+                        </button>
+                        <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
+                            👁️ View Stream
+                        </button>
+                    </div>
+                    
+                    <div class="stream-info" id="streamInfo" style="display: none;">
+                        <div class="info-item">
+                            <label>Stream URL:</label>
+                            <span id="streamUrl">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Resolution:</label>
+                            <span id="streamResolution">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Frame Rate:</label>
+                            <span id="streamFramerate">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Actual FPS:</label>
+                            <span id="actualFps" class="fps-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Management -->
+            <div class="section settings-management">
+                <h3 class="section-title">⚙️ Settings Management</h3>
+                <div class="section-content">
+                    <p class="settings-info">
+                        Efter att du sparat inställningar måste du ladda om dem för att aktivera ändringarna.
+                    </p>
+                    
+                    <div class="settings-buttons">
+                        <button type="button" class="settings-button reload-settings" id="reloadSettingsBtn">
+                            🔄 Ladda om inställningar
+                        </button>
+                        <button type="button" class="settings-button restart-service" id="restartServiceBtn">
+                            🔁 Starta om tjänsten
+                        </button>
+                    </div>
+                    
+                    <div class="settings-info-text">
+                        <small>
+                            <strong>Ladda om inställningar:</strong> Snabb omstart utan avbrott i streaming<br>
+                            <strong>Starta om tjänsten:</strong> Fullständig omstart (avbryter pågående aktiviteter)
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
             <button type="submit" class="submit-button">Spara inställningar</button>
         </form>
     </div>
 
     <script>
+        // Streaming control functionality
+        let streamStatus = {
+            running: false,
+            url: '',
+            port: 8000,
+            resolution: [800, 600],
+            framerate: 15
+        };
+
+        // Initialize streaming controls when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupAutoSave();
+            initStreamingControls();
+            initSettingsControls();
+            updateStreamStatus();
+            
+            // Update stream status every 10 seconds
+            setInterval(updateStreamStatus, 10000);
+        });
+
         // Add some client-side validation if needed
         document.querySelector('form').addEventListener('submit', function(e) {
             // Add any client-side validation here
@@ -251,8 +545,236 @@
             });
         }
 
-        // Initialize auto-save when page loads
-        document.addEventListener('DOMContentLoaded', setupAutoSave);
+        function initStreamingControls() {
+            // Set up event listeners for streaming buttons
+            document.getElementById('startStreamBtn').addEventListener('click', startStreaming);
+            document.getElementById('stopStreamBtn').addEventListener('click', stopStreaming);
+            document.getElementById('viewStreamBtn').addEventListener('click', viewStream);
+        }
+
+        function initSettingsControls() {
+            // Set up event listeners for settings management buttons
+            document.getElementById('reloadSettingsBtn').addEventListener('click', reloadSettings);
+            document.getElementById('restartServiceBtn').addEventListener('click', restartService);
+        }
+
+        function updateStreamStatus() {
+            fetch('/api/stream/status')
+                .then(response => response.json())
+                .then(data => {
+                    streamStatus = data;
+                    updateUI();
+                })
+                .catch(error => {
+                    console.error('Error checking stream status:', error);
+                    updateUI(false);
+                });
+        }
+
+        function updateUI(hasError = false) {
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const startBtn = document.getElementById('startStreamBtn');
+            const stopBtn = document.getElementById('stopStreamBtn');
+            const viewBtn = document.getElementById('viewStreamBtn');
+            const streamInfo = document.getElementById('streamInfo');
+
+            if (hasError) {
+                statusLight.className = 'status-light';
+                statusText.textContent = 'Status check failed';
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                viewBtn.disabled = true;
+                streamInfo.style.display = 'none';
+                return;
+            }
+
+            // Update status indicator
+            if (streamStatus.running) {
+                statusLight.className = 'status-light running';
+                statusText.textContent = 'Streaming Active';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                viewBtn.disabled = false;
+                
+                // Show stream info
+                streamInfo.style.display = 'block';
+                document.getElementById('streamUrl').textContent = streamStatus.url;
+                document.getElementById('streamResolution').textContent = 
+                    `${streamStatus.resolution[0]} × ${streamStatus.resolution[1]}`;
+                document.getElementById('streamFramerate').textContent = `${streamStatus.framerate} FPS (target)`;
+                
+                // Update actual FPS with color coding
+                const actualFps = streamStatus.actual_fps || 0;
+                const actualFpsElement = document.getElementById('actualFps');
+                actualFpsElement.textContent = `${actualFps} FPS`;
+                
+                // Color code based on performance vs target
+                const targetFps = streamStatus.framerate;
+                actualFpsElement.className = 'fps-value';
+                if (actualFps >= targetFps * 0.9) {
+                    actualFpsElement.classList.add('fps-good');
+                } else if (actualFps >= targetFps * 0.7) {
+                    actualFpsElement.classList.add('fps-warning');
+                } else {
+                    actualFpsElement.classList.add('fps-poor');
+                }
+            } else {
+                statusLight.className = 'status-light stopped';
+                statusText.textContent = 'Streaming Stopped';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                viewBtn.disabled = true;
+                streamInfo.style.display = 'none';
+            }
+        }
+
+        function startStreaming() {
+            const startBtn = document.getElementById('startStreamBtn');
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ Starting...';
+
+            fetch('/api/stream/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Streaming start requested');
+                        // Wait a moment then check status
+                        setTimeout(updateStreamStatus, 3000);
+                    } else {
+                        alert('Failed to start streaming: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting stream:', error);
+                    alert('Failed to start streaming: ' + error.message);
+                })
+                .finally(() => {
+                    startBtn.textContent = '📺 Start Streaming';
+                    setTimeout(updateStreamStatus, 1000);
+                });
+        }
+
+        function stopStreaming() {
+            const stopBtn = document.getElementById('stopStreamBtn');
+            stopBtn.disabled = true;
+            stopBtn.textContent = '⏳ Stopping...';
+
+            fetch('/api/stream/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Streaming stop requested');
+                        // Wait a moment then check status
+                        setTimeout(updateStreamStatus, 2000);
+                    } else {
+                        alert('Failed to stop streaming: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping stream:', error);
+                    alert('Failed to stop streaming: ' + error.message);
+                })
+                .finally(() => {
+                    stopBtn.textContent = '⏹️ Stop Streaming';
+                    setTimeout(updateStreamStatus, 1000);
+                });
+        }
+
+        function viewStream() {
+            if (streamStatus.running && streamStatus.url) {
+                window.open(streamStatus.url, '_blank');
+            }
+        }
+
+        function reloadSettings() {
+            const reloadBtn = document.getElementById('reloadSettingsBtn');
+            reloadBtn.disabled = true;
+            reloadBtn.textContent = '⏳ Laddar om...';
+
+            fetch('/api/settings/reload', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Inställningar laddas om...', 'success');
+                        // Check for completion after a delay
+                        setTimeout(() => {
+                            showMessage('Inställningar har laddats om framgångsrikt!', 'success');
+                        }, 3000);
+                    } else {
+                        showMessage('Fel vid omladdning: ' + (data.error || 'Okänt fel'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error reloading settings:', error);
+                    showMessage('Fel vid omladdning: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    reloadBtn.textContent = '🔄 Ladda om inställningar';
+                    reloadBtn.disabled = false;
+                });
+        }
+
+        function restartService() {
+            if (!confirm('Är du säker på att du vill starta om hela tjänsten? Detta kommer att avbryta pågående aktiviteter.')) {
+                return;
+            }
+
+            const restartBtn = document.getElementById('restartServiceBtn');
+            restartBtn.disabled = true;
+            restartBtn.textContent = '⏳ Startar om...';
+
+            fetch('/api/service/restart', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Tjänsten startas om... Detta kan ta en stund.', 'success');
+                        // Disable all controls during restart
+                        setTimeout(() => {
+                            showMessage('Tjänsten har startat om. Sidan laddas om...', 'success');
+                            setTimeout(() => location.reload(), 2000);
+                        }, 10000);
+                    } else {
+                        showMessage('Fel vid omstart: ' + (data.error || 'Okänt fel'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error restarting service:', error);
+                    showMessage('Fel vid omstart: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        restartBtn.textContent = '🔁 Starta om tjänsten';
+                        restartBtn.disabled = false;
+                    }, 15000);
+                });
+        }
+
+        function showMessage(message, type = 'success') {
+            // Create or update flash message
+            let flashContainer = document.querySelector('.flash-messages');
+            if (!flashContainer) {
+                flashContainer = document.createElement('div');
+                flashContainer.className = 'flash-messages';
+                document.querySelector('h1').after(flashContainer);
+            }
+
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash-message flash-${type}`;
+            flashDiv.innerHTML = `
+                <span class="flash-text">${message}</span>
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            
+            flashContainer.appendChild(flashDiv);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (flashDiv.parentNode) {
+                    flashDiv.remove();
+                }
+            }, 5000);
+        }
     </script>
 </body>
 </html>

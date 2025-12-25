@@ -65,9 +65,10 @@
           "name": "Uppdateringsintervall (s)",
           "section": "System",
           "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
-          "level": "basic"
+          "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": true,
+        "level": "advanced"
       },
       "api_key": {
         "value": "",
@@ -176,7 +177,7 @@
       "publishers": {
         "url": {
           "publish": {
-            "value": true,
+            "value": false,
             "type": "bool",
             "ui": {
               "name": "Publicera till URL",
@@ -185,7 +186,7 @@
               "level": "advanced"
             },
             "web_editable": true,
-            "level": "basic"
+            "level": "advanced"
           },
           "location": {
             "value": "http://www.biwebben.se/filedump2.php",
@@ -194,10 +195,10 @@
               "name": "URL för publicering",
               "section": "Kamera",
               "description": "URL-slutpunkt för bildpublicering",
-              "level": "basic"
+              "level": "advanced"
             },
             "web_editable": true,
-            "level": "basic"
+            "level": "advanced"
           },
           "apikey": {
             "value": "_your unique api key_",
@@ -206,10 +207,10 @@
               "name": "API-nyckel",
               "section": "Kamera",
               "description": "API-nyckel för URL-publicering",
-              "level": "basic"
+              "level": "advanced"
             },
             "web_editable": true,
-            "level": "basic"
+            "level": "advanced"
           }
         },
         "file": {
@@ -248,22 +249,22 @@
               "name": "Bildformat",
               "section": "Kamera",
               "description": "Bildfilformat",
-              "level": "basic"
+              "level": "advanced"
             },
             "web_editable": true,
-            "level": "basic"
+            "level": "advanced"
           }
         }
       },
       "brightness": {
-        "value": 0.1,
+        "value": 0,
         "type": "float",
         "min": -1.0,
         "max": 1.0,
         "ui": {
           "name": "Exponeringskompensation",
           "section": "Kamera",
-          "description": "Justering av kamerans ljusstyrka",
+          "description": "Justering av kamerans exponeringsnivå",
           "level": "basic"
         },
         "web_editable": true,
@@ -333,12 +334,12 @@
           "name": "Beskär bild",
           "section": "Kamera",
           "description": "Enable image cropping",
-          "level": "basic"
+          "level": "advanced"
         },
         "web_editable": true,
-        "level": "basic"
+        "level": "advanced"
       },
-      "ctopleft": {
+      "crop_topleft": {
         "value": [
           300,
           250
@@ -348,12 +349,12 @@
           "name": "Beskärning övre vänster (x, y)",
           "section": "Kamera",
           "description": "Crop top-left coordinates",
-          "level": "basic"
+          "level": "advanced"
         },
         "web_editable": true,
-        "level": "basic"
+        "level": "advanced"
       },
-      "cbottomright": {
+      "crop_bottomright": {
         "value": [
           4301,
           2351
@@ -363,10 +364,10 @@
           "name": "Beskärning nedre höger (x, y)",
           "section": "Kamera",
           "description": "Crop bottom-right coordinates",
-          "level": "basic"
+          "level": "advanced"
         },
         "web_editable": true,
-        "level": "basic"
+        "level": "advanced"
       }
     },
     "Stream": {
@@ -625,6 +626,172 @@
           "level": "basic"
         },
         "web_editable": false
+      }
+    },
+    "Vision": {
+      "enabled": {
+        "value": true,
+        "type": "bool",
+        "ui": {
+          "name": "Bildanalys aktiverad",
+          "section": "Vision",
+          "description": "Enable vision processing pipeline",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "processors": {
+        "CropProcessor": {
+          "enabled": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Beskärning aktiverad",
+              "section": "Vision",
+              "description": "Enable image cropping processor",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "validate_coordinates": {
+            "value": true,
+            "type": "bool",
+            "ui": {
+              "name": "Validera beskärningskoordinater",
+              "section": "Vision",
+              "description": "Validate crop coordinates before applying",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          }
+        },
+        "MotionDetectionProcessor": {
+          "enabled": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Rörelsedetektering aktiverad",
+              "section": "Vision",
+              "description": "Enable motion detection processor",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "motion_threshold": {
+            "value": 200,
+            "type": "int",
+            "min": 1,
+            "max": 10000,
+            "ui": {
+              "name": "Rörelsetröskel",
+              "section": "Vision",
+              "description": "Minimum changed pixels for motion detection",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "history": {
+            "value": 50,
+            "type": "int",
+            "min": 1,
+            "max": 1000,
+            "ui": {
+              "name": "Bakgrundshistorik",
+              "section": "Vision",
+              "description": "Number of background frames to maintain",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "detect_motion_areas": {
+            "value": true,
+            "type": "bool",
+            "ui": {
+              "name": "Detektera rörelseområden",
+              "section": "Vision",
+              "description": "Find and report individual motion areas",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "min_motion_area": {
+            "value": 100,
+            "type": "int",
+            "min": 10,
+            "max": 10000,
+            "ui": {
+              "name": "Minsta rörelseområde",
+              "section": "Vision",
+              "description": "Minimum area in pixels to consider as motion",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "include_motion_mask": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Inkludera rörelsemask",
+              "section": "Vision",
+              "description": "Include motion mask in metadata (for debugging)",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          }
+        }
+      },
+      "future_processors": {
+        "face_detection": {
+          "enabled": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Ansiktsigenkänning",
+              "section": "Vision",
+              "description": "Enable face detection (future feature)",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          },
+          "confidence_threshold": {
+            "value": 0.7,
+            "type": "float",
+            "min": 0.1,
+            "max": 1.0,
+            "ui": {
+              "name": "Ansiktsdetektering säkerhet",
+              "section": "Vision",
+              "description": "Face detection confidence threshold",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          }
+        },
+        "object_detection": {
+          "enabled": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Objektdetektering",
+              "section": "Vision",
+              "description": "Enable object detection (future feature)",
+              "level": "advanced"
+            },
+            "web_editable": true,
+            "level": "advanced"
+          }
+        }
       }
     }
   }

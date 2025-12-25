@@ -18,8 +18,7 @@ __author__ = 'teddycool'
 # For Pi Zero models: enlarge swap file before installation
 # Adjust swap: https://pimylifeup.com/raspberry-pi-swap-file/
 
-# Legacy config file path (for backward compatibility)
-configfilepath = "/home/pi/tools/camconfig-tmpl.py"
+# Note: The old configfilepath has been removed - now using unified settings system
 
 # NOTE: This script assumes the PyRpiCamController project has been cloned/copied to:
 #       /home/pi/PyRpiCamController/
@@ -97,6 +96,12 @@ try:
   # LED strip control (system-wide for hardware access)
   os.system("sudo pip install rpi-ws281x --break-system-packages")
   
+  # GPIO support - Install lgpio for modern GPIO access
+  os.system("sudo apt install -y python3-lgpio python3-rpi.gpio")
+  
+  # Add pi user to gpio group for GPIO access
+  os.system("sudo usermod -a -G gpio pi")
+  
   # Computer vision and image processing
   os.system("sudo apt install -y python3-opencv")
   os.system("sudo apt install -y opencv-data")
@@ -130,13 +135,7 @@ try:
       exit(1)
       
   print("* Unified settings system and web interface found and ready.")
-  
-  # Copy legacy config for backward compatibility (if exists)
-  if os.path.exists(configfilepath):
-      print("* Copying legacy config file for backward compatibility...")
-      os.system("sudo cp " + configfilepath + " /home/pi/PyRpiCamController/CamController/config.py")
-  else:
-      print("* Legacy config file not found, using unified settings only...")
+  print("* Using unified settings system (legacy config files no longer needed).")
 
   print("*****************************************")
   print("* Setting up the pycam service")

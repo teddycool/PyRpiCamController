@@ -1,6 +1,4 @@
-tools/camconfig-pi*.py
-*/camconfig.py
-camsettings/*.*
+# Legacy settings files removed - now using unified settings system
 backend/secrets.php
 dev_tools/*
 
