@@ -16,46 +16,12 @@ from Settings.settings_manager import settings_manager
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET"])
 def index():
     """Main settings form with basic/advanced tabs."""
     level = request.args.get('level', 'basic')  # Default to basic settings
     
-    if request.method == "POST":
-        # Handle form submission
-        ui_schema = settings_manager.get_web_editable_schema()
-        
-        for field, schema_info in ui_schema.items():
-            if schema_info.get('readonly', False) or not schema_info.get('web_editable', True):
-                continue  # Skip read-only or non-web-editable fields
-            
-            raw_value = request.form.get(field)
-            
-            # Handle unchecked checkboxes (boolean fields that aren't in form data)
-            if raw_value is None:
-                if schema_info['type'] == 'bool':
-                    # Unchecked checkbox - set to False
-                    settings_manager.set(field, False, save=False)
-                continue
-            
-            try:
-                # Convert value based on type
-                value = convert_form_value(raw_value, schema_info)
-                settings_manager.set(field, value, save=False)
-            except (ValueError, TypeError) as e:
-                # Handle validation errors - could add flash messages here
-                print(f"Valideringsfel för {field}: {e}")
-                continue
-        
-        # Save all changes at once
-        settings_manager.save_user_settings()
-        
-        # Flash success message
-        flash("Inställningar sparade! Klicka 'Ladda om inställningar' för att aktivera ändringarna.", "success")
-        
-        return redirect(f"/?level={request.form.get('current_level', 'basic')}")
-    
-    # GET request - display form
+    # Display form
     ui_schema = settings_manager.get_web_editable_schema()
     
     # Filter by level and group by section
@@ -170,6 +136,40 @@ def stream_status():
 
 
 # Streaming control removed - now handled by Mode setting
+
+
+@app.route("/api/settings/update", methods=["POST"])
+def update_setting():
+    """Update a single setting via AJAX"""
+    try:
+        data = request.get_json()
+        field = data.get('field')
+        value = data.get('value')
+        
+        if not field:
+            return jsonify({'error': 'Field name required'}), 400
+        
+        # Get schema info for validation
+        ui_schema = settings_manager.get_web_editable_schema()
+        if field not in ui_schema:
+            return jsonify({'error': 'Field not found or not editable'}), 400
+        
+        schema_info = ui_schema[field]
+        
+        # Convert value based on type
+        converted_value = convert_form_value(value, schema_info)
+        
+        # Save the setting
+        settings_manager.set(field, converted_value, save=True)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Setting {field} updated',
+            'field': field,
+            'value': converted_value
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route("/api/settings/reload", methods=["POST"])

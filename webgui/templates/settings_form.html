@@ -80,19 +80,24 @@
             background-color: #f8f9fa;
             color: #6c757d;
         }
-        .submit-button {
-            background-color: #007bff;
-            color: white;
-            padding: 12px 30px;
-            border: none;
+        .settings-status {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
-            width: 100%;
+            border-left: 4px solid #28a745;
         }
-        .submit-button:hover {
-            background-color: #0056b3;
+        .settings-status.pending {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        .settings-status.saving {
+            border-left-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+        .settings-status.error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
         }
         .validation-info {
             font-size: 11px;
@@ -341,8 +346,7 @@
             {% endif %}
         {% endwith %}
         
-        <form method="post">
-            <input type="hidden" name="current_level" value="{{ current_level }}">
+        <div class="settings-form">
             {% for section_name, section_fields in grouped_schema.items() %}
             <div class="section">
                 <h2 class="section-title">{{ section_name }}</h2>
@@ -474,15 +478,21 @@
                     
                     <div class="settings-info-text">
                         <small>
+                            <strong>Auto-sparning:</strong> Inställningar sparas automatiskt vid ändringar<br>
                             <strong>Ladda om inställningar:</strong> Snabb omstart utan avbrott i streaming<br>
                             <strong>Starta om tjänsten:</strong> Fullständig omstart (avbryter pågående aktiviteter)
                         </small>
                     </div>
+                    
+                    <div class="settings-status" id="settingsStatus">
+                        <div class="status-indicator">
+                            <span class="status-light" id="settingsStatusLight"></span>
+                            <span id="settingsStatusText">Redo att spara ändringar</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <button type="submit" class="submit-button">Spara inställningar</button>
-        </form>
+        </div>
     </div>
 
     <script>
@@ -506,25 +516,98 @@
             setInterval(updateStreamStatus, 10000);
         });
 
-        // Add some client-side validation if needed
-        document.querySelector('form').addEventListener('submit', function(e) {
-            // Add any client-side validation here
-            console.log('Skickar inställningsformulär');
-        });
-
-        // Auto-save functionality (optional)
+        // Auto-save functionality
         let autoSaveTimeout;
+        let pendingChanges = new Set();
+        
         function setupAutoSave() {
             const inputs = document.querySelectorAll('input:not([readonly]), select:not([disabled])');
             inputs.forEach(input => {
                 input.addEventListener('change', function() {
+                    const fieldName = this.name;
+                    const value = this.type === 'checkbox' ? this.checked : this.value;
+                    
+                    pendingChanges.add(fieldName);
+                    updateSettingsStatus('pending');
+                    
                     clearTimeout(autoSaveTimeout);
                     autoSaveTimeout = setTimeout(() => {
-                        // Could implement auto-save via AJAX here
-                        console.log('Autospara aktiverat för:', this.name);
-                    }, 2000);
+                        saveSettingValue(fieldName, value);
+                    }, 1000); // Save after 1 second of no changes
                 });
             });
+        }
+        
+        function saveSettingValue(fieldName, value) {
+            updateSettingsStatus('saving');
+            
+            fetch('/api/settings/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    field: fieldName,
+                    value: value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pendingChanges.delete(fieldName);
+                    if (pendingChanges.size === 0) {
+                        updateSettingsStatus('saved');
+                        setTimeout(() => {
+                            updateSettingsStatus('reload_needed');
+                        }, 2000);
+                    }
+                } else {
+                    updateSettingsStatus('error', data.error || 'Okänt fel');
+                }
+            })
+            .catch(error => {
+                console.error('Auto-save error:', error);
+                updateSettingsStatus('error', 'Nätverksfel');
+            });
+        }
+        
+        function updateSettingsStatus(status, message = '') {
+            const statusElement = document.getElementById('settingsStatus');
+            const lightElement = document.getElementById('settingsStatusLight');
+            const textElement = document.getElementById('settingsStatusText');
+            
+            // Remove existing status classes
+            statusElement.className = 'settings-status';
+            lightElement.className = 'status-light';
+            
+            switch(status) {
+                case 'pending':
+                    statusElement.classList.add('pending');
+                    lightElement.classList.add('running');
+                    textElement.textContent = 'Ändringar väntar på att sparas...';
+                    break;
+                case 'saving':
+                    statusElement.classList.add('saving');
+                    lightElement.classList.add('running');
+                    textElement.textContent = 'Sparar inställningar...';
+                    break;
+                case 'saved':
+                    lightElement.classList.add('running');
+                    textElement.textContent = 'Inställningar sparade!';
+                    break;
+                case 'reload_needed':
+                    statusElement.classList.add('pending');
+                    lightElement.classList.add('stopped');
+                    textElement.textContent = 'Klicka "Ladda om inställningar" för att aktivera ändringarna';
+                    break;
+                case 'error':
+                    statusElement.classList.add('error');
+                    lightElement.classList.add('stopped');
+                    textElement.textContent = 'Fel vid sparning: ' + message;
+                    break;
+                default:
+                    textElement.textContent = 'Redo att spara ändringar';
+            }
         }
 
         function initStreamingControls() {
