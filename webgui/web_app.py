@@ -133,7 +133,7 @@ def stream_status():
         return jsonify({
             'running': is_running,
             'port': port,
-            'url': f"http://{hostname}:{port}",
+            'url': f"http://{hostname}.local:{port}",
             'resolution': settings_manager.get('Stream.resolution', [800, 600]),
             'framerate': settings_manager.get('Stream.framerate', 15),
             'actual_fps': actual_fps
@@ -212,7 +212,7 @@ def stream_redirect():
     """Redirect to streaming server"""
     port = settings_manager.get('Stream.port', 8000)
     hostname = socket.gethostname()
-    return redirect(f"http://{hostname}:{port}")
+    return redirect(f"http://{hostname}.local:{port}")
 
 
 if __name__ == "__main__":
