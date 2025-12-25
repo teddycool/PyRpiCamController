@@ -84,7 +84,15 @@ class MainLoop(object):
             light = settings_manager.get("Light")
             self._lightbox.start(light)
             logger.info("Lightbox started with " + str(light) + "%")  
-        self.setState("InitState")
+        
+        # Check Mode setting to determine initial state
+        mode = settings_manager.get("Mode", "Cam")
+        if mode == "Stream":
+            logger.info("Mode is set to 'Stream' - starting in StreamState")
+            self.setState("StreamState")
+        else:
+            logger.info("Mode is set to 'Cam' - starting in InitState")
+            self.setState("InitState")
         
     def update(self):
         #TODO:  Check for new settings on server using unified settings system
@@ -143,32 +151,47 @@ class MainLoop(object):
                 elif reload_type == "reload_settings":
                     # Reload settings without full restart
                     logger.info("Reloading settings...")
+                    
+                    # Get current mode before reloading
+                    old_mode = settings_manager.get("Mode", "Cam")
+                    
                     settings_manager.load_user_settings()
                     
-                    # Get current state name to preserve it
-                    current_state_name = None
-                    for state_name, state_obj in self.states.items():
-                        if state_obj == self._currentstate:
-                            current_state_name = state_name
-                            break
+                    # Check if mode changed
+                    new_mode = settings_manager.get("Mode", "Cam")
                     
-                    logger.info(f"Preserving current state: {current_state_name}")
+                    if old_mode != new_mode:
+                        logger.info(f"Mode changed from {old_mode} to {new_mode} - switching state")
+                        # Switch to appropriate state based on new mode
+                        if new_mode == "Stream":
+                            self.setState("StreamState")
+                        else:
+                            self.setState("PostState")  # Normal camera mode
+                    else:
+                        # Get current state name to preserve it
+                        current_state_name = None
+                        for state_name, state_obj in self.states.items():
+                            if state_obj == self._currentstate:
+                                current_state_name = state_name
+                                break
+                        
+                        logger.info(f"Mode unchanged - preserving current state: {current_state_name}")
+                        
+                        # Re-initialize current state with new settings (preserves current mode)
+                        settings_dict = dict(settings_manager.get_dict())
+                        settings_dict.update(hwconfig)
+                        
+                        # If current state has cleanup method, call it first
+                        if hasattr(self._currentstate, 'cleanup'):
+                            try:
+                                self._currentstate.cleanup()
+                            except Exception as e:
+                                logger.warning(f"Cleanup failed for current state: {e}")
+                        
+                        # Re-initialize the same state with new settings
+                        self._currentstate.initialize(settings_dict)
                     
-                    # Re-initialize current state with new settings (preserves current mode)
-                    settings_dict = dict(settings_manager.get_dict())
-                    settings_dict.update(hwconfig)
-                    
-                    # If current state has cleanup method, call it first
-                    if hasattr(self._currentstate, 'cleanup'):
-                        try:
-                            self._currentstate.cleanup()
-                        except Exception as e:
-                            logger.warning(f"Cleanup failed for current state: {e}")
-                    
-                    # Re-initialize the same state with new settings
-                    self._currentstate.initialize(settings_dict)
-                    
-                    logger.info("Settings reloaded successfully - state preserved")
+                    logger.info("Settings reloaded successfully")
                 else:
                     logger.warning(f"Unknown reload type: {reload_type}")
                     

@@ -166,46 +166,32 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        .stream-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .stream-button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            flex: 1;
-            min-width: 140px;
-        }
-        .stream-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .start-stream {
-            background-color: #28a745;
-            color: white;
-        }
-        .start-stream:hover:not(:disabled) {
-            background-color: #218838;
-        }
-        .stop-stream {
-            background-color: #dc3545;
-            color: white;
-        }
-        .stop-stream:hover:not(:disabled) {
-            background-color: #c82333;
+        .status-note {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
         }
         .view-stream {
             background-color: #17a2b8;
             color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
         .view-stream:hover:not(:disabled) {
             background-color: #138496;
+        }
+        .view-stream:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .stream-info {
             background-color: white;
@@ -429,9 +415,9 @@
             </div>
             {% endfor %}
             
-            <!-- Streaming Control Panel -->
+            <!-- Streaming Status Panel -->
             <div class="section streaming-controls">
-                <h3 class="section-title">📹 Stream Control</h3>
+                <h3 class="section-title">📹 Stream Status</h3>
                 <div class="section-content">
                     <div class="stream-status" id="streamStatus">
                         <div class="status-indicator">
@@ -440,17 +426,7 @@
                         </div>
                     </div>
                     
-                    <div class="stream-buttons">
-                        <button type="button" class="stream-button start-stream" id="startStreamBtn" disabled>
-                            📺 Start Streaming
-                        </button>
-                        <button type="button" class="stream-button stop-stream" id="stopStreamBtn" disabled>
-                            ⏹️ Stop Streaming
-                        </button>
-                        <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
-                            👁️ View Stream
-                        </button>
-                    </div>
+                    <p class="status-note">Streaming is controlled by the Mode setting above. Set Mode to "Stream" and restart the service to enable streaming.</p>
                     
                     <div class="stream-info" id="streamInfo" style="display: none;">
                         <div class="info-item">
@@ -468,6 +444,12 @@
                         <div class="info-item">
                             <label>Actual FPS:</label>
                             <span id="actualFps" class="fps-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>View Stream:</label>
+                            <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
+                                👁️ Open Stream
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -547,8 +529,6 @@
 
         function initStreamingControls() {
             // Set up event listeners for streaming buttons
-            document.getElementById('startStreamBtn').addEventListener('click', startStreaming);
-            document.getElementById('stopStreamBtn').addEventListener('click', stopStreaming);
             document.getElementById('viewStreamBtn').addEventListener('click', viewStream);
         }
 
@@ -574,16 +554,12 @@
         function updateUI(hasError = false) {
             const statusLight = document.getElementById('statusLight');
             const statusText = document.getElementById('statusText');
-            const startBtn = document.getElementById('startStreamBtn');
-            const stopBtn = document.getElementById('stopStreamBtn');
             const viewBtn = document.getElementById('viewStreamBtn');
             const streamInfo = document.getElementById('streamInfo');
 
             if (hasError) {
                 statusLight.className = 'status-light';
                 statusText.textContent = 'Status check failed';
-                startBtn.disabled = true;
-                stopBtn.disabled = true;
                 viewBtn.disabled = true;
                 streamInfo.style.display = 'none';
                 return;
@@ -593,8 +569,6 @@
             if (streamStatus.running) {
                 statusLight.className = 'status-light running';
                 statusText.textContent = 'Streaming Active';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
                 viewBtn.disabled = false;
                 
                 // Show stream info
@@ -622,64 +596,12 @@
             } else {
                 statusLight.className = 'status-light stopped';
                 statusText.textContent = 'Streaming Stopped';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
                 viewBtn.disabled = true;
                 streamInfo.style.display = 'none';
             }
         }
 
-        function startStreaming() {
-            const startBtn = document.getElementById('startStreamBtn');
-            startBtn.disabled = true;
-            startBtn.textContent = '⏳ Starting...';
-
-            fetch('/api/stream/start', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Streaming start requested');
-                        // Wait a moment then check status
-                        setTimeout(updateStreamStatus, 3000);
-                    } else {
-                        alert('Failed to start streaming: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error starting stream:', error);
-                    alert('Failed to start streaming: ' + error.message);
-                })
-                .finally(() => {
-                    startBtn.textContent = '📺 Start Streaming';
-                    setTimeout(updateStreamStatus, 1000);
-                });
-        }
-
-        function stopStreaming() {
-            const stopBtn = document.getElementById('stopStreamBtn');
-            stopBtn.disabled = true;
-            stopBtn.textContent = '⏳ Stopping...';
-
-            fetch('/api/stream/stop', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Streaming stop requested');
-                        // Wait a moment then check status
-                        setTimeout(updateStreamStatus, 2000);
-                    } else {
-                        alert('Failed to stop streaming: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error stopping stream:', error);
-                    alert('Failed to stop streaming: ' + error.message);
-                })
-                .finally(() => {
-                    stopBtn.textContent = '⏹️ Stop Streaming';
-                    setTimeout(updateStreamStatus, 1000);
-                });
-        }
+        // Streaming control moved to Mode setting - no manual start/stop needed
 
         function viewStream() {
             if (streamStatus.running && streamStatus.url) {

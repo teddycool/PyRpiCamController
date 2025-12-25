@@ -169,32 +169,7 @@ def stream_status():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route("/api/stream/start", methods=["POST"])
-def start_stream():
-    """Start streaming mode"""
-    try:
-        # Write a state change file that the main loop can monitor
-        state_file = "/tmp/cam_state_request.txt"
-        with open(state_file, 'w') as f:
-            f.write("StreamState\n")
-        
-        return jsonify({'success': True, 'message': 'Streaming mode requested'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route("/api/stream/stop", methods=["POST"])  
-def stop_stream():
-    """Stop streaming mode and return to normal operation"""
-    try:
-        # Write a state change file that the main loop can monitor
-        state_file = "/tmp/cam_state_request.txt"
-        with open(state_file, 'w') as f:
-            f.write("PostState\n")
-        
-        return jsonify({'success': True, 'message': 'Normal mode requested'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# Streaming control removed - now handled by Mode setting
 
 
 @app.route("/api/settings/reload", methods=["POST"])
