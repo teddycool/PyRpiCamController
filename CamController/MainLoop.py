@@ -87,11 +87,13 @@ class MainLoop(object):
         
         # Check Mode setting to determine initial state
         mode = settings_manager.get("Mode", "Cam")
+        logger.info(f"Mode setting: {mode} - determining initial state")
+        
         if mode == "Stream":
-            logger.info("Mode is set to 'Stream' - starting in StreamState")
+            logger.info("Starting in StreamState")
             self.setState("StreamState")
         else:
-            logger.info("Mode is set to 'Cam' - starting in InitState")
+            logger.info("Starting in InitState (camera mode)")
             self.setState("InitState")
         
     def update(self):

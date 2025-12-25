@@ -150,8 +150,13 @@ def update_setting():
     """Update a single setting via AJAX"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data received'}), 400
+            
         field = data.get('field')
         value = data.get('value')
+        
+        print(f"Settings update request - Field: {field}, Value: {value}, Type: {type(value)}")
         
         if not field:
             return jsonify({'error': 'Field name required'}), 400
@@ -159,7 +164,7 @@ def update_setting():
         # Get schema info for validation
         ui_schema = settings_manager.get_web_editable_schema()
         if field not in ui_schema:
-            return jsonify({'error': 'Field not found or not editable'}), 400
+            return jsonify({'error': f'Field {field} not found or not editable'}), 400
         
         schema_info = ui_schema[field]
         
@@ -169,12 +174,48 @@ def update_setting():
         # Save the setting
         settings_manager.set(field, converted_value, save=True)
         
+        print(f"Settings saved successfully - {field}: {converted_value}")
+        
         return jsonify({
             'success': True, 
             'message': f'Setting {field} updated',
             'field': field,
             'value': converted_value
         })
+    except Exception as e:
+        error_msg = f"Error updating setting {field if 'field' in locals() else 'unknown'}: {str(e)}"
+        print(error_msg)
+        return jsonify({'error': error_msg}), 500
+
+
+@app.route("/api/settings/debug", methods=["GET"])
+def settings_debug():
+    """Debug endpoint to check current settings state"""
+    try:
+        import os
+        settings_dict = dict(settings_manager.get_dict())
+        
+        # Get file info
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        user_file = os.path.join(script_dir, "Settings", "user_settings.json")
+        
+        debug_info = {
+            'current_mode': settings_manager.get('Mode'),
+            'user_settings_file': user_file,
+            'user_file_exists': os.path.exists(user_file),
+            'user_file_writable': os.access(user_file, os.W_OK) if os.path.exists(user_file) else os.access(os.path.dirname(user_file), os.W_OK),
+            'all_settings_count': len(settings_dict),
+            'mode_related': {k: v for k, v in settings_dict.items() if 'mode' in k.lower()}
+        }
+        
+        if os.path.exists(user_file):
+            try:
+                with open(user_file, 'r') as f:
+                    debug_info['user_file_content'] = f.read()[:500]  # First 500 chars
+            except Exception as e:
+                debug_info['user_file_read_error'] = str(e)
+        
+        return jsonify(debug_info)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
