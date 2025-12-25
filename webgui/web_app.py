@@ -192,32 +192,63 @@ def update_setting():
 def settings_debug():
     """Debug endpoint to check current settings state"""
     try:
-        import os
-        settings_dict = dict(settings_manager.get_dict())
-        
-        # Get file info
-        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        user_file = os.path.join(script_dir, "Settings", "user_settings.json")
-        
         debug_info = {
             'current_mode': settings_manager.get('Mode'),
-            'user_settings_file': user_file,
-            'user_file_exists': os.path.exists(user_file),
-            'user_file_writable': os.access(user_file, os.W_OK) if os.path.exists(user_file) else os.access(os.path.dirname(user_file), os.W_OK),
-            'all_settings_count': len(settings_dict),
-            'mode_related': {k: v for k, v in settings_dict.items() if 'mode' in k.lower()}
+            'status': 'OK'
         }
         
-        if os.path.exists(user_file):
-            try:
+        try:
+            # Try to get more detailed info
+            settings_dict = dict(settings_manager.get_dict())
+            debug_info.update({
+                'all_settings_count': len(settings_dict),
+                'mode_related': {k: v for k, v in settings_dict.items() if 'mode' in k.lower()}
+            })
+        except Exception as e:
+            debug_info['settings_dict_error'] = str(e)
+        
+        try:
+            # Try to get file info
+            import os
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            user_file = os.path.join(script_dir, "Settings", "user_settings.json")
+            
+            debug_info.update({
+                'user_settings_file': user_file,
+                'user_file_exists': os.path.exists(user_file)
+            })
+            
+            if os.path.exists(user_file):
+                debug_info['user_file_writable'] = os.access(user_file, os.W_OK)
                 with open(user_file, 'r') as f:
-                    debug_info['user_file_content'] = f.read()[:500]  # First 500 chars
-            except Exception as e:
-                debug_info['user_file_read_error'] = str(e)
+                    content = f.read()
+                    debug_info['user_file_size'] = len(content)
+                    # Only include first part to avoid large responses
+                    if len(content) > 300:
+                        debug_info['user_file_content'] = content[:300] + "..."
+                    else:
+                        debug_info['user_file_content'] = content
+            
+        except Exception as e:
+            debug_info['file_info_error'] = str(e)
         
         return jsonify(debug_info)
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'status': 'ERROR'
+        }), 500
+
+
+@app.route("/api/test")
+def test_endpoint():
+    """Simple test endpoint to verify Flask is working"""
+    return jsonify({
+        'status': 'OK',
+        'message': 'Flask server is responding',
+        'current_mode': settings_manager.get('Mode', 'unknown')
+    })
 
 
 @app.route("/api/settings/reload", methods=["POST"])
