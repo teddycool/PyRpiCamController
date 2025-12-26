@@ -16,7 +16,7 @@ $dateTimeObj = new DateTime();
 $dateTimeObj->setTimestamp(floatval($created));
 $tcreated = $dateTimeObj->format('Y-m-d H:i:s');
 
-require_once ('config.php');  //This is the config file with the database connection
+require_once ('../utils/config.php');  //This is the config file with the database connection
 require_once (TP_SOURCEPATH . 'CDBController.php'); // This is a database controller class
 $rawlogmsg = json_encode($_GET);
 $sql = "INSERT INTO Camlog (cpuid, raw, logtime, name, levelname, message, created ) VALUES "

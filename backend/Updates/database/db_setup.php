@@ -13,7 +13,7 @@
  * Creates basic tables and sample data for testing the dashboard
  */
 
-require_once 'admin_auth.php';
+require_once '../admin/admin_auth.php';
 
 // Require authentication
 require_admin_auth();

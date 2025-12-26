@@ -43,11 +43,14 @@ The main application folder containing the core camera control software written 
 * **camcontroller.service** - Systemd service file for the camera application
 
 === Settings
-Unified settings system provides configuration management:
+Unified settings management system:
 
-* **settings_manager.py** - Central settings manager with Python interface
-* **settings_schema.json** - Single source of truth for all settings definitions
+* **settings_manager.py** - Python interface for accessing and managing all settings
+* **settings_schema.json** - Complete schema with defaults, validation, and UI metadata
 * **user_settings.json** - User customizations that override defaults
+* **UNIFIED_SETTINGS_GUIDE.adoc** - Comprehensive documentation for the settings system (link:Settings/UNIFIED_SETTINGS_GUIDE.adoc[Settings Guide])
+
+**Features:** Schema-driven validation, web interface integration, backward compatibility
 
 === WebGui
 Flask-based web interface for remote camera system configuration:
@@ -59,20 +62,11 @@ Flask-based web interface for remote camera system configuration:
 
 **Features:** Basic/Advanced tabs, Swedish language interface, password fields, real-time validation
 
-=== Settings
-Unified settings management system:
-
-* **settings_manager.py** - Python interface for accessing and managing all settings
-* **settings_schema.json** - Complete schema with defaults, validation, and UI metadata
-* **user_settings.json** - User customizations that override defaults
-* **UNIFIED_SETTINGS_GUIDE.adoc** - Comprehensive documentation for the settings system (link:Settings/UNIFIED_SETTINGS_GUIDE.adoc[Settings Guide])
-
-**Features:** Schema-driven validation, web interface integration, backward compatibility
-
 === tools
 Installation and setup utilities:
 
 * **install-all.py** - Main installation script that sets up the entire system
+* **update-service.py** - Service file update utility
 * Various helper scripts for system configuration and deployment
 
 === Services
@@ -92,12 +86,15 @@ Documentation and reference materials:
 === Updates
 Over-The-Air update system for remote software deployment:
 
-* **install/** - Update daemon and installation scripts
-* **camcontroller-update.service** - Systemd service for the update daemon
-* **recovery.sh** - Recovery script for failed updates
-* **test_updates.py** - Test script for update system validation
+* **camcontroller_update_daemon.py** - Background daemon for automatic update checks
+* **camcontroller_update_manager.py** - Main update manager with robust error handling
+* **camcontroller_update_legacy.py** - Legacy update implementation
 * **camcontroller-update.service** - Systemd service for background update checking
 * **recovery.sh** - Recovery script for failed updates
+* **test_updates.py** - Test script for update system validation
+* **UPDATE_GUIDE.adoc** - Comprehensive documentation (link:Updates/UPDATE_GUIDE.adoc[Update Guide])
+
+**Features:** Full system updates, git tag support, automatic rollback, service management
 * **UPDATE_GUIDE.adoc** - Complete documentation for update system setup and usage (link:Updates/UPDATE_GUIDE.adoc[Update Guide])
 * **SECURITY_GUIDE.adoc** - Security considerations for update deployments (link:Updates/SECURITY_GUIDE.adoc[Security Guide])
 
@@ -164,7 +161,7 @@ Clone this repository to your computer.
 
 I prefer using a USB-stick since this is faster and more reliable than using an SD-card. Note that this only works for Raspberry Pi 3B+ and later models (and not with zero either).
 
-Start with an image of latest Raspberry Pi OS lite 32 or 64 bit depending on model (Legacy OS will NOT work). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type and write it to a USB-stick or SD-card.
+Start with an image of bookworm Raspberry Pi OS lite 32 or 64 bit depending on model (Trixie OS will NOT work yet). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type and write it to a USB-stick or SD-card.
 
 When the pi starts it will automatically connect to the WiFi and get an IP-address. If you have set a hostname it will be available on the network with that name.
 
@@ -247,7 +244,6 @@ Refer to `Settings/UNIFIED_SETTINGS_GUIDE.adoc` for comprehensive documentation 
 
 * Available settings and their purposes
 * Schema structure and validation rules
-* Migration from legacy configuration
 * Web interface integration
 
 == Over-The-Air Updates

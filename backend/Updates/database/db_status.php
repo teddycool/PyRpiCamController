@@ -13,7 +13,7 @@
  * Simple diagnostic script to check database connectivity and table status
  */
 
-require_once 'admin_auth.php';
+require_once '../admin/admin_auth.php';
 
 // Require authentication
 require_admin_auth();

@@ -28,16 +28,21 @@ CamController/
 ├── Main.py              # Application entry point and logging setup
 ├── MainLoop.py          # Core execution loop and state management
 ├── hwconfig.py          # Hardware configuration definitions
+├── LoggingSecure.py     # Secure logging utilities
 ├── Cam/                 # Camera abstraction layer
+│   ├── __init__.py      # Package initialization
 │   ├── CamBase.py       # Abstract base class for all cameras
 │   ├── PiCam3.py        # Raspberry Pi Camera v3 implementation
-│   └── PiCamHQ.py       # Raspberry Pi HQ Camera implementation
+│   ├── PiCamHQ.py       # Raspberry Pi HQ Camera implementation
+│   └── WebCam.py        # USB webcam support
 ├── CamStates/           # State machine implementation
+│   ├── __init__.py      # Package initialization
 │   ├── BaseState.py     # Abstract base class for all states
 │   ├── InitState.py     # Initialization and setup state
 │   ├── PostState.py     # Image capture and publishing state
 │   └── StreamState.py   # Video streaming state
 ├── IO/                  # Hardware input/output modules
+│   ├── __init__.py      # Package initialization
 │   ├── Display.py       # LED display control
 │   ├── Light.py         # Light/LED strip control
 │   └── Tempmonitor.py   # Temperature monitoring
@@ -46,13 +51,24 @@ CamController/
 │   ├── FilePublisher.py # Local file system publisher
 │   └── HttpPublisher.py # HTTP/web service publisher
 ├── Connectivity/        # Network and connectivity
+│   ├── __init__.py      # Package initialization
 │   ├── cpuserial.py     # CPU serial number utilities
-│   └── Settings.py      # Legacy settings (deprecated)
+│   └── WiFi.py          # WiFi management utilities
 ├── StreamingServer/     # Video streaming server
-│   └── StreamingServer.py # HTTP video streaming implementation
+│   ├── __init__.py      # Package initialization
+│   └── ModernStreamingServer.py # HTTP video streaming implementation
 └── Vision/              # Computer vision and analysis
+    ├── __init__.py      # Package initialization
     ├── MotionDetector.py # Motion detection implementation
-    └── Vision.py        # Computer vision utilities
+    ├── Vision.py        # Computer vision utilities
+    └── pipeline/        # Image processing pipeline
+        ├── __init__.py  # Package initialization
+        ├── ImageProcessor.py # Main image processing coordinator
+        ├── ProcessorBase.py  # Abstract base for processors
+        └── processors/ # Specific processing implementations
+            ├── __init__.py # Package initialization
+            ├── CropProcessor.py # Image cropping processor
+            └── MotionDetectionProcessor.py # Motion detection processor
 ----
 
 === Component Interaction
@@ -60,7 +76,7 @@ CamController/
 ----
 Main.py
     ↓
-MainLoop.py ←→ Settings Manager
+MainLoop.py ←→ Settings Manager (../Settings/)
     ↓
 State Machine (InitState → PostState ↔ StreamState)
     ↓
@@ -69,6 +85,8 @@ Camera Abstraction (CamBase implementations)
 Publishers (File, HTTP)
     ↓
 Hardware I/O (Display, Light, Temp)
+    ↓
+Vision Pipeline (Motion Detection, Image Processing)
 ----
 
 == Design Patterns

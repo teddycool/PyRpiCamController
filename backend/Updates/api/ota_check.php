@@ -26,7 +26,7 @@
  * - release_notes: string (if update available)
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 
 // Handle CORS and validate request
 handleCors();

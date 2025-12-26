@@ -1,15 +1,16 @@
-# design choices and rules...
+= Design Choices and Rules
 
-*
-* sd-image for complete system and a base-configuration
-* settings from server
-* everything handled by settings either from server or via ssh
-* no writing to sd-card
-* ssh is enabled, the pw is available on account 
-* 
+== Core Principles
 
+* SD-image for complete system and a base-configuration
+* Settings from server
+* Everything handled by settings either from server or via SSH
+* No writing to SD-card
+* SSH is enabled, the password is available on account
 
- Basics:
+== Basics
+
+(Content to be expanded with specific design decisions and architectural principles)
 
  
 

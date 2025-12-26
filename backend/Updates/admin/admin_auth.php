@@ -13,7 +13,7 @@
  * Provides authentication functions for the OTA admin dashboard.
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 
 // Start session with secure settings
 function start_admin_session() {

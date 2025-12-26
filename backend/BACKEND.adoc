@@ -1,10 +1,12 @@
-= PyRpiCam OTA Backend Server
+= PyRpiCamController Backend Systems
 :toc: left
 :toclevels: 3
 :sectlinks:
 :sectanchors:
 
-This backend provides server-side infrastructure for the PyRpiCamController Over-The-Air (OTA) update system. It's designed to run in a subfolder `/public_html/pycamota/` alongside other web applications like WordPress.
+This backend provides server-side infrastructure for the PyRpiCamController project, including Over-The-Air (OTA) updates and image publishing systems. The backend is now organized into separate subsystems for better maintainability.
+
+**Note:** This documentation refers to the legacy monolithic backend structure. The current backend is now organized into separate Updates and ImagePublisher systems. See the respective README.md files in backend/Updates/ and backend/ImagePublisher/ directories.
 
 == Deployment Structure
 
@@ -16,15 +18,18 @@ The backend is configured for deployment in a subfolder to coexist with other we
 == Components
 
 === Database Schema
-* **ota_database_schema.sql**: Complete MySQL database schema with tables for devices, versions, logs, and configuration
+* **backend/Updates/database/ota_schema.sql**: Complete MySQL database schema for OTA updates
+* **backend/ImagePublisher/database/logging_schema.sql**: Database schema for image and log data
 * Includes stored procedures for secure operations and sample data
 
 image::../_doc/db_schema.png[]
 
 === Core PHP Files
-* **config.php**: Central configuration with database connection, security settings, and helper functions
-* **ota_check.php**: Device update check endpoint - handles version checking and file downloads
-* **ota_report.php**: Status reporting endpoint - receives device status updates and handles notifications
+* **backend/Updates/utils/config.php**: Central configuration for OTA system
+* **backend/Updates/api/ota_check.php**: Device update check endpoint
+* **backend/Updates/api/ota_report.php**: Status reporting endpoint
+* **backend/ImagePublisher/api/receive_and_store_image_data.php**: Image upload handling
+* **backend/ImagePublisher/api/post_logitem.php**: Log data reception
 
 === Management APIs
 * **device_management.php**: REST API for device CRUD operations, filtering, and force updates

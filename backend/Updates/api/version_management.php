@@ -19,7 +19,7 @@
  * POST /api/versions/{id}/rollback - Rollback version to testing
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 require_once 'admin_auth.php';
 
 // Require authentication for all admin operations

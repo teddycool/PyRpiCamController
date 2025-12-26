@@ -225,15 +225,14 @@ try:
   # print("*Install Update System")
   # print("*****************************************")
   # 
-  # # Create Updates directories
+  # # Create Updates runtime directories
   # os.system("sudo mkdir -p /home/pi/Updates")
-  # os.system("sudo mkdir -p /home/pi/Updates/bu")      # Backup directory
-  # os.system("sudo mkdir -p /home/pi/Updates/sw")      # Software staging directory
+  # os.system("sudo mkdir -p /home/pi/Updates/backup")      # Backup directory
+  # os.system("sudo mkdir -p /home/pi/Updates/staging")     # Software staging directory
   # os.system("sudo chmod 755 /home/pi/Updates")
   # 
-  # # Copy Updates files
-  # os.system("sudo cp -r /home/pi/Updates/install /home/pi/Updates/")
-  # os.system("sudo cp /home/pi/Updates/recovery.sh /home/pi/Updates/")
+  # # Copy Updates files (no install directory needed - files are in Updates root)
+  # os.system("sudo cp /home/pi/PyRpiCamController/Updates/recovery.sh /home/pi/Updates/")
   # os.system("sudo chmod +x /home/pi/Updates/recovery.sh")
   # 
   # # Install and enable update daemon service

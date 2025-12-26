@@ -1,5 +1,7 @@
 # Legacy settings files removed - now using unified settings system
 backend/secrets.php
+backend/*/utils/secrets.php
+backend/**/secrets.php
 dev_tools/*
 
 

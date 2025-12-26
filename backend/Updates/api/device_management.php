@@ -19,7 +19,7 @@
  * POST /api/devices/{cpu_id}/force-update - Force update to specific version
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 require_once 'admin_auth.php';
 
 // For admin dashboard access, require authentication

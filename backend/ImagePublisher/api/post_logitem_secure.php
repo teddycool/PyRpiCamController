@@ -5,7 +5,7 @@
 */
 
 // Include required files for database connection
-require_once('config.php');  // Config file with the database connection
+require_once('../utils/config.php');  // Config file with the database connection
 require_once(TP_SOURCEPATH . 'CDBController.php'); // Database controller class
 
 // Function to validate the API key

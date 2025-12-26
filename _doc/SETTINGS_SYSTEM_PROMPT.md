@@ -237,7 +237,7 @@ Settings Schema
 │   ├── Cam.publishers.file.publish (Save to file)
 │   └── LogToFile (Enable logging)
 ├── Level: "advanced" (Technical, expert settings)
-│   ├── OTA configuration
+│   ├── Updates configuration
 │   ├── Motion detection parameters
 │   ├── Vision processing settings
 │   ├── Network timeouts
@@ -252,7 +252,7 @@ Settings Schema
 ### Section-based Grouping
 ```
 UI Sections (Swedish Interface):
-├── "System" - Core operation mode, OTA, logging
+├── "System" - Core operation mode, Updates, logging
 ├── "Kamera" - Image capture, publishing, timing
 ├── "Stream" - Video streaming configuration
 ├── "Vision" - Image processing, motion detection

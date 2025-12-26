@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once 'config.php';
-require_once 'admin_auth.php';
+require_once '../admin/admin_auth.php';
 
 // Check authentication
 if (!is_admin_authenticated()) {

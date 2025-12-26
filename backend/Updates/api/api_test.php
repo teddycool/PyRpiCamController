@@ -3,7 +3,7 @@
  * Simple API test endpoint for debugging
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 require_once 'admin_auth.php';
 
 // Set JSON header

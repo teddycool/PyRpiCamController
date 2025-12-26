@@ -22,7 +22,7 @@
  * - timestamp: ISO timestamp
  */
 
-require_once 'config.php';
+require_once '../utils/config.php';
 require_once 'admin_auth.php';
 
 // For admin dashboard log access, require authentication
