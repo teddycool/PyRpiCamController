@@ -40,6 +40,7 @@ The main application folder containing the core camera control software written 
 * **IO/** - Input/output modules for hardware control (Display, lighting, etc.)
 * **Publishers/** - Publishing modules for saving images and metadata (FilePublisher, HttpPublisher)
 * **Connectivity/** - Network and connectivity management modules
+* **camcontroller.service** - Systemd service file for the camera application
 
 === Settings
 Unified settings system provides configuration management:
@@ -48,13 +49,13 @@ Unified settings system provides configuration management:
 * **settings_schema.json** - Single source of truth for all settings definitions
 * **user_settings.json** - User customizations that override defaults
 
-=== webgui
+=== WebGui
 Flask-based web interface for remote camera system configuration:
 
 * **web_app.py** - Flask application with settings schema and web routes (Swedish language interface)
 * **templates/** - HTML templates for the configuration interface
 * **static/** - Static web resources (CSS, images)
-* **webgui.service** - Systemd service configuration for production deployment
+* **camcontroller-web.service** - Systemd service configuration for production deployment
 
 **Features:** Basic/Advanced tabs, Swedish language interface, password fields, real-time validation
 
@@ -72,10 +73,14 @@ Unified settings management system:
 Installation and setup utilities:
 
 * **install-all.py** - Main installation script that sets up the entire system
-* **smb.conf** - Samba configuration for network file sharing
-* **pycam.service** - Systemd service file for the camera application
-* **comitup.conf** - Configuration file for the Wi-Fi setup tool 'comitup'
 * Various helper scripts for system configuration and deployment
+
+=== Services
+System service configurations for external dependencies:
+
+* **smb.conf** - Samba configuration for network file sharing
+* **comitup.conf** - Configuration file for the Wi-Fi setup tool 'comitup'
+* **fix_samba_anonymous.sh** - Utility script to fix Samba anonymous access issues
 
 === _doc
 Documentation and reference materials:
@@ -84,14 +89,17 @@ Documentation and reference materials:
 * **swap_instructions.adoc** - Instructions for configuring swap on Raspberry Pi Zero
 * Hardware images and setup photos
 
-=== ota
+=== Updates
 Over-The-Air update system for remote software deployment:
 
-* **install/** - OTA daemon and installation scripts
-* **ota-daemon.service** - Systemd service for background update checking
+* **install/** - Update daemon and installation scripts
+* **camcontroller-update.service** - Systemd service for the update daemon
 * **recovery.sh** - Recovery script for failed updates
-* **OTA_GUIDE.adoc** - Complete documentation for OTA system setup and usage (link:ota/OTA_GUIDE.adoc[OTA Guide])
-* **SECURITY_GUIDE.adoc** - Security considerations for OTA deployments (link:ota/SECURITY_GUIDE.adoc[Security Guide])
+* **test_updates.py** - Test script for update system validation
+* **camcontroller-update.service** - Systemd service for background update checking
+* **recovery.sh** - Recovery script for failed updates
+* **UPDATE_GUIDE.adoc** - Complete documentation for update system setup and usage (link:Updates/UPDATE_GUIDE.adoc[Update Guide])
+* **SECURITY_GUIDE.adoc** - Security considerations for update deployments (link:Updates/SECURITY_GUIDE.adoc[Security Guide])
 
 === timelapse
 Timelapse video creation utilities:
@@ -111,12 +119,13 @@ Server-side infrastructure for receiving images and data from the camera system 
 * Support for picam3 and picam3HQ (probably also picam2 and picamHQ)
 * Saving still-images and meta-data at a configurable interval
 * Saving the images to a shared folder on the usb-stick, shared with samba
+* Video streaming to the local network 
 * Can post images to a backend with http (a simple example-receive-script is provided)
 * Support for motion-detection (basic implementation)
-* Fully configurable from a config file via webgui or directly in the config-file
+* Fully configurable from a config file via WebGui or directly in the config-file
 * Logging to a server with http to a configurable url
 * Logging to a file in the pi
-* Configurable image resolution 
+* Configurable image and video resolution 
 * Configurable log-level
 * Can control a led-strip or other light-source with PWM (needs extra hardware)
 * Can control a addressable RGB LED for status indication (needs extra hardware)
@@ -128,7 +137,6 @@ Server-side infrastructure for receiving images and data from the camera system 
 
 == Planned features (upcoming)
 
-* Video streaming to the local network (basic implementation exists)
 * Support for more camera-types
 * Support for an extra tempsensor inside the cam-box (needs extra hardware)
 * Support for simple image-analyze with YOLO or similar
@@ -165,7 +173,7 @@ When the WiFi is pre-set, you can directly start 'headless', ssh to target and c
 === What files to copy
 Copy these folder from the cloned repo the home-root of the pi-user. Default is /home/pi/..
 
-/CamController, /ota, /Settings, /tools, /webgui
+/CamController, /Updates, /Settings, /Services, /tools, /WebGui
 
 === How to install the software
 
@@ -184,7 +192,7 @@ The CamController now starts as a service and will run in the background. You ca
 
 [source]
 ----
-sudo systemctl status pycam.service
+sudo systemctl status camcontroller.service
 ----
 You can also check the log-file in shared/logs/ to see if everything is working as expected.
 [source]
@@ -247,14 +255,14 @@ Refer to `Settings/UNIFIED_SETTINGS_GUIDE.adoc` for comprehensive documentation 
 The system includes a comprehensive OTA update mechanism for remote software deployment. This allows you to update the camera software without physical access to the device.
 
 === OTA Documentation
-Refer to `ota/OTA_GUIDE.adoc` for complete documentation on:
+Refer to `Updates/UPDATE_GUIDE.adoc` for complete documentation on:
 
 * Setting up the OTA server infrastructure
 * Configuring devices for OTA updates
 * Security considerations and best practices
 * Troubleshooting update issues
 
-Refer to `ota/SECURITY_GUIDE.adoc` for security guidelines when deploying OTA updates.
+Refer to `Updates/SECURITY_GUIDE.adoc` for security guidelines when deploying updates.
 
 == Samba file-sharing for easy access to images and logs
 A samba server is installed as a part of the install-script. This makes it possible to share the images and /home/pi/shared/logs folders on the network.

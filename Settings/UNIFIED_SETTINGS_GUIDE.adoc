@@ -20,7 +20,7 @@ PyRpiCamController/
 │   ├── user_settings.json         # User customizations (overrides defaults)
 │   ├── demo_settings.py           # Demonstration script
 │   └── add_setting_levels.py      # Schema categorization tool
-└── webgui/                        # Web interface
+└── WebGui/                        # Web interface
     ├── web_app.py                 # Flask web application
     └── templates/
         └── settings_form.html     # Auto-generated web form
@@ -38,7 +38,7 @@ python demo_settings.py
 === 2. Start Web GUI
 
 ----
-cd webgui
+cd WebGui
 python web_app.py
 ----
 
@@ -142,7 +142,7 @@ resolution = settings_manager.get('Cam.resolution')
 === Step 3: Update web GUI (if replacing existing)
 
 * Replace manual form definitions with schema-driven forms
-* Use provided `webgui/web_app.py` and `webgui/templates/settings_form.html`
+* Use provided `WebGui/web_app.py` and `WebGui/templates/settings_form.html`
 * API endpoints available for AJAX updates
 
 == API Endpoints
@@ -214,7 +214,7 @@ value = settings_manager.get('NewSetting')
 === Testing Changes
 
 1. Run `demo_settings.py` to verify Python interface
-2. Start `webgui/web_app.py` to test web interface
+2. Start `WebGui/web_app.py` to test web interface
 3. Check validation with invalid values
 
 == Troubleshooting
@@ -229,7 +229,7 @@ value = settings_manager.get('NewSetting')
 
 * Ensure Flask is installed: `pip install flask`
 * Check browser developer console for JavaScript errors
-* Verify template path in webgui/web_app.py
+* Verify template path in WebGui/web_app.py
 
 === Validation Errors
 

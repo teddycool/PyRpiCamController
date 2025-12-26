@@ -9,6 +9,7 @@ import sys
 import os
 import json
 import socket
+import time
 # Add parent directory to path to access Settings module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Settings.settings_manager import settings_manager
@@ -144,6 +145,67 @@ def stream_status():
 
 # Streaming control removed - now handled by Mode setting
 
+@app.route("/api/settings", methods=["POST"])
+def update_settings():
+    """Update settings via AJAX - supports both single and bulk updates"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data received'}), 400
+        
+        print(f"Settings update request: {data}")
+        
+        # Get editable schema for validation
+        ui_schema = settings_manager.get_web_editable_schema()
+        updated_fields = []
+        
+        # Handle both formats: {field: value} or {field: field_name, value: field_value}
+        if 'field' in data and 'value' in data:
+            # Format: {field: "Mode", value: "Photo"}
+            field = data.get('field')
+            value = data.get('value')
+            fields_to_update = {field: value}
+        else:
+            # Format: {Mode: "Photo", LogLevel: "DEBUG", ...}
+            fields_to_update = data
+        
+        for field, value in fields_to_update.items():
+            print(f"Updating {field} = {value}")
+            
+            if field not in ui_schema:
+                print(f"Warning: Field {field} not found or not editable, skipping")
+                continue
+            
+            schema_info = ui_schema[field]
+            
+            # Convert value based on type
+            converted_value = convert_form_value(value, schema_info)
+            
+            # Save the setting
+            settings_manager.set(field, converted_value, save=True)
+            
+            # Track this change for restart notification
+            track_setting_change(field, converted_value)
+            
+            updated_fields.append({
+                'field': field,
+                'value': converted_value
+            })
+            
+            print(f"Settings saved successfully - {field}: {converted_value}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Updated {len(updated_fields)} setting(s)',
+            'updated_fields': updated_fields,
+            'pending_changes': get_pending_changes()
+        })
+        
+    except Exception as e:
+        error_msg = f"Error updating settings: {str(e)}"
+        print(error_msg)
+        return jsonify({'error': error_msg}), 500
+
 
 @app.route("/api/settings/update", methods=["POST"])
 def update_setting():
@@ -174,18 +236,81 @@ def update_setting():
         # Save the setting
         settings_manager.set(field, converted_value, save=True)
         
+        # Track this change for restart notification
+        track_setting_change(field, converted_value)
+        
         print(f"Settings saved successfully - {field}: {converted_value}")
         
         return jsonify({
             'success': True, 
             'message': f'Setting {field} updated',
             'field': field,
-            'value': converted_value
+            'value': converted_value,
+            'pending_changes': get_pending_changes()
         })
     except Exception as e:
         error_msg = f"Error updating setting {field if 'field' in locals() else 'unknown'}: {str(e)}"
         print(error_msg)
-        return jsonify({'error': error_msg}), 500
+# Global variable to track changed settings
+pending_changes = {}
+
+def track_setting_change(field, value):
+    """Track a setting change for restart notification"""
+    global pending_changes
+    pending_changes[field] = {
+        'value': value,
+        'timestamp': time.time()
+    }
+
+def get_pending_changes():
+    """Get list of pending changes"""
+    global pending_changes
+    return {
+        'count': len(pending_changes),
+        'changes': {k: v['value'] for k, v in pending_changes.items()}
+    }
+
+def clear_pending_changes():
+    """Clear pending changes after restart"""
+    global pending_changes
+    pending_changes = {}
+
+
+@app.route("/api/settings/pending")
+def get_pending_settings():
+    """Get current pending changes"""
+    return jsonify(get_pending_changes())
+
+
+@app.route("/api/service/apply-and-restart", methods=["POST"])
+def apply_and_restart():
+    """Apply all changes and restart the camera service"""
+    try:
+        changes = get_pending_changes()
+        
+        if changes['count'] == 0:
+            return jsonify({
+                'success': True,
+                'message': 'No pending changes to apply',
+                'action': 'none'
+            })
+        
+        # Write restart request
+        restart_file = "/tmp/cam_reload_settings.txt"
+        with open(restart_file, 'w') as f:
+            f.write("restart_service\n")
+        
+        # Clear pending changes since we're restarting
+        clear_pending_changes()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Applying {changes["count"]} changes and restarting service',
+            'action': 'restart',
+            'changes_applied': changes['changes']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route("/api/settings/debug", methods=["GET"])
@@ -251,32 +376,9 @@ def test_endpoint():
     })
 
 
-@app.route("/api/settings/reload", methods=["POST"])
-def reload_settings():
-    """Reload settings without full service restart"""
-    try:
-        # Write a settings reload request file
-        reload_file = "/tmp/cam_reload_settings.txt"
-        with open(reload_file, 'w') as f:
-            f.write("reload_settings\n")
-        
-        return jsonify({'success': True, 'message': 'Settings reload requested'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route("/api/service/restart", methods=["POST"])
-def restart_service():
-    """Restart the entire pycam service"""
-    try:
-        # Write a service restart request file
-        reload_file = "/tmp/cam_reload_settings.txt"
-        with open(reload_file, 'w') as f:
-            f.write("restart_service\n")
-        
-        return jsonify({'success': True, 'message': 'Service restart requested'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# Old separate reload/restart endpoints replaced by unified apply-and-restart
+# @app.route("/api/settings/reload", methods=["POST"])
+# @app.route("/api/service/restart", methods=["POST"])
 
 
 @app.route("/stream")

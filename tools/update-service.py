@@ -6,8 +6,8 @@ __author__ = 'teddycool'
 # The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
 import os
-os.system("sudo systemctl stop pycam.service")
-os.system("sudo cp /home/pi/PyRpiCamController/tools/pycam.service  /etc/systemd/system/pycam.service") 
+os.system("sudo systemctl stop camcontroller.service")
+os.system("sudo cp /home/pi/PyRpiCamController/CamController/camcontroller.service  /etc/systemd/system/camcontroller.service") 
 os.system("sudo systemctl daemon-reload")
-os.system("sudo systemctl enable pycam.service")
-os.system("sudo systemctl start pycam.service")
+os.system("sudo systemctl enable camcontroller.service")
+os.system("sudo systemctl start camcontroller.service")

@@ -177,6 +177,33 @@ Access your photos directly from your computer:
 - Verify URL and API key settings
 - Check logs for upload error messages
 
+=== File Share Login Required (Anonymous Access Issues)
+If you're suddenly prompted for a username/password when accessing the file share:
+
+1. **SSH into your device** and run the fix script:
++
+----
+ssh pi@[device-id].local
+cd PyRpiCamController/Services
+chmod +x fix_samba_anonymous.sh
+./fix_samba_anonymous.sh
+----
+
+2. **Alternative manual fix**:
++
+----
+sudo systemctl restart smbd
+sudo systemctl restart nmbd
+----
+
+3. **If still not working, try a full reboot**:
++
+----
+sudo reboot
+----
+
+The file share is configured for anonymous access - no login should be required.
+
 *[Picture suggestion: Screenshot of log file showing typical system messages and any error indicators]*
 
 == Support

@@ -10,7 +10,7 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/PyRpiCamController
 Environment=PYTHONPATH=/home/pi/PyRpiCamController
-ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/ota/install/ota_daemon.py --daemon
+ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/Updates/install/ota_daemon.py --daemon
 Restart=on-failure
 RestartSec=30
 StandardOutput=journal

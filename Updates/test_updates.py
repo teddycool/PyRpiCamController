@@ -156,20 +156,20 @@ def test_service_commands():
     
     # Test if we can check service status (don't actually start/stop)
     try:
-        result = subprocess.run(['systemctl', 'is-enabled', 'pycam.service'], 
+        result = subprocess.run(['systemctl', 'is-enabled', 'camcontroller.service'], 
                               capture_output=True, text=True)
         if result.returncode == 0:
-            print("✓ pycam.service is enabled")
+            print("✓ camcontroller.service is enabled")
         else:
-            print("! pycam.service is not enabled (normal for development)")
+            print("! camcontroller.service is not enabled (normal for development)")
             
         # Check if ota-daemon service file exists
-        service_file = Path('/etc/systemd/system/ota-daemon.service')
+        service_file = Path('/etc/systemd/system/camcontroller-update.service')
         if service_file.exists():
-            print("✓ ota-daemon.service file exists")
+            print("✓ camcontroller-update.service file exists")
         else:
-            print("! ota-daemon.service not installed")
-            print("  Install with: sudo cp ota/ota-daemon.service /etc/systemd/system/")
+            print("! camcontroller-update.service not installed")
+            print("  Install with: sudo cp Updates/camcontroller-update.service /etc/systemd/system/")
             
     except Exception as e:
         print(f"! Could not test services (normal in containers): {e}")

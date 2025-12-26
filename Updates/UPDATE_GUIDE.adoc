@@ -15,7 +15,7 @@ ota/
 │   ├── installota_v2.py    # Main OTA manager (robust version)
 │   ├── ota_daemon.py       # Background daemon for automatic checks
 │   └── installota.py       # Original skeleton (deprecated)
-├── ota-daemon.service      # Systemd service for OTA daemon
+├── camcontroller-update.service # Systemd service for OTA daemon
 └── recovery.sh             # Emergency recovery script
 ----
 
@@ -42,7 +42,7 @@ The OTA system is configured through the unified settings system:
     "server_url": "https://example.com", // Update server URL
     "check_interval": 3600,              // Check interval in seconds
     "api_key": "your-api-key",           // Authentication for server
-    "service_name": "pycam.service",     // Systemd service to manage
+    "service_name": "camcontroller.service",     // Systemd service to manage
     "install_path": "/home/pi/PyRpiCamController",
     "backup_retention": 3,               // Number of backups to keep
     "health_check_timeout": 120,         // Health check timeout
@@ -70,19 +70,19 @@ pip install requests
 
 ----
 # Copy service file
-sudo cp ota/ota-daemon.service /etc/systemd/system/
+sudo cp Updates/camcontroller-update.service /etc/systemd/system/
 
 # Reload systemd
 sudo systemctl daemon-reload
 
 # Enable service (start on boot)
-sudo systemctl enable ota-daemon.service
+sudo systemctl enable camcontroller-update.service
 
 # Start service
-sudo systemctl start ota-daemon.service
+sudo systemctl start camcontroller-update.service
 
 # Check status
-sudo systemctl status ota-daemon.service
+sudo systemctl status camcontroller-update.service
 ----
 
 === 3. Configure Settings
@@ -171,7 +171,7 @@ PyRpiCamController/
 │   ├── settings_manager.py
 │   ├── settings_schema.json
 │   └── user_settings.json
-├── webgui/
+├── WebGui/
 │   └── web_app.py
 ├── VERSION              # Text file with version number
 └── ... (all other files)
@@ -254,7 +254,7 @@ The OTA system follows a comprehensive workflow designed for reliability and sec
 * **Backup Creation**: Current system state is backed up before update
 
 ==== 4. Installation Process
-* **Service Stop**: Camera services are gracefully stopped (pycam.service)
+* **Service Stop**: Camera services are gracefully stopped (camcontroller.service)
 * **File Extraction**: Update package is extracted to temporary location
 * **System Update**: Files are copied to appropriate system locations
 * **Configuration Migration**: Settings are preserved and migrated if needed
@@ -290,20 +290,20 @@ The OTA system follows a comprehensive workflow designed for reliability and sec
    └── Success → Continue
 
 4. Install Update
-   ├── Stop pycam.service
+   ├── Stop camcontroller.service
    ├── Extract package to temp location
    ├── Replace files in installation directory
    ├── Set proper permissions
-   └── Start pycam.service
+   └── Start camcontroller.service
 
 5. Verify Installation
    ├── Health Check Failed → Automatic rollback
    └── Success → Complete update
 
 6. Rollback (if needed)
-   ├── Stop pycam.service
+   ├── Stop camcontroller.service
    ├── Restore from backup
-   ├── Start pycam.service
+   ├── Start camcontroller.service
    └── Report failure to server
 
 7. Status Reporting
@@ -342,7 +342,7 @@ When automatic recovery fails:
 +
 ----
 # OTA daemon logs
-journalctl -u ota-daemon.service -f
+journalctl -u camcontroller-update.service -f
 
 # OTA installation logs
 tail -f /home/pi/shared/logs/ota.log
@@ -374,7 +374,7 @@ tail -f /home/pi/shared/logs/ota.log
 
 === Log Locations
 
-* **OTA Daemon**: `journalctl -u ota-daemon.service`
+* **OTA Daemon**: `journalctl -u camcontroller-update.service`
 * **OTA Operations**: `/home/pi/shared/logs/ota.log`
 * **Recovery Operations**: `/home/pi/shared/logs/recovery.log`
 
@@ -382,7 +382,7 @@ tail -f /home/pi/shared/logs/ota.log
 
 ----
 # Check OTA daemon status
-systemctl status ota-daemon.service
+systemctl status camcontroller-update.service
 
 # Check when last update was attempted
 grep "Checking for updates" /home/pi/shared/logs/ota.log | tail -5
@@ -417,10 +417,10 @@ Monitor your update server for:
 
 ----
 # Check service status
-systemctl status ota-daemon.service
+systemctl status camcontroller-update.service
 
 # Check for permission issues
-sudo journalctl -u ota-daemon.service -n 50
+sudo journalctl -u camcontroller-update.service -n 50
 ----
 
 ==== Updates Not Being Applied
@@ -440,10 +440,10 @@ python3 ota/install/ota_daemon.py --manual
 
 ----
 # Check service status
-systemctl status pycam.service
+systemctl status camcontroller.service
 
 # Check recent logs
-journalctl -u pycam.service -n 50
+journalctl -u camcontroller.service -n 50
 
 # Emergency rollback
 ./ota/recovery.sh restore-latest

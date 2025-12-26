@@ -83,7 +83,7 @@
         "level": "advanced"
       },
       "service_name": {
-        "value": "pycam.service",
+        "value": "camcontroller.service",
         "type": "text",
         "ui": {
           "name": "Tjänstnamn",

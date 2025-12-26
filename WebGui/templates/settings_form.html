@@ -262,50 +262,82 @@
             opacity: 1;
         }
         
-        /* Settings Management */
-        .settings-management {
+        /* Apply Changes Styles */
+        .apply-changes {
             background-color: #fff3cd !important;
             border: 2px solid #ffc107 !important;
+            margin-top: 20px;
         }
-        .settings-management .section-title {
+        .apply-changes .section-title {
             background-color: #ffc107 !important;
             color: #212529 !important;
         }
-        .settings-buttons {
-            display: flex;
-            gap: 15px;
+        .changes-status {
             margin-bottom: 15px;
-            flex-wrap: wrap;
+            padding: 12px;
+            background-color: #d4edda;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
         }
-        .settings-button {
-            background: linear-gradient(135deg, #ffc107 0%, #ffab00 100%);
-            color: #212529;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .changes-status.pending {
+            background-color: #fff3cd;
+            border-left-color: #ffc107;
         }
-        .settings-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        .changes-status.applying {
+            background-color: #d1ecf1;
+            border-left-color: #17a2b8;
         }
-        .settings-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .settings-info {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 6px;
+        .pending-changes {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #fff3cd;
+            border-radius: 4px;
             border-left: 4px solid #ffc107;
         }
-        .settings-info-text {
-            color: #6c757d;
-            font-size: 12px;
+        .changes-header {
+            margin: 0 0 8px 0;
+            font-weight: bold;
+            color: #856404;
+        }
+        #changesList {
+            margin: 0;
+            padding-left: 20px;
+            color: #856404;
+        }
+        #changesList li {
+            margin-bottom: 4px;
+        }
+        .apply-button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .apply-button:hover:not(:disabled) {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        .apply-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .apply-button.applying {
+            background-color: #17a2b8;
+            animation: pulse 1.5s infinite;
+        }
+        .apply-info {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
         }
     </style>
 </head>
@@ -459,36 +491,32 @@
                 </div>
             </div>
             
-            <!-- Settings Management -->
-            <div class="section settings-management">
-                <h3 class="section-title">⚙️ Settings Management</h3>
+            <!-- Apply Changes Panel -->
+            <div class="section apply-changes">
+                <h3 class="section-title">⚙️ Apply Changes</h3>
                 <div class="section-content">
-                    <p class="settings-info">
-                        Efter att du sparat inställningar måste du ladda om dem för att aktivera ändringarna.
-                    </p>
-                    
-                    <div class="settings-buttons">
-                        <button type="button" class="settings-button reload-settings" id="reloadSettingsBtn">
-                            🔄 Ladda om inställningar
-                        </button>
-                        <button type="button" class="settings-button restart-service" id="restartServiceBtn">
-                            🔁 Starta om tjänsten
-                        </button>
-                    </div>
-                    
-                    <div class="settings-info-text">
-                        <small>
-                            <strong>Auto-sparning:</strong> Inställningar sparas automatiskt vid ändringar<br>
-                            <strong>Ladda om inställningar:</strong> Snabb omstart utan avbrott i streaming<br>
-                            <strong>Starta om tjänsten:</strong> Fullständig omstart (avbryter pågående aktiviteter)
-                        </small>
-                    </div>
-                    
-                    <div class="settings-status" id="settingsStatus">
+                    <div class="changes-status" id="changesStatus">
                         <div class="status-indicator">
-                            <span class="status-light" id="settingsStatusLight"></span>
-                            <span id="settingsStatusText">Redo att spara ändringar</span>
+                            <span class="status-light" id="changesStatusLight"></span>
+                            <span id="changesStatusText">All settings are active - no restart needed</span>
                         </div>
+                    </div>
+                    
+                    <div class="pending-changes" id="pendingChangesList" style="display: none;">
+                        <p class="changes-header">⚠️ Settings changed - restart needed to apply:</p>
+                        <ul id="changesList"></ul>
+                    </div>
+                    
+                    <div class="apply-actions" id="applyActions">
+                        <button type="button" class="apply-button" id="applyRestartBtn" disabled>
+                            🔄 Apply Changes & Restart Service
+                        </button>
+                        <p class="apply-info">
+                            <small>
+                                <strong>ℹ️ Service restart:</strong> Applies all settings changes.<br>
+                                Camera functions will be briefly interrupted during restart.
+                            </small>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -509,105 +537,147 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupAutoSave();
             initStreamingControls();
-            initSettingsControls();
+            initApplyControls();
             updateStreamStatus();
+            updatePendingChanges();
             
-            // Update stream status every 10 seconds
+            // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
+            setInterval(updatePendingChanges, 10000);
         });
 
-        // Auto-save functionality
-        let autoSaveTimeout;
-        let pendingChanges = new Set();
+        // Auto-save functionality with change tracking
         
         function setupAutoSave() {
             const inputs = document.querySelectorAll('input:not([readonly]), select:not([disabled])');
             inputs.forEach(input => {
                 input.addEventListener('change', function() {
-                    const fieldName = this.name;
-                    const value = this.type === 'checkbox' ? this.checked : this.value;
-                    
-                    pendingChanges.add(fieldName);
-                    updateSettingsStatus('pending');
-                    
-                    clearTimeout(autoSaveTimeout);
-                    autoSaveTimeout = setTimeout(() => {
-                        saveSettingValue(fieldName, value);
-                    }, 1000); // Save after 1 second of no changes
+                    autoSave(this);
                 });
             });
         }
         
-        function saveSettingValue(fieldName, value) {
-            updateSettingsStatus('saving');
+        function autoSave(field) {
+            const value = getInputValue(field);
             
-            fetch('/api/settings/update', {
+            fetch('/api/settings', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    field: fieldName,
-                    value: value
+                    [field.name]: value
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    pendingChanges.delete(fieldName);
-                    if (pendingChanges.size === 0) {
-                        updateSettingsStatus('saved');
-                        setTimeout(() => {
-                            updateSettingsStatus('reload_needed');
-                        }, 2000);
-                    }
+            .then(response => {
+                if (response.ok) {
+                    // Visual feedback - flash green
+                    field.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        field.style.backgroundColor = '';
+                    }, 1000);
+                    
+                    // Update pending changes
+                    updatePendingChanges();
                 } else {
-                    updateSettingsStatus('error', data.error || 'Okänt fel');
+                    console.error('Auto-save failed for', field.name);
                 }
             })
             .catch(error => {
                 console.error('Auto-save error:', error);
-                updateSettingsStatus('error', 'Nätverksfel');
             });
         }
-        
-        function updateSettingsStatus(status, message = '') {
-            const statusElement = document.getElementById('settingsStatus');
-            const lightElement = document.getElementById('settingsStatusLight');
-            const textElement = document.getElementById('settingsStatusText');
-            
-            // Remove existing status classes
-            statusElement.className = 'settings-status';
-            lightElement.className = 'status-light';
-            
-            switch(status) {
-                case 'pending':
-                    statusElement.classList.add('pending');
-                    lightElement.classList.add('running');
-                    textElement.textContent = 'Ändringar väntar på att sparas...';
-                    break;
-                case 'saving':
-                    statusElement.classList.add('saving');
-                    lightElement.classList.add('running');
-                    textElement.textContent = 'Sparar inställningar...';
-                    break;
-                case 'saved':
-                    lightElement.classList.add('running');
-                    textElement.textContent = 'Inställningar sparade!';
-                    break;
-                case 'reload_needed':
-                    statusElement.classList.add('pending');
-                    lightElement.classList.add('stopped');
-                    textElement.textContent = 'Klicka "Ladda om inställningar" för att aktivera ändringarna';
-                    break;
-                case 'error':
-                    statusElement.classList.add('error');
-                    lightElement.classList.add('stopped');
-                    textElement.textContent = 'Fel vid sparning: ' + message;
-                    break;
-                default:
-                    textElement.textContent = 'Redo att spara ändringar';
+
+        function getInputValue(field) {
+            if (field.type === 'checkbox') {
+                return field.checked;
+            } else if (field.type === 'number') {
+                return parseFloat(field.value) || 0;
+            } else {
+                return field.value || '';
             }
+        }
+        // Update pending changes display
+        async function updatePendingChanges() {
+            try {
+                const response = await fetch('/api/settings/pending');
+                const data = await response.json();
+                const changes = Object.keys(data.changes);
+                
+                const statusDiv = document.querySelector('.changes-status');
+                const statusLight = document.getElementById('changesStatusLight');
+                const statusText = document.getElementById('changesStatusText');
+                const pendingDiv = document.getElementById('pendingChangesList');
+                const applyButton = document.getElementById('applyRestartBtn');
+                
+                if (changes.length > 0) {
+                    // Show pending changes
+                    statusLight.className = 'status-light stopped';
+                    statusText.textContent = `${changes.length} setting(s) changed - restart needed to apply`;
+                    
+                    // Update changes list
+                    const changesList = document.getElementById('changesList');
+                    changesList.innerHTML = '';
+                    changes.forEach(change => {
+                        const li = document.createElement('li');
+                        li.textContent = `${change} = ${data.changes[change]}`;
+                        changesList.appendChild(li);
+                    });
+                    
+                    pendingDiv.style.display = 'block';
+                    applyButton.disabled = false;
+                } else {
+                    // No pending changes
+                    statusLight.className = 'status-light running';
+                    statusText.textContent = 'All settings are active - no restart needed';
+                    pendingDiv.style.display = 'none';
+                    applyButton.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error updating pending changes:', error);
+            }
+        }
+
+        // Apply changes and restart service
+        async function applyAndRestart() {
+            const button = document.getElementById('applyRestartBtn');
+            const statusLight = document.getElementById('changesStatusLight');
+            const statusText = document.getElementById('changesStatusText');
+            
+            button.disabled = true;
+            button.className = 'apply-button applying';
+            button.textContent = 'Applying Changes...';
+            
+            statusLight.className = 'status-light';
+            statusText.textContent = 'Applying changes and restarting service...';
+            
+            try {
+                const response = await fetch('/api/service/apply-and-restart', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    statusText.textContent = 'Changes applied successfully - service is restarting...';
+                    // Wait for service restart
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    statusText.textContent = 'Failed to apply changes - please try again';
+                    resetApplyButton();
+                }
+            } catch (error) {
+                statusText.textContent = 'Error applying changes - please try again';
+                console.error('Apply and restart error:', error);
+                resetApplyButton();
+            }
+        }
+
+        function resetApplyButton() {
+            const button = document.getElementById('applyRestartBtn');
+            button.className = 'apply-button';
+            button.textContent = '🔄 Apply Changes & Restart Service';
+            updatePendingChanges(); // Refresh status
         }
 
         function initStreamingControls() {
@@ -615,10 +685,9 @@
             document.getElementById('viewStreamBtn').addEventListener('click', viewStream);
         }
 
-        function initSettingsControls() {
-            // Set up event listeners for settings management buttons
-            document.getElementById('reloadSettingsBtn').addEventListener('click', reloadSettings);
-            document.getElementById('restartServiceBtn').addEventListener('click', restartService);
+        function initApplyControls() {
+            // Set up event listener for apply and restart button
+            document.getElementById('applyRestartBtn').addEventListener('click', applyAndRestart);
         }
 
         function updateStreamStatus() {
@@ -690,69 +759,6 @@
             if (streamStatus.running && streamStatus.url) {
                 window.open(streamStatus.url, '_blank');
             }
-        }
-
-        function reloadSettings() {
-            const reloadBtn = document.getElementById('reloadSettingsBtn');
-            reloadBtn.disabled = true;
-            reloadBtn.textContent = '⏳ Laddar om...';
-
-            fetch('/api/settings/reload', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showMessage('Inställningar laddas om...', 'success');
-                        // Check for completion after a delay
-                        setTimeout(() => {
-                            showMessage('Inställningar har laddats om framgångsrikt!', 'success');
-                        }, 3000);
-                    } else {
-                        showMessage('Fel vid omladdning: ' + (data.error || 'Okänt fel'), 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error reloading settings:', error);
-                    showMessage('Fel vid omladdning: ' + error.message, 'error');
-                })
-                .finally(() => {
-                    reloadBtn.textContent = '🔄 Ladda om inställningar';
-                    reloadBtn.disabled = false;
-                });
-        }
-
-        function restartService() {
-            if (!confirm('Är du säker på att du vill starta om hela tjänsten? Detta kommer att avbryta pågående aktiviteter.')) {
-                return;
-            }
-
-            const restartBtn = document.getElementById('restartServiceBtn');
-            restartBtn.disabled = true;
-            restartBtn.textContent = '⏳ Startar om...';
-
-            fetch('/api/service/restart', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showMessage('Tjänsten startas om... Detta kan ta en stund.', 'success');
-                        // Disable all controls during restart
-                        setTimeout(() => {
-                            showMessage('Tjänsten har startat om. Sidan laddas om...', 'success');
-                            setTimeout(() => location.reload(), 2000);
-                        }, 10000);
-                    } else {
-                        showMessage('Fel vid omstart: ' + (data.error || 'Okänt fel'), 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error restarting service:', error);
-                    showMessage('Fel vid omstart: ' + error.message, 'error');
-                })
-                .finally(() => {
-                    setTimeout(() => {
-                        restartBtn.textContent = '🔁 Starta om tjänsten';
-                        restartBtn.disabled = false;
-                    }, 15000);
-                });
         }
 
         function showMessage(message, type = 'success') {

@@ -69,7 +69,7 @@ try:
   required_dirs = [
       "/home/pi/PyRpiCamController/CamController",
       "/home/pi/PyRpiCamController/Settings", 
-      "/home/pi/PyRpiCamController/webgui",
+      "/home/pi/PyRpiCamController/WebGui",
       "/home/pi/PyRpiCamController/tools"
   ]
   
@@ -130,8 +130,8 @@ try:
       print("* ERROR: Settings directory not found. Ensure PyRpiCamController is properly deployed.")
       exit(1)
   
-  if not os.path.exists("/home/pi/PyRpiCamController/webgui"):
-      print("* ERROR: webgui directory not found. Ensure PyRpiCamController is properly deployed.")
+  if not os.path.exists("/home/pi/PyRpiCamController/WebGui"):
+      print("* ERROR: WebGui directory not found. Ensure PyRpiCamController is properly deployed.")
       exit(1)
       
   print("* Unified settings system and web interface found and ready.")
@@ -141,11 +141,11 @@ try:
   print("* Setting up the pycam service")
   print("*****************************************")
 
-  os.system("sudo cp /home/pi/PyRpiCamController/tools/pycam.service  /etc/systemd/system/pycam.service") 
+  os.system("sudo cp /home/pi/PyRpiCamController/CamController/camcontroller.service  /etc/systemd/system/camcontroller.service") 
   #Changed.. https://www.thedigitalpictureframe.com/ultimate-guide-systemd-autostart-scripts-raspberry-pi/
   #sudo chmod 644 /etc/systemd/system/name-of-your-service.service
   os.system("sudo systemctl daemon-reload")
-  os.system("sudo systemctl enable pycam.service")
+  os.system("sudo systemctl enable camcontroller.service")
 
   
 # Setup as from Dave Steel, comitup
@@ -158,7 +158,7 @@ try:
   os.system("sudo dpkg -i davesteele-comitup-apt-source*.deb")
   os.system("sudo apt-get update")
   os.system("sudo apt-get install -y comitup comitup-watch")
-  os.system("sudo cp /home/pi/PyRpiCamController/tools/comitup.conf /etc/comitup.conf")
+  os.system("sudo cp /home/pi/PyRpiCamController/Services/comitup.conf /etc/comitup.conf")
   os.system("sudo rm /etc/network/interfaces")
   os.system("sudo systemctl mask dnsmasq.service")
   os.system("sudo systemctl mask systemd-resolved.service")
@@ -194,8 +194,20 @@ try:
   print("*****************************************")
   os.system("sudo apt update")
   os.system("sudo apt install -y samba samba-common-bin")
-  os.system("sudo cp /home/pi/PyRpiCamController/tools/smb.conf /etc/samba/smb.conf")
+  
+  # Set up proper permissions for shared directory
+  os.system("sudo chown -R pi:pi /home/pi/shared")
+  os.system("sudo chmod -R 755 /home/pi/shared")
+  
+  # Add pi user to samba (without password for guest access)
+  os.system("sudo smbpasswd -a pi -n")  # Add pi user with no password
+  
+  # Copy and apply Samba configuration
+  os.system("sudo cp /home/pi/PyRpiCamController/Services/smb.conf /etc/samba/smb.conf")
+  
+  # Restart Samba services
   os.system("sudo systemctl restart smbd")
+  os.system("sudo systemctl restart nmbd")
 
   print("*****************************************")
   print("*Install Flask web-server and web-gui for config")
@@ -203,33 +215,33 @@ try:
   os.system("sudo pip3 install flask --break-system-packages")
 
   os.system("sudo apt install -y gunicorn")
-  os.system("sudo cp /home/pi/PyRpiCamController/webgui/webgui.service  /etc/systemd/system/webgui.service")
+  os.system("sudo cp /home/pi/PyRpiCamController/WebGui/camcontroller-web.service  /etc/systemd/system/camcontroller-web.service")
   os.system("sudo systemctl daemon-reload")
-  os.system("sudo systemctl enable webgui")
-  os.system("sudo systemctl start webgui")
+  os.system("sudo systemctl enable camcontroller-web")
+  os.system("sudo systemctl start camcontroller-web")
   
   # OTA (Over-The-Air) Update System Setup (COMMENTED OUT - API not yet deployed)
   # print("*****************************************")
-  # print("*Install OTA update system")
+  # print("*Install Update System")
   # print("*****************************************")
   # 
-  # # Create OTA directories
-  # os.system("sudo mkdir -p /home/pi/ota")
-  # os.system("sudo mkdir -p /home/pi/ota/bu")      # Backup directory
-  # os.system("sudo mkdir -p /home/pi/ota/sw")      # Software staging directory
-  # os.system("sudo chmod 755 /home/pi/ota")
+  # # Create Updates directories
+  # os.system("sudo mkdir -p /home/pi/Updates")
+  # os.system("sudo mkdir -p /home/pi/Updates/bu")      # Backup directory
+  # os.system("sudo mkdir -p /home/pi/Updates/sw")      # Software staging directory
+  # os.system("sudo chmod 755 /home/pi/Updates")
   # 
-  # # Copy OTA system files
-  # os.system("sudo cp -r /home/pi/ota/install /home/pi/ota/")
-  # os.system("sudo cp /home/pi/ota/recovery.sh /home/pi/ota/")
-  # os.system("sudo chmod +x /home/pi/ota/recovery.sh")
+  # # Copy Updates files
+  # os.system("sudo cp -r /home/pi/Updates/install /home/pi/Updates/")
+  # os.system("sudo cp /home/pi/Updates/recovery.sh /home/pi/Updates/")
+  # os.system("sudo chmod +x /home/pi/Updates/recovery.sh")
   # 
-  # # Install and enable OTA daemon service
-  # os.system("sudo cp /home/pi/ota/ota-daemon.service /etc/systemd/system/ota-daemon.service")
+  # # Install and enable update daemon service
+  # os.system("sudo cp /home/pi/Updates/camcontroller-update.service /etc/systemd/system/camcontroller-update.service")
   # os.system("sudo systemctl daemon-reload")
-  # os.system("sudo systemctl enable ota-daemon")
-  # # Note: Don't start OTA daemon until server API is ready and settings are configured
-  # print("* OTA daemon installed but not started - configure settings first")
+  # os.system("sudo systemctl enable camcontroller-update")
+  # # Note: Don't start update daemon until server API is ready and settings are configured
+  # print("* Update daemon installed but not started - configure settings first")
 
 
   print("*****************************************")
@@ -249,14 +261,14 @@ try:
   print("- /home/pi/shared/logs/        - All system logs (accessible via network)")
   print("- /home/pi/timelapse/         - Timelapse directory")
   print("- /home/pi/Settings/          - Unified settings system")
-  print("- /home/pi/webgui/            - Web interface")
-  # print("- /home/pi/ota/               - OTA update system (ready but not active)")
+  print("- /home/pi/WebGui/            - Web interface")
+  print("- /home/pi/Updates/           - Update system (ready but not active)")
   print("")
   
   print("Services installed and enabled:")
-  print("- pycam.service    - Main camera application")
-  print("- webgui.service   - Web configuration interface")
-  # print("- ota-daemon.service - OTA update daemon (installed but not started)")
+  print("- camcontroller.service     - Main camera application")
+  print("- camcontroller-web.service - Web configuration interface")
+  # print("- camcontroller-update.service - OTA update daemon (installed but not started)")
   print("- smbd.service     - Samba file sharing")
   print("")
   

@@ -73,7 +73,7 @@ class OTAManager:
                 'server_url': settings_manager.get('OTA.server_url', 'https://www.biwebben.se'),
                 'check_interval': settings_manager.get('OTA.check_interval', 3600),  # 1 hour
                 'api_key': settings_manager.get('OTA.api_key', ''),
-                'service_name': settings_manager.get('OTA.service_name', 'pycam.service'),
+                'service_name': settings_manager.get('OTA.service_name', 'camcontroller.service'),
                 'install_path': settings_manager.get('OTA.install_path', '/home/pi/PyRpiCamController'),
                 'backup_retention': settings_manager.get('OTA.backup_retention', 3),
                 'health_check_timeout': settings_manager.get('OTA.health_check_timeout', 120),
@@ -91,7 +91,7 @@ class OTAManager:
             'server_url': 'https://www.biwebben.se',
             'check_interval': 3600,
             'api_key': '',
-            'service_name': 'pycam.service',
+            'service_name': 'camcontroller.service',
             'install_path': '/home/pi/PyRpiCamController',
             'backup_retention': 3,
             'health_check_timeout': 120,

@@ -33,7 +33,7 @@ class InstallOta(object):
 
     def __init__(self):
         logger.info("Installing ota for CamController is starting...")
-        os.system("sudo systemctl pycam.service stop")
+        os.system("sudo systemctl stop camcontroller.service")
         logger.info("Waiting for pycam-service to stop")   
         time.sleep(15)
         self.cpuid = os.system("python /home/pi/CamController/Connectivity/cpuserial.py")
@@ -48,7 +48,7 @@ class InstallOta(object):
         logger.info("Running some tests")  
         logger.info("Report OTA result to backend")  
         logger.info("Start the service with new sw")  
-        os.system("sudo systemctl pycam.service start")
+        os.system("sudo systemctl start camcontroller.service")
         time.sleep(30)
         logger.info("Checking if service is running")
         cnt = 0
@@ -57,7 +57,7 @@ class InstallOta(object):
         while 1:
             time.sleep(0.5)
             cnt = cnt + 1
-            if os.system("systemctl is-active pycam.service"):
+            if os.system("systemctl is-active camcontroller.service"):
                 #New version of service is started and running 
                 otasuccess=True
                 break

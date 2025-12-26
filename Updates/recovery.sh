@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="/home/pi/PyRpiCamController"
 BACKUP_DIR="/home/pi/ota/backups"
 LOG_FILE="/home/pi/shared/logs/recovery.log"
-SERVICE_NAME="pycam.service"
+SERVICE_NAME="camcontroller.service"
 
 # Colors for output
 RED='\033[0;31m'
@@ -223,8 +223,8 @@ reset_ota() {
     log "Resetting OTA system..."
     
     # Stop OTA daemon if running
-    if sudo systemctl is-active --quiet "ota-daemon.service"; then
-        sudo systemctl stop "ota-daemon.service"
+    if sudo systemctl is-active --quiet "camcontroller-update.service"; then
+        sudo systemctl stop "camcontroller-update.service"
         log "Stopped OTA daemon"
     fi
     
