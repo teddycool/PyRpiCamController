@@ -10,13 +10,12 @@ The PyRpiCamController OTA system provides safe, automated updates for remote ca
 === Core Components
 
 ----
-ota/
-├── install/
-│   ├── installota_v2.py    # Main OTA manager (robust version)
-│   ├── ota_daemon.py       # Background daemon for automatic checks
-│   └── installota.py       # Original skeleton (deprecated)
-├── camcontroller-update.service # Systemd service for OTA daemon
-└── recovery.sh             # Emergency recovery script
+Updates/
+├── camcontroller_update_daemon.py    # Background daemon for automatic checks
+├── camcontroller_update_manager.py   # Main update manager (robust version)
+├── camcontroller_update_legacy.py    # Legacy implementation (deprecated)
+├── camcontroller-update.service      # Systemd service file
+└── recovery.sh                       # Emergency recovery script
 ----
 
 === Safety Features
@@ -345,7 +344,7 @@ When automatic recovery fails:
 journalctl -u camcontroller-update.service -f
 
 # OTA installation logs
-tail -f /home/pi/shared/logs/ota.log
+tail -f /home/pi/shared/logs/camcontroller_update.log
 ----
 
 2. **System Health Check**:
@@ -385,10 +384,10 @@ tail -f /home/pi/shared/logs/ota.log
 systemctl status camcontroller-update.service
 
 # Check when last update was attempted
-grep "Checking for updates" /home/pi/shared/logs/ota.log | tail -5
+grep "Checking for updates" /home/pi/shared/logs/camcontroller_update.log | tail -5
 
 # Check for recent errors
-grep "ERROR" /home/pi/shared/logs/ota.log | tail -10
+grep "ERROR" /home/pi/shared/logs/camcontroller_update.log | tail -10
 ----
 
 === Server-Side Monitoring

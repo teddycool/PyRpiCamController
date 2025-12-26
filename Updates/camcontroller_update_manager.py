@@ -19,7 +19,7 @@ import signal
 from datetime import datetime
 from pathlib import Path
 
-class OTAManager:
+class UpdateManager:
     """
     Comprehensive Over-The-Air update manager with robust error handling and recovery.
     
@@ -54,7 +54,7 @@ class OTAManager:
         log_dir.mkdir(exist_ok=True)
         
         file_handler = logging.handlers.RotatingFileHandler(
-            log_dir / 'ota.log',
+            log_dir / 'camcontroller_update.log',
             maxBytes=1024*1024,  # 1MB
             backupCount=5
         )
@@ -99,8 +99,8 @@ class OTAManager:
         }
         
     def setup_paths(self):
-        """Setup directory structure for OTA operations."""
-        base_path = Path('/home/pi/ota')
+        """Setup directory structure for Update operations."""
+        base_path = Path('/home/pi/Updates')
         
         self.paths = {
             'base': base_path,

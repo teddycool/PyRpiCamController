@@ -16,13 +16,13 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 try:
     from Settings.settings_manager import settings_manager
-    from ota.install.installota_v2 import OTAManager
+    from camcontroller_update_manager import UpdateManager
 except ImportError as e:
     print(f"Could not import required modules: {e}")
     sys.exit(1)
 
 
-class OTADaemon:
+class UpdateDaemon:
     """
     Background daemon that periodically checks for and applies OTA updates.
     
@@ -35,8 +35,8 @@ class OTADaemon:
     """
     
     def __init__(self):
-        self.ota_manager = OTAManager()
-        self.logger = self.ota_manager.logger
+        self.update_manager = UpdateManager()
+        self.logger = self.update_manager.logger
         self.running = False
         self.check_thread = None
         
@@ -46,16 +46,16 @@ class OTADaemon:
         
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully."""
-        self.logger.info(f"Received signal {signum}, shutting down OTA daemon")
+        self.logger.info(f"Received signal {signum}, shutting down update daemon")
         self.stop()
         
     def start(self):
-        """Start the OTA daemon."""
+        """Start the update daemon."""
         if self.running:
-            self.logger.warning("OTA daemon is already running")
+            self.logger.warning("Update daemon is already running")
             return
-            
-        self.logger.info("Starting OTA daemon")
+        
+        self.logger.info("Starting update daemon")
         self.running = True
         
         # Start background thread
@@ -70,11 +70,11 @@ class OTADaemon:
             self.stop()
             
     def stop(self):
-        """Stop the OTA daemon."""
+        """Stop the update daemon."""
         if not self.running:
             return
             
-        self.logger.info("Stopping OTA daemon")
+        self.logger.info("Stopping update daemon")
         self.running = False
         
         if self.check_thread and self.check_thread.is_alive():
@@ -82,7 +82,7 @@ class OTADaemon:
             
     def _check_loop(self):
         """Main loop that periodically checks for updates."""
-        self.logger.info("OTA check loop started")
+        self.logger.info("Update check loop started")
         
         while self.running:
             try:
@@ -141,20 +141,20 @@ class OTADaemon:
 
 
 def main():
-    """Main entry point for OTA daemon."""
+    """Main entry point for Update daemon."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='OTA Update Daemon for PyRpiCamController')
+    parser = argparse.ArgumentParser(description='Update Daemon for PyRpiCamController')
     parser.add_argument('--manual', action='store_true', help='Perform manual update check and exit')
     parser.add_argument('--daemon', action='store_true', help='Run as daemon (default)')
     
     args = parser.parse_args()
     
-    daemon = OTADaemon()
+    daemon = UpdateDaemon()
     
     if args.manual:
         # Manual mode - check once and exit
-        print("Performing manual OTA check...")
+        print("Performing manual update check...")
         result = daemon.manual_check()
         sys.exit(0 if result else 1)
     else:
@@ -162,9 +162,9 @@ def main():
         try:
             daemon.start()
         except KeyboardInterrupt:
-            print("OTA daemon stopped by user")
+            print("Update daemon stopped by user")
         except Exception as e:
-            print(f"OTA daemon error: {e}")
+            print(f"Update daemon error: {e}")
             sys.exit(1)
 
 

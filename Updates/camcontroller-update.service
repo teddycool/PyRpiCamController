@@ -1,5 +1,5 @@
 [Unit]
-Description=PyRpiCamController OTA Update Daemon
+Description=PyRpiCamController Update Daemon
 Documentation=https://github.com/teddycool/PyRpiCamController
 After=network.target
 Wants=network.target
@@ -10,7 +10,7 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/PyRpiCamController
 Environment=PYTHONPATH=/home/pi/PyRpiCamController
-ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/Updates/install/ota_daemon.py --daemon
+ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/Updates/camcontroller_update_daemon.py --daemon
 Restart=on-failure
 RestartSec=30
 StandardOutput=journal

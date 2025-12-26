@@ -50,7 +50,8 @@ def test_directories():
         '/home/pi/ota/backups',
         '/home/pi/ota/downloads',
         '/home/pi/ota/temp',
-        '/home/pi/shared/logs'
+        '/home/pi/Updates/backup',
+        '/home/pi/Updates/staging'
     ]
     
     success = True

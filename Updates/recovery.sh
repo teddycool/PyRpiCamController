@@ -10,8 +10,8 @@ set -e  # Exit on any error
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="/home/pi/PyRpiCamController"
-BACKUP_DIR="/home/pi/ota/backups"
-LOG_FILE="/home/pi/shared/logs/recovery.log"
+BACKUP_DIR="/home/pi/Updates/backup"
+LOG_FILE="/home/pi/shared/logs/camcontroller_update_recovery.log"
 SERVICE_NAME="camcontroller.service"
 
 # Colors for output
