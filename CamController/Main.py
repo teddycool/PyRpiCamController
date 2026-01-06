@@ -13,7 +13,6 @@ import logging.handlers
 from Connectivity import cpuserial
 import json
 # Import the new settings manager
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Settings.settings_manager import settings_manager
 
 # TODO: check for OTA at start, if enabled start with new thread, close current and restart after install

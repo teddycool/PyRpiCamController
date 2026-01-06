@@ -7,11 +7,11 @@ __author__ = 'teddycool'
 from flask import Flask, render_template, request, redirect, jsonify, flash
 import sys
 import os
-import json
+import json as json_module  # Use different name to avoid conflicts
 import socket
 import time
+import datetime
 # Add parent directory to path to access Settings module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Settings.settings_manager import settings_manager
 
 app = Flask(__name__)
@@ -90,7 +90,14 @@ def convert_form_value(raw_value, schema_info):
                     converted_parts.append(part)
             value = converted_parts
     elif setting_type == 'enum':
-        value = raw_value
+        # Handle JSON string values for array enums (like resolution)
+        if isinstance(raw_value, str) and raw_value.startswith('['):
+            try:
+                value = json_module.loads(raw_value)
+            except json_module.JSONDecodeError:
+                value = raw_value
+        else:
+            value = raw_value
         # Validation happens in settings_manager
     elif setting_type == 'text' or setting_type == 'password':
         value = str(raw_value)
@@ -105,7 +112,7 @@ def stream_status():
     """Get current streaming status"""
     try:
         # Check if streaming server is running
-        port = settings_manager.get('Stream.port', 8000)
+        port = settings_manager.get('Stream.port')
         hostname = socket.gethostname()
         
         # Try to connect to streaming server to check if it's running
@@ -135,8 +142,8 @@ def stream_status():
             'running': is_running,
             'port': port,
             'url': f"http://{hostname}.local:{port}",
-            'resolution': settings_manager.get('Stream.resolution', [800, 600]),
-            'framerate': settings_manager.get('Stream.framerate', 15),
+            'resolution': settings_manager.get('Stream.resolution'),
+            'framerate': settings_manager.get('Stream.framerate'),
             'actual_fps': actual_fps
         })
     except Exception as e:
@@ -170,17 +177,15 @@ def update_settings():
             fields_to_update = data
         
         for field, value in fields_to_update.items():
-            print(f"Updating {field} = {value}")
             
             if field not in ui_schema:
                 print(f"Warning: Field {field} not found or not editable, skipping")
                 continue
-            
+
             schema_info = ui_schema[field]
             
             # Convert value based on type
             converted_value = convert_form_value(value, schema_info)
-            
             # Save the setting
             settings_manager.set(field, converted_value, save=True)
             
@@ -191,8 +196,6 @@ def update_settings():
                 'field': field,
                 'value': converted_value
             })
-            
-            print(f"Settings saved successfully - {field}: {converted_value}")
         
         return jsonify({
             'success': True, 
@@ -251,20 +254,42 @@ def update_setting():
     except Exception as e:
         error_msg = f"Error updating setting {field if 'field' in locals() else 'unknown'}: {str(e)}"
         print(error_msg)
-# Global variable to track changed settings
-pending_changes = {}
+        return jsonify({'error': error_msg}), 500
+
+
+# Persistent pending changes tracking
+PENDING_CHANGES_FILE = "/tmp/webgui_pending_changes.json"
+
+def load_pending_changes():
+    """Load pending changes from file"""
+    try:
+        if os.path.exists(PENDING_CHANGES_FILE):
+            with open(PENDING_CHANGES_FILE, 'r') as f:
+                return json_module.load(f)
+    except:
+        pass
+    return {}
+
+def save_pending_changes_to_file(changes):
+    """Save pending changes to file"""
+    try:
+        with open(PENDING_CHANGES_FILE, 'w') as f:
+            json_module.dump(changes, f)
+    except Exception as e:
+        print(f"Error saving pending changes: {e}")
 
 def track_setting_change(field, value):
     """Track a setting change for restart notification"""
-    global pending_changes
+    pending_changes = load_pending_changes()
     pending_changes[field] = {
         'value': value,
         'timestamp': time.time()
     }
+    save_pending_changes_to_file(pending_changes)
 
 def get_pending_changes():
     """Get list of pending changes"""
-    global pending_changes
+    pending_changes = load_pending_changes()
     return {
         'count': len(pending_changes),
         'changes': {k: v['value'] for k, v in pending_changes.items()}
@@ -272,8 +297,11 @@ def get_pending_changes():
 
 def clear_pending_changes():
     """Clear pending changes after restart"""
-    global pending_changes
-    pending_changes = {}
+    try:
+        if os.path.exists(PENDING_CHANGES_FILE):
+            os.remove(PENDING_CHANGES_FILE)
+    except Exception as e:
+        print(f"Error clearing pending changes: {e}")
 
 
 @app.route("/api/settings/pending")
@@ -300,12 +328,26 @@ def apply_and_restart():
         with open(restart_file, 'w') as f:
             f.write("restart_service\n")
         
-        # Clear pending changes since we're restarting
+        # Directly restart the camera service
+        import subprocess
+        try:
+            result = subprocess.run(['sudo', 'systemctl', 'restart', 'camcontroller.service'], 
+                                 capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                raise Exception(f"Service restart failed: {result.stderr}")
+            
+            restart_message = f'Applied {changes["count"]} changes and restarted camera service'
+        except subprocess.TimeoutExpired:
+            restart_message = f'Applied {changes["count"]} changes, service restart initiated'
+        except Exception as e:
+            restart_message = f'Applied {changes["count"]} changes, but service restart failed: {str(e)}'
+        
+        # Only clear pending changes after restart attempt
         clear_pending_changes()
         
         return jsonify({
             'success': True,
-            'message': f'Applying {changes["count"]} changes and restarting service',
+            'message': restart_message,
             'action': 'restart',
             'changes_applied': changes['changes']
         })
@@ -372,8 +414,168 @@ def test_endpoint():
     return jsonify({
         'status': 'OK',
         'message': 'Flask server is responding',
-        'current_mode': settings_manager.get('Mode', 'unknown')
+        'current_mode': settings_manager.get('Mode')
     })
+
+
+# Update Management Endpoints
+@app.route("/api/updates/status")
+def get_update_status():
+    """Get current update status information"""
+    try:
+        # Get version info from VERSION file
+        version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
+        current_version = "Unknown"
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                current_version = f.read().strip()
+        
+        update_info = {
+            'current_version': current_version,
+            'available_version': settings_manager.get('OTA.available_version', ''),
+            'last_check': settings_manager.get('OTA.last_check', 'Never'),
+            'update_status': settings_manager.get('OTA.update_status', 'idle'),
+            'auto_apply': settings_manager.get('OTA.auto_apply'),
+            'notify_available': settings_manager.get('OTA.notify_available', True),
+            'has_update': False,
+            'changelog': ''
+        }
+        
+        # Check if update is available
+        if (update_info['available_version'] and 
+            update_info['available_version'] != current_version and
+            update_info['available_version'] != ''):
+            update_info['has_update'] = True
+            
+        return jsonify(update_info)
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get update status: {str(e)}'}), 500
+
+
+@app.route("/api/updates/check", methods=["POST"])
+def check_for_updates():
+    """Manually trigger update check"""
+    try:
+        # Update status to checking
+        settings_manager.set('OTA.update_status', 'checking', save=True)
+        settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+        
+        # Create update check trigger file (to be picked up by OTA daemon)
+        check_file_path = "/tmp/ota_check_trigger"
+        with open(check_file_path, 'w') as f:
+            f.write(f"manual check requested at {time.time()}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Update check initiated',
+            'status': 'checking'
+        })
+        
+    except Exception as e:
+        settings_manager.set('OTA.update_status', 'error', save=True)
+        return jsonify({'error': f'Failed to start update check: {str(e)}'}), 500
+
+
+@app.route("/api/updates/apply", methods=["POST"])
+def apply_update():
+    """User-triggered update application with backup"""
+    try:
+        # Check if update is available
+        current_version = settings_manager.get('OTA.current_version', '')
+        available_version = settings_manager.get('OTA.available_version', '')
+        
+        if not available_version or available_version == current_version:
+            return jsonify({'error': 'No update available to apply'}), 400
+        
+        # Update status to applying
+        settings_manager.set('OTA.update_status', 'applying', save=True)
+        
+        # Create backup before update
+        backup_info = create_backup()
+        
+        # Create update apply trigger file
+        apply_file_path = "/tmp/ota_apply_trigger"
+        with open(apply_file_path, 'w') as f:
+            f.write(f"manual update apply requested at {time.time()}\n")
+            f.write(f"backup_id: {backup_info['backup_id']}\n")
+            f.write(f"from_version: {current_version}\n")
+            f.write(f"to_version: {available_version}\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Update application initiated (v{current_version} → v{available_version})',
+            'backup_id': backup_info['backup_id'],
+            'status': 'applying'
+        })
+        
+    except Exception as e:
+        settings_manager.set('OTA.update_status', 'error', save=True)
+        return jsonify({'error': f'Failed to apply update: {str(e)}'}), 500
+
+
+@app.route("/api/updates/changelog")
+def get_changelog():
+    """Get changelog for available update"""
+    try:
+        # Try to read changelog from download directory
+        changelog_file = "/tmp/ota_changelog.txt"
+        changelog = "No changelog available"
+        
+        if os.path.exists(changelog_file):
+            with open(changelog_file, 'r') as f:
+                changelog = f.read()
+        
+        return jsonify({
+            'changelog': changelog,
+            'available_version': settings_manager.get('OTA.available_version', ''),
+            'current_version': settings_manager.get('OTA.current_version', '')
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get changelog: {str(e)}'}), 500
+
+
+@app.route("/api/updates/backup", methods=["POST"])
+def create_backup():
+    """Create backup of current installation"""
+    try:
+        backup_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        install_path = settings_manager.get('OTA.install_path', '/home/pi/PyRpiCamController')
+        backup_dir = f"/tmp/backups/backup_{backup_id}"
+        
+        # Create backup directory
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Create backup info file
+        backup_info_file = os.path.join(backup_dir, 'backup_info.json')
+        backup_info = {
+            'backup_id': backup_id,
+            'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'version': settings_manager.get('OTA.current_version', ''),
+            'install_path': install_path,
+            'settings_backup': True,
+            'code_backup': False  # We'll implement this if needed
+        }
+        
+        # Backup settings
+        settings_backup_dir = os.path.join(backup_dir, 'settings')
+        os.makedirs(settings_backup_dir, exist_ok=True)
+        
+        # Copy settings files
+        import shutil
+        settings_dir = os.path.join(install_path, 'Settings')
+        if os.path.exists(settings_dir):
+            shutil.copytree(settings_dir, os.path.join(settings_backup_dir, 'Settings'))
+        
+        # Save backup info
+        with open(backup_info_file, 'w') as f:
+            json_module.dump(backup_info, f, indent=2)
+        
+        return backup_info
+        
+    except Exception as e:
+        raise Exception(f'Backup creation failed: {str(e)}')
 
 
 # Old separate reload/restart endpoints replaced by unified apply-and-restart
@@ -384,7 +586,7 @@ def test_endpoint():
 @app.route("/stream")
 def stream_redirect():
     """Redirect to streaming server"""
-    port = settings_manager.get('Stream.port', 8000)
+    port = settings_manager.get('Stream.port')
     hostname = socket.gethostname()
     return redirect(f"http://{hostname}.local:{port}")
 

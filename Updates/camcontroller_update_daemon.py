@@ -56,6 +56,10 @@ class UpdateDaemon:
             return
         
         self.logger.info("Starting update daemon")
+        
+        # Initialize current version in settings
+        self._update_current_version()
+        
         self.running = True
         
         # Start background thread
@@ -68,6 +72,20 @@ class UpdateDaemon:
                 time.sleep(1)
         except KeyboardInterrupt:
             self.stop()
+    
+    def _update_current_version(self):
+        """Update the current version in settings from VERSION file."""
+        try:
+            version_file = Path(__file__).parent.parent / 'VERSION'
+            if version_file.exists():
+                with open(version_file, 'r') as f:
+                    current_version = f.read().strip()
+                settings_manager.set('OTA.current_version', current_version, save=True)
+                self.logger.info(f"Current version set to: {current_version}")
+            else:
+                self.logger.warning("VERSION file not found")
+        except Exception as e:
+            self.logger.error(f"Failed to read VERSION file: {e}")
             
     def stop(self):
         """Stop the update daemon."""
@@ -86,28 +104,57 @@ class UpdateDaemon:
         
         while self.running:
             try:
-                # Check if OTA is enabled
-                if not settings_manager.get('OtaEnable', False):
-                    self.logger.debug("OTA is disabled, skipping check")
+                # Check for manual triggers first
+                self._check_manual_triggers()
+                
+                # Check if OTA is enabled for automatic checks
+                if not settings_manager.get('OtaEnable'):
+                    self.logger.debug("OTA is disabled, skipping automatic check")
                     time.sleep(60)  # Check every minute if enabled
                     continue
                 
+                # Check if auto-apply is disabled (manual mode)
+                auto_apply = settings_manager.get('OTA.auto_apply')
+                
                 # Get check interval
-                interval = settings_manager.get('OTA.check_interval', 3600)
+                interval = settings_manager.get('OTA.check_interval')
                 
                 self.logger.info("Checking for OTA updates...")
+                settings_manager.set('OTA.update_status', 'checking', save=True)
                 
-                # Check for updates (this will download and install if available)
+                # Check for updates
                 try:
-                    success = self.ota_manager.perform_update()
-                    if success is True:
-                        self.logger.info("OTA check completed successfully")
-                    elif success is False:
-                        self.logger.warning("OTA update failed")
-                    # success could also be None if no updates available
+                    if auto_apply:
+                        # Old behavior: check and apply automatically
+                        success = self.update_manager.perform_update()
+                        if success is True:
+                            self.logger.info("OTA check and update completed successfully")
+                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                        elif success is False:
+                            self.logger.warning("OTA update failed")
+                            settings_manager.set('OTA.update_status', 'error', save=True)
+                        else:
+                            # No updates available
+                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                    else:
+                        # New behavior: check only, don't auto-apply
+                        update_info = self.update_manager.check_for_updates()
+                        if update_info:
+                            available_version = update_info.get('version', 'Unknown')
+                            self.logger.info(f"Update available: {available_version}")
+                            settings_manager.set('OTA.available_version', available_version, save=True)
+                            settings_manager.set('OTA.update_status', 'available', save=True)
+                        else:
+                            self.logger.info("No updates available")
+                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                    
+                    # Update last check time
+                    import time
+                    settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
                         
                 except Exception as e:
                     self.logger.error(f"Error during OTA update: {e}")
+                    settings_manager.set('OTA.update_status', 'error', save=True)
                 
                 # Wait for next check
                 self.logger.info(f"Next OTA check in {interval} seconds")
@@ -123,6 +170,65 @@ class UpdateDaemon:
                 time.sleep(60)  # Wait before retrying
                 
         self.logger.info("OTA check loop stopped")
+    
+    def _check_manual_triggers(self):
+        """Check for manual trigger files and process them."""
+        check_trigger_file = "/tmp/ota_check_trigger"
+        apply_trigger_file = "/tmp/ota_apply_trigger"
+        
+        # Handle manual check trigger
+        if os.path.exists(check_trigger_file):
+            self.logger.info("Manual update check triggered via file")
+            try:
+                settings_manager.set('OTA.update_status', 'checking', save=True)
+                update_info = self.update_manager.check_for_updates()
+                if update_info:
+                    available_version = update_info.get('version', 'Unknown')
+                    self.logger.info(f"Manual check found update: {available_version}")
+                    settings_manager.set('OTA.available_version', available_version, save=True)
+                    settings_manager.set('OTA.update_status', 'available', save=True)
+                else:
+                    self.logger.info("Manual check: No updates available")
+                    settings_manager.set('OTA.update_status', 'idle', save=True)
+                
+                # Update last check time
+                import time
+                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                
+            except Exception as e:
+                self.logger.error(f"Manual check failed: {e}")
+                settings_manager.set('OTA.update_status', 'error', save=True)
+            finally:
+                # Remove trigger file
+                try:
+                    os.remove(check_trigger_file)
+                except:
+                    pass
+        
+        # Handle manual apply trigger  
+        if os.path.exists(apply_trigger_file):
+            self.logger.info("Manual update apply triggered via file")
+            try:
+                settings_manager.set('OTA.update_status', 'applying', save=True)
+                success = self.update_manager.perform_update()
+                if success:
+                    self.logger.info("Manual update application completed successfully")
+                    settings_manager.set('OTA.update_status', 'idle', save=True)
+                    # Clear available version since it's now applied
+                    settings_manager.set('OTA.available_version', '', save=True)
+                else:
+                    self.logger.error("Manual update application failed")
+                    settings_manager.set('OTA.update_status', 'error', save=True)
+                    
+            except Exception as e:
+                self.logger.error(f"Manual apply failed: {e}")
+                settings_manager.set('OTA.update_status', 'error', save=True)
+            finally:
+                # Remove trigger file
+                try:
+                    os.remove(apply_trigger_file)
+                except:
+                    pass
         
     def manual_check(self):
         """Manually trigger an OTA check (for testing or admin use)."""

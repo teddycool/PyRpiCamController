@@ -16,8 +16,6 @@ import logging
 from hwconfig import hwconfig1 as hwconfig
 import json
 import sys
-# Add project root to path for settings manager
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from Settings.settings_manager import settings_manager
 # Import vision pipeline components
 from Vision.pipeline.ImageProcessor import ImageProcessor
@@ -43,12 +41,12 @@ class PostState(BaseState.BaseState):
         self._image_processor = ImageProcessor()
         
         # Configure crop processor if enabled
-        if settings_manager.get("Cam.crop", False):
+        if settings_manager.get("Cam.crop"):
             crop_processor = CropProcessor()
             crop_settings = {
                 'enabled': True,
-                'top_left': settings_manager.get("Cam.crop_topleft", [300, 250]),
-                'bottom_right': settings_manager.get("Cam.crop_bottomright", [4301, 2351]),
+                'top_left': settings_manager.get("Cam.crop_topleft"),
+                'bottom_right': settings_manager.get("Cam.crop_bottomright"),
                 'validate_coordinates': True
             }
             crop_processor.initialize(crop_settings)
@@ -56,12 +54,12 @@ class PostState(BaseState.BaseState):
             logger.info("Crop processor added to pipeline")
         
         # Configure motion detection processor if enabled
-        if settings_manager.get("Cam.MotionDetector.active", False):
+        if settings_manager.get("Cam.MotionDetector.active"):
             motion_processor = MotionDetectionProcessor()
             motion_settings = {
                 'enabled': True,
-                'motion_threshold': settings_manager.get("Cam.MotionDetector.motioncount", 200),
-                'history': settings_manager.get("Cam.MotionDetector.history", 50),
+                'motion_threshold': settings_manager.get("Cam.MotionDetector.motioncount"),
+                'history': settings_manager.get("Cam.MotionDetector.history"),
                 'detect_motion_areas': True,
                 'min_motion_area': 100
             }

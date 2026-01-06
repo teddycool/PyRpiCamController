@@ -8,8 +8,10 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/PyRpiCamController/WebGui
 # If installed via apt:
-ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:8000 web_app:app
+ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:8080 web_app:app
 Restart=always
+RestartSec=10
 Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/home/pi/PyRpiCamController"
 [Install]
 WantedBy=multi-user.target

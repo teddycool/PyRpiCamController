@@ -1,6 +1,8 @@
-# This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
-# The complete project is available at: https://github.com/teddycool/PyRpiCamController
-# The project is licensed under GNU GPLv3, check the LICENSE file for details.
+<!--
+This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+The complete project is available at: https://github.com/teddycool/PyRpiCamController
+The project is licensed under GNU GPLv3, check the LICENSE file for details.
+-->
 
 <!DOCTYPE html>
 <html lang="sv">
@@ -9,76 +11,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kamerainställningar</title>
     <style>
+        /* Sensorwebben Brand Colors and Typography */
+        :root {
+            --primary-color: #2c5aa0;        /* Deep blue - tech/trust */
+            --secondary-color: #4a90c2;      /* Lighter blue - accents */
+            --accent-color: #27ae60;         /* Green - sensors/nature */
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-text: #2c3e50;
+            --light-text: #7f8c8d;
+            --background-light: #f8f9fa;
+            --background-white: #ffffff;
+            --border-light: #e3e6ea;
+            --shadow-light: rgba(44, 90, 160, 0.1);
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--dark-text);
+            line-height: 1.6;
         }
         .container {
-            background-color: white;
+            background: var(--background-white);
             padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px var(--shadow-light);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         h1 {
-            color: #333;
+            color: var(--primary-color);
             text-align: center;
             margin-bottom: 30px;
+            font-size: 2.2rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(44, 90, 160, 0.1);
         }
         .section {
             margin-bottom: 30px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
             overflow: hidden;
+            background: var(--background-white);
+            box-shadow: 0 2px 8px rgba(44, 90, 160, 0.08);
         }
         .section-title {
-            background-color: #f8f9fa;
-            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 15px 25px;
             margin: 0;
-            font-size: 18px;
-            color: #555;
-            border-bottom: 1px solid #ddd;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: none;
         }
         .section-content {
-            padding: 20px;
+            padding: 25px;
+            background: var(--background-white);
         }
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         .form-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 0.95rem;
         }
         .form-group .description {
-            font-size: 12px;
-            color: #777;
-            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--light-text);
+            margin-bottom: 10px;
             font-style: italic;
+            line-height: 1.4;
         }
         .form-group input, .form-group select {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            font-family: inherit;
+            background: var(--background-white);
+            transition: all 0.3s ease;
         }
         .form-group input:focus, .form-group select:focus {
-            border-color: #007bff;
+            border-color: var(--primary-color);
             outline: none;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+            box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+            background: rgba(255, 255, 255, 0.95);
         }
         .form-group input[type="checkbox"] {
             width: auto;
-            margin-right: 8px;
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--primary-color);
         }
         .form-group input[readonly] {
-            background-color: #f8f9fa;
-            color: #6c757d;
+            background: var(--background-light);
+            color: var(--light-text);
+            border-color: var(--border-light);
         }
         .settings-status {
             margin-top: 15px;
@@ -111,60 +149,71 @@
         .tabs {
             display: flex;
             margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 2px solid var(--border-light);
+            background: var(--background-white);
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
         }
         .tab {
-            padding: 12px 24px;
-            background-color: #f8f9fa;
+            padding: 15px 28px;
+            background: var(--background-light);
             border: none;
             cursor: pointer;
             text-decoration: none;
-            color: #555;
-            border-radius: 4px 4px 0 0;
-            margin-right: 4px;
-            font-weight: 500;
+            color: var(--dark-text);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
         }
         .tab.active {
-            background-color: #007bff;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             color: white;
+            transform: translateY(-2px);
         }
         .tab:hover:not(.active) {
-            background-color: #e9ecef;
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-1px);
         }
         
         /* Streaming Control Styles */
         .streaming-controls {
-            background-color: #f8f9fa !important;
-            border: 2px solid #007bff !important;
+            background: linear-gradient(135deg, rgba(74, 144, 194, 0.1) 0%, rgba(44, 90, 160, 0.1) 100%) !important;
+            border: 2px solid var(--secondary-color) !important;
         }
         .streaming-controls .section-title {
-            background-color: #007bff !important;
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%) !important;
             color: white !important;
         }
         .stream-status {
             margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 6px;
-            background-color: white;
+            padding: 18px;
+            border-radius: 8px;
+            background: var(--background-white);
+            border: 1px solid var(--border-light);
         }
         .status-indicator {
             display: flex;
             align-items: center;
-            font-weight: 500;
+            font-weight: 600;
+            color: var(--dark-text);
         }
         .status-light {
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            margin-right: 10px;
-            background-color: #6c757d;
+            margin-right: 12px;
+            background-color: var(--light-text);
             animation: pulse 2s infinite;
+            box-shadow: 0 0 8px rgba(0,0,0,0.2);
         }
         .status-light.running {
-            background-color: #28a745;
+            background-color: var(--success-color);
+            box-shadow: 0 0 12px rgba(39, 174, 96, 0.4);
         }
         .status-light.stopped {
-            background-color: #dc3545;
+            background-color: var(--danger-color);
+            box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
         }
         @keyframes pulse {
             0% { opacity: 1; }
@@ -181,22 +230,26 @@
             border-left: 4px solid #007bff;
         }
         .view-stream {
-            background-color: #17a2b8;
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 100%);
             color: white;
-            padding: 8px 12px;
+            padding: 10px 16px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(74, 144, 194, 0.3);
         }
         .view-stream:hover:not(:disabled) {
-            background-color: #138496;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 144, 194, 0.4);
         }
         .view-stream:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .stream-info {
             background-color: white;
@@ -264,28 +317,31 @@
         
         /* Apply Changes Styles */
         .apply-changes {
-            background-color: #fff3cd !important;
-            border: 2px solid #ffc107 !important;
+            background: linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(230, 126, 34, 0.1) 100%) !important;
+            border: 2px solid var(--warning-color) !important;
             margin-top: 20px;
         }
         .apply-changes .section-title {
-            background-color: #ffc107 !important;
-            color: #212529 !important;
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e67e22 100%) !important;
+            color: white !important;
         }
         .changes-status {
-            margin-bottom: 15px;
-            padding: 12px;
-            background-color: #d4edda;
-            border-radius: 4px;
-            border-left: 4px solid #28a745;
+            margin-bottom: 18px;
+            padding: 15px;
+            background: var(--background-white);
+            border-radius: 8px;
+            border-left: 4px solid var(--success-color);
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.1);
         }
         .changes-status.pending {
-            background-color: #fff3cd;
-            border-left-color: #ffc107;
+            background: rgba(243, 156, 18, 0.1);
+            border-left-color: var(--warning-color);
+            box-shadow: 0 2px 8px rgba(243, 156, 18, 0.2);
         }
         .changes-status.applying {
-            background-color: #d1ecf1;
-            border-left-color: #17a2b8;
+            background: rgba(74, 144, 194, 0.1);
+            border-left-color: var(--secondary-color);
+            box-shadow: 0 2px 8px rgba(74, 144, 194, 0.2);
         }
         .pending-changes {
             margin: 15px 0;
@@ -308,29 +364,34 @@
             margin-bottom: 4px;
         }
         .apply-button {
-            background-color: #007bff;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             color: white;
-            padding: 12px 24px;
+            padding: 16px 32px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             transition: all 0.3s ease;
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 16px rgba(44, 90, 160, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .apply-button:hover:not(:disabled) {
-            background-color: #0056b3;
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(44, 90, 160, 0.4);
         }
         .apply-button:disabled {
-            background-color: #6c757d;
+            background: linear-gradient(135deg, var(--light-text) 0%, #95a5a6 100%);
             cursor: not-allowed;
-            opacity: 0.6;
+            opacity: 0.7;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(127, 140, 141, 0.2);
         }
         .apply-button.applying {
-            background-color: #17a2b8;
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 100%);
             animation: pulse 1.5s infinite;
         }
         .apply-info {
@@ -338,6 +399,146 @@
             font-size: 14px;
             color: #666;
             text-align: center;
+        }
+
+        /* Update Management Styles */
+        .updates {
+            border-color: #17a2b8;
+        }
+        .updates .section-title {
+            background-color: #e7f3ff;
+            color: #0c5460;
+        }
+        .update-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .version-info {
+            flex: 1;
+            min-width: 200px;
+        }
+        .version-info div {
+            margin-bottom: 8px;
+        }
+        .update-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .check-button, .changelog-button, .update-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .check-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .check-button:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+        .check-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .changelog-button {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .changelog-button:hover {
+            background-color: #138496;
+        }
+        .update-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .update-button:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        .update-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .update-notification {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .notification-icon {
+            font-size: 18px;
+        }
+        .notification-text {
+            font-weight: 500;
+            color: #0c5460;
+        }
+        .update-progress {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .progress-text {
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+        .changelog {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .changelog h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .changelog-content {
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .backup-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .backup-note {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -407,9 +608,12 @@
                                     name="{{ field_path }}"
                                     {% if is_readonly %}disabled class="readonly-field"{% endif %}>
                                 {% for option in field_info.options %}
-                                <option value="{{ option }}" 
-                                        {% if current_value == option %}selected{% endif %}>
-                                    {{ option }}
+                                {% set option_value = option|tojson if option is sequence and option is not string else option %}
+                                {% set display_text = (option[0] ~ " × " ~ option[1]) if (option is sequence and option is not string and option|length == 2) else option %}
+                                {% set current_value_json = current_value|tojson if current_value is sequence and current_value is not string else current_value %}
+                                <option value="{{ option_value }}" 
+                                        {% if current_value_json == option_value %}selected{% endif %}>
+                                    {{ display_text }}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -491,6 +695,65 @@
                 </div>
             </div>
             
+            <!-- Software Updates Panel -->
+            <div class="section updates">
+                <h3 class="section-title">📦 Software Updates</h3>
+                <div class="section-content">
+                    <div class="update-status" id="updateStatus">
+                        <div class="version-info">
+                            <div class="current-version">
+                                <strong>Current Version:</strong> <span id="currentVersion">Loading...</span>
+                            </div>
+                            <div class="available-version" id="availableVersionDiv" style="display: none;">
+                                <strong>Available Version:</strong> <span id="availableVersion">-</span>
+                            </div>
+                            <div class="last-check">
+                                <strong>Last Check:</strong> <span id="lastCheck">Never</span>
+                            </div>
+                        </div>
+                        
+                        <div class="update-actions">
+                            <button type="button" id="checkUpdatesBtn" class="check-button">
+                                🔍 Check for Updates
+                            </button>
+                            <button type="button" id="viewChangelogBtn" class="changelog-button" style="display: none;">
+                                📄 View Changelog
+                            </button>
+                            <button type="button" id="applyUpdateBtn" class="update-button" style="display: none;">
+                                ⬆️ Apply Update
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="update-notification" id="updateNotification" style="display: none;">
+                        <div class="notification-content">
+                            <span class="notification-icon">🎉</span>
+                            <span class="notification-text" id="updateNotificationText">Update available!</span>
+                        </div>
+                    </div>
+                    
+                    <div class="update-progress" id="updateProgress" style="display: none;">
+                        <div class="progress-text" id="progressText">Checking for updates...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="changelog" id="changelogContainer" style="display: none;">
+                        <h4>📋 Changelog</h4>
+                        <div class="changelog-content" id="changelogContent">
+                            Loading changelog...
+                        </div>
+                    </div>
+                    
+                    <div class="backup-info" id="backupInfo" style="display: none;">
+                        <p class="backup-note">
+                            <strong>ℹ️ Backup:</strong> A backup will be created automatically before applying the update.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Apply Changes Panel -->
             <div class="section apply-changes">
                 <h3 class="section-title">⚙️ Apply Changes</h3>
@@ -538,12 +801,15 @@
             setupAutoSave();
             initStreamingControls();
             initApplyControls();
+            initUpdateControls();
             updateStreamStatus();
             updatePendingChanges();
+            updateUpdateStatus();
             
             // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
             setInterval(updatePendingChanges, 10000);
+            setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
         });
 
         // Auto-save functionality with change tracking
@@ -559,17 +825,20 @@
         
         function autoSave(field) {
             const value = getInputValue(field);
+            console.log('Auto-saving field:', field.name, 'value:', value, 'type:', typeof value);
             
-            fetch('/api/settings', {
+            fetch('/api/settings/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    [field.name]: value
+                    field: field.name,
+                    value: value
                 })
             })
             .then(response => {
+                console.log('Response status:', response.status);
                 if (response.ok) {
                     // Visual feedback - flash green
                     field.style.backgroundColor = '#d4edda';
@@ -577,10 +846,13 @@
                         field.style.backgroundColor = '';
                     }, 1000);
                     
+                    console.log('Settings saved successfully:', field.name, value);
+                    
                     // Update pending changes
                     updatePendingChanges();
                 } else {
-                    console.error('Auto-save failed for', field.name);
+                    console.error('Auto-save failed for', field.name, 'Status:', response.status);
+                    response.text().then(text => console.error('Error details:', text));
                 }
             })
             .catch(error => {
@@ -593,6 +865,15 @@
                 return field.checked;
             } else if (field.type === 'number') {
                 return parseFloat(field.value) || 0;
+            } else if (field.tagName === 'SELECT') {
+                // For select fields, check if the value looks like a JSON array
+                const value = field.value || '';
+                if (value.startsWith('[') && value.endsWith(']')) {
+                    // This is likely an array enum (like resolution), return as-is for JSON parsing
+                    return value;
+                } else {
+                    return value;
+                }
             } else {
                 return field.value || '';
             }
@@ -759,6 +1040,183 @@
             if (streamStatus.running && streamStatus.url) {
                 window.open(streamStatus.url, '_blank');
             }
+        }
+
+        // Update Management Functions
+        function initUpdateControls() {
+            // Set up event listeners for update buttons
+            document.getElementById('checkUpdatesBtn').addEventListener('click', checkForUpdates);
+            document.getElementById('viewChangelogBtn').addEventListener('click', toggleChangelog);
+            document.getElementById('applyUpdateBtn').addEventListener('click', applyUpdate);
+        }
+
+        function updateUpdateStatus() {
+            fetch('/api/updates/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateUpdateUI(data);
+                })
+                .catch(error => {
+                    console.error('Error checking update status:', error);
+                });
+        }
+
+        function updateUpdateUI(updateInfo) {
+            const currentVersionSpan = document.getElementById('currentVersion');
+            const availableVersionSpan = document.getElementById('availableVersion');
+            const availableVersionDiv = document.getElementById('availableVersionDiv');
+            const lastCheckSpan = document.getElementById('lastCheck');
+            const updateNotification = document.getElementById('updateNotification');
+            const updateNotificationText = document.getElementById('updateNotificationText');
+            const checkBtn = document.getElementById('checkUpdatesBtn');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            const applyBtn = document.getElementById('applyUpdateBtn');
+            const backupInfo = document.getElementById('backupInfo');
+
+            // Update version info
+            currentVersionSpan.textContent = updateInfo.current_version || 'Unknown';
+            lastCheckSpan.textContent = updateInfo.last_check || 'Never';
+
+            // Handle update availability
+            if (updateInfo.has_update) {
+                availableVersionSpan.textContent = updateInfo.available_version;
+                availableVersionDiv.style.display = 'block';
+                updateNotification.style.display = 'block';
+                updateNotificationText.textContent = `New version ${updateInfo.available_version} is available!`;
+                changelogBtn.style.display = 'inline-block';
+                applyBtn.style.display = 'inline-block';
+                backupInfo.style.display = 'block';
+            } else {
+                availableVersionDiv.style.display = 'none';
+                updateNotification.style.display = 'none';
+                changelogBtn.style.display = 'none';
+                applyBtn.style.display = 'none';
+                backupInfo.style.display = 'none';
+            }
+
+            // Handle status-specific UI updates
+            switch (updateInfo.update_status) {
+                case 'checking':
+                    showUpdateProgress('Checking for updates...', 30);
+                    checkBtn.disabled = true;
+                    checkBtn.textContent = '🔄 Checking...';
+                    break;
+                case 'downloading':
+                    showUpdateProgress('Downloading update...', 70);
+                    checkBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    break;
+                case 'applying':
+                    showUpdateProgress('Applying update...', 90);
+                    checkBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    applyBtn.textContent = '🔄 Applying...';
+                    break;
+                case 'error':
+                    hideUpdateProgress();
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔍 Check for Updates';
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = '⬆️ Apply Update';
+                    break;
+                default: // idle
+                    hideUpdateProgress();
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔍 Check for Updates';
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = '⬆️ Apply Update';
+            }
+        }
+
+        function checkForUpdates() {
+            showUpdateProgress('Initiating update check...', 10);
+            
+            fetch('/api/updates/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Update check started', 'info');
+                    // Status will be updated by periodic refresh
+                } else {
+                    showMessage(data.error || 'Failed to start update check', 'error');
+                    hideUpdateProgress();
+                }
+            })
+            .catch(error => {
+                console.error('Error starting update check:', error);
+                showMessage('Failed to start update check', 'error');
+                hideUpdateProgress();
+            });
+        }
+
+        function applyUpdate() {
+            if (!confirm('Are you sure you want to apply this update? The service will be restarted and may be unavailable for a few minutes.')) {
+                return;
+            }
+
+            showUpdateProgress('Creating backup and applying update...', 50);
+            
+            fetch('/api/updates/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(`Update application started. Backup ID: ${data.backup_id}`, 'success');
+                    showUpdateProgress('Update applying - system will restart...', 95);
+                } else {
+                    showMessage(data.error || 'Failed to apply update', 'error');
+                    hideUpdateProgress();
+                }
+            })
+            .catch(error => {
+                console.error('Error applying update:', error);
+                showMessage('Failed to apply update', 'error');
+                hideUpdateProgress();
+            });
+        }
+
+        function toggleChangelog() {
+            const changelogContainer = document.getElementById('changelogContainer');
+            const changelogContent = document.getElementById('changelogContent');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            
+            if (changelogContainer.style.display === 'none') {
+                changelogBtn.textContent = '📄 Hide Changelog';
+                changelogContainer.style.display = 'block';
+                
+                // Load changelog if not already loaded
+                fetch('/api/updates/changelog')
+                    .then(response => response.json())
+                    .then(data => {
+                        changelogContent.textContent = data.changelog || 'No changelog available';
+                    })
+                    .catch(error => {
+                        changelogContent.textContent = 'Failed to load changelog';
+                    });
+            } else {
+                changelogBtn.textContent = '📄 View Changelog';
+                changelogContainer.style.display = 'none';
+            }
+        }
+
+        function showUpdateProgress(text, percentage) {
+            const progressContainer = document.getElementById('updateProgress');
+            const progressText = document.getElementById('progressText');
+            const progressFill = document.getElementById('progressFill');
+            
+            progressText.textContent = text;
+            progressFill.style.width = percentage + '%';
+            progressContainer.style.display = 'block';
+        }
+
+        function hideUpdateProgress() {
+            const progressContainer = document.getElementById('updateProgress');
+            progressContainer.style.display = 'none';
         }
 
         function showMessage(message, type = 'success') {

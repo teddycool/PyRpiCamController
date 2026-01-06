@@ -28,8 +28,7 @@
         "description": "Kamerans driftläge",
         "level": "basic"
       },
-      "web_editable": true,
-      "level": "basic"
+      "web_editable": true
     },
     "OtaEnable": {
       "value": false,
@@ -40,8 +39,7 @@
         "description": "Aktivera trådlösa uppdateringar över luften",
         "level": "advanced"
       },
-      "web_editable": true,
-      "level": "advanced"
+      "web_editable": true
     },
     "OTA": {
       "server_url": {
@@ -53,8 +51,7 @@
           "description": "Server-URL för OTA-uppdateringar",
           "level": "advanced"
         },
-        "web_editable": true,
-        "level": "advanced"
+        "web_editable": true
       },
       "check_interval": {
         "value": 3600,
@@ -67,8 +64,7 @@
           "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
           "level": "advanced"
         },
-        "web_editable": true,
-        "level": "advanced"
+        "web_editable": true
       },
       "api_key": {
         "value": "",
@@ -79,8 +75,7 @@
           "description": "API-nyckel för OTA-serverautentisering",
           "level": "advanced"
         },
-        "web_editable": true,
-        "level": "advanced"
+        "web_editable": true
       },
       "service_name": {
         "value": "camcontroller.service",
@@ -142,23 +137,98 @@
           "level": "advanced"
         },
         "web_editable": true
+      },
+      "auto_apply": {
+        "value": false,
+        "type": "bool",
+        "ui": {
+          "name": "Auto-apply updates",
+          "section": "Updates",
+          "description": "Automatically apply updates when found (not recommended)",
+          "level": "advanced"
+        },
+        "web_editable": true
+      },
+      "notify_available": {
+        "value": true,
+        "type": "bool",
+        "ui": {
+          "name": "Notify when updates available",
+          "section": "Updates",
+          "description": "Show notification when new updates are detected",
+          "level": "basic"
+        },
+        "web_editable": true
+      },
+      "current_version": {
+        "value": "",
+        "type": "text",
+        "readonly": true,
+        "ui": {
+          "name": "Current Version",
+          "section": "Updates",
+          "description": "Currently installed software version",
+          "level": "basic"
+        },
+        "web_editable": false
+      },
+      "available_version": {
+        "value": "",
+        "type": "text",
+        "readonly": true,
+        "ui": {
+          "name": "Available Version",
+          "section": "Updates",
+          "description": "Latest available software version",
+          "level": "basic"
+        },
+        "web_editable": false
+      },
+      "last_check": {
+        "value": "",
+        "type": "text",
+        "readonly": true,
+        "ui": {
+          "name": "Last Check",
+          "section": "Updates",
+          "description": "When updates were last checked",
+          "level": "basic"
+        },
+        "web_editable": false
+      },
+      "update_status": {
+        "value": "idle",
+        "type": "enum",
+        "options": ["idle", "checking", "downloading", "available", "applying", "error"],
+        "readonly": true,
+        "ui": {
+          "name": "Update Status",
+          "section": "Updates",
+          "description": "Current update process status",
+          "level": "basic"
+        },
+        "web_editable": false
       }
     },
     "Cam": {
       "resolution": {
-        "value": [
-          4608,
-          2592
+        "value": [4608, 2592],
+        "type": "enum",
+        "options": [
+          [4608, 2592],
+          [3280, 2464],
+          [1920, 1080],
+          [1640, 1232],
+          [1280, 720],
+          [640, 480]
         ],
-        "type": "tuple",
         "ui": {
           "name": "Bildupplösning",
           "section": "Kamera",
           "description": "Kameraupplösning (bredd x höjd)",
           "level": "basic"
         },
-        "web_editable": true,
-        "level": "basic"
+        "web_editable": true
       },
       "timeslot": {
         "value": 15,
@@ -171,8 +241,7 @@
           "description": "Tid mellan bilder i sekunder",
           "level": "basic"
         },
-        "web_editable": true,
-        "level": "basic"
+        "web_editable": true
       },
       "publishers": {
         "url": {
@@ -185,8 +254,7 @@
               "description": "Aktivera URL-publicering",
               "level": "advanced"
             },
-            "web_editable": true,
-            "level": "advanced"
+            "web_editable": true
           },
           "location": {
             "value": "http://www.biwebben.se/filedump2.php",
@@ -197,8 +265,7 @@
               "description": "URL-slutpunkt för bildpublicering",
               "level": "advanced"
             },
-            "web_editable": true,
-            "level": "advanced"
+            "web_editable": true
           },
           "apikey": {
             "value": "_your unique api key_",
@@ -209,8 +276,7 @@
               "description": "API-nyckel för URL-publicering",
               "level": "advanced"
             },
-            "web_editable": true,
-            "level": "advanced"
+            "web_editable": true
           }
         },
         "file": {
@@ -221,10 +287,9 @@
               "name": "Spara till fil",
               "section": "Kamera",
               "description": "Aktivera filpublicering",
-              "level": "basic"
+              "level": "advanced"
             },
-            "web_editable": true,
-            "level": "basic"
+            "web_editable": true
           },
           "location": {
             "value": "/home/pi/shared/images/",
@@ -233,10 +298,10 @@
               "name": "Sökväg för bilder",
               "section": "Kamera",
               "description": "Lokal sökväg för bildlagring",
-              "level": "basic"
+              "level": "advanced"
             },
             "web_editable": true,
-            "level": "basic"
+            "level": "advanced"
           },
           "format": {
             "value": "jpg",
@@ -265,10 +330,10 @@
           "name": "Exponeringskompensation",
           "section": "Kamera",
           "description": "Justering av kamerans exponeringsnivå",
-          "level": "basic"
+          "level": "advanced"
         },
         "web_editable": true,
-        "level": "basic"
+        "level": "advanced"
       },
       "timeschedule": {
         "value": [
@@ -372,11 +437,15 @@
     },
     "Stream": {
       "resolution": {
-        "value": [
-          640,
-          480
+        "value": [1024, 768],
+        "type": "enum",
+        "options": [
+          [1920, 1080],
+          [1280, 720],
+          [1024, 768],
+          [800, 600],
+          [640, 480]
         ],
-        "type": "tuple",
         "ui": {
           "name": "Streamupplösning",
           "section": "Stream",
@@ -401,7 +470,7 @@
         "level": "advanced"
       },
       "port": {
-        "value": 8080,
+        "value": 8081,
         "type": "int",
         "min": 1024,
         "max": 65535,
@@ -433,15 +502,15 @@
           "name": "Webbsidans huvudrubrik",
           "section": "Stream",
           "description": "Main heading for stream page",
-          "level": "advanced"
+          "level": "basic"
         },
         "web_editable": true,
-        "level": "advanced"
+        "level": "basic"
       }
     },
     "Limits": {
       "maxcputemp": {
-        "value": 75,
+        "value": 85,
         "type": "int",
         "min": 50,
         "max": 100,
@@ -454,7 +523,7 @@
         "web_editable": false
       },
       "wcputemp": {
-        "value": 65,
+        "value": 75,
         "type": "int",
         "min": 40,
         "max": 90,
@@ -483,7 +552,7 @@
       "level": "advanced"
     },
     "LogLevel": {
-      "value": "debug",
+      "value": "info",
       "type": "enum",
       "options": [
         "debug",
@@ -508,10 +577,10 @@
         "name": "Logga till fil",
         "section": "System",
         "description": "Enable file logging",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": true,
-      "level": "basic"
+      "level": "advanced"
     },
     "LogFilePath": {
       "value": "/home/pi/shared/logs/cam.log",
@@ -520,10 +589,10 @@
         "name": "Loggfilssökväg",
         "section": "System",
         "description": "Path to log file",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": true,
-      "level": "basic"
+      "level": "advanced"
     },
     "LogFileSize": {
       "value": 1000000,
@@ -534,10 +603,10 @@
         "name": "Max loggfilstorlek (bytes)",
         "section": "System",
         "description": "Maximum log file size before rotation",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": true,
-      "level": "basic"
+      "level": "advanced"
     },
     "LogFileBuCount": {
       "value": 5,
@@ -548,10 +617,10 @@
         "name": "Antal logg-backuper",
         "section": "System",
         "description": "Number of backup log files to keep",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": true,
-      "level": "basic"
+      "level": "advanced"
     },
     "LogToServer": {
       "value": false,
@@ -584,7 +653,7 @@
         "name": "Loggserver-URL",
         "section": "System",
         "description": "Remote logging endpoint URL",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": true,
       "level": "advanced"
@@ -611,7 +680,7 @@
         "name": "Kolla CPU-temp (s)",
         "section": "System",
         "description": "Interval for CPU temperature checks",
-        "level": "basic"
+        "level": "advanced"
       },
       "web_editable": false
     },
@@ -623,7 +692,7 @@
           "name": "URL för internetdetektering",
           "section": "System",
           "description": "URL for internet connectivity tests",
-          "level": "basic"
+          "level": "advanced"
         },
         "web_editable": false
       }

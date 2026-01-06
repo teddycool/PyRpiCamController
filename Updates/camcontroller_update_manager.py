@@ -70,14 +70,14 @@ class UpdateManager:
             
             self.config = {
                 'enabled': settings_manager.get('OtaEnable'),
-                'server_url': settings_manager.get('OTA.server_url', 'https://www.biwebben.se'),
-                'check_interval': settings_manager.get('OTA.check_interval', 3600),  # 1 hour
-                'api_key': settings_manager.get('OTA.api_key', ''),
-                'service_name': settings_manager.get('OTA.service_name', 'camcontroller.service'),
-                'install_path': settings_manager.get('OTA.install_path', '/home/pi/PyRpiCamController'),
-                'backup_retention': settings_manager.get('OTA.backup_retention', 3),
-                'health_check_timeout': settings_manager.get('OTA.health_check_timeout', 120),
-                'download_timeout': settings_manager.get('OTA.download_timeout', 300)
+                'server_url': settings_manager.get('OTA.server_url'),
+                'check_interval': settings_manager.get('OTA.check_interval'),  # 1 hour
+                'api_key': settings_manager.get('OTA.api_key'),
+                'service_name': settings_manager.get('OTA.service_name'),
+                'install_path': settings_manager.get('OTA.install_path'),
+                'backup_retention': settings_manager.get('OTA.backup_retention'),
+                'health_check_timeout': settings_manager.get('OTA.health_check_timeout'),
+                'download_timeout': settings_manager.get('OTA.download_timeout')
             }
             
         except Exception as e:

@@ -30,7 +30,6 @@ import json
 # Add project root to path for settings manager
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from Settings.settings_manager import settings_manager
 
 logger = logging.getLogger("cam.streaming")
@@ -142,14 +141,14 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         """Serve the main streaming page"""
         try:
             # Get settings for page customization
-            title = settings_manager.get('Stream.pagetitle', 'Camera Stream')
-            headline = settings_manager.get('Stream.h1title', 'Live Camera Stream')
-            resolution = settings_manager.get('Stream.resolution', [800, 600])
+            title = settings_manager.get('Stream.pagetitle')
+            headline = settings_manager.get('Stream.h1title')
+            resolution = settings_manager.get('Stream.resolution')
             width, height = resolution[0], resolution[1]
             
             # Get network info
             hostname = socket.gethostname()
-            port = settings_manager.get('Stream.port', 8000)
+            port = settings_manager.get('Stream.port')
             
             # Generate modern HTML page
             page_content = f"""<!DOCTYPE html>
@@ -159,111 +158,238 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <style>
+        /* Sensorwebben Brand Streaming Interface */
+        :root {{
+            --primary-color: #2c5aa0;
+            --secondary-color: #4a90c2;
+            --accent-color: #27ae60;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-text: #2c3e50;
+            --light-text: #7f8c8d;
+            --background-light: #f8f9fa;
+            --background-white: #ffffff;
+            --shadow-light: rgba(44, 90, 160, 0.15);
+        }}
+        
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             margin: 0;
             padding: 20px;
             min-height: 100vh;
-            color: white;
+            color: var(--dark-text);
+            line-height: 1.6;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             text-align: center;
         }}
         h1 {{
-            margin-bottom: 30px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: var(--primary-color);
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(44, 90, 160, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
         }}
         .stream-container {{
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 20px;
+            background: var(--background-white);
+            border-radius: 16px;
+            padding: 30px;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            box-shadow: 0 12px 40px var(--shadow-light);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.3);
         }}
         .stream-image {{
             max-width: 100%;
             height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(44, 90, 160, 0.2);
+            border: 2px solid var(--secondary-color);
+            transition: all 0.3s ease;
+        }}
+        .stream-image:hover {{
+            transform: scale(1.02);
+            box-shadow: 0 12px 40px rgba(44, 90, 160, 0.3);
         }}
         .info-panel {{
-            display: flex;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            flex-wrap: wrap;
-            margin-top: 20px;
+            margin-top: 30px;
         }}
         .info-card {{
-            background: rgba(255,255,255,0.1);
-            padding: 15px 25px;
-            border-radius: 10px;
+            background: linear-gradient(135deg, var(--background-white) 0%, rgba(74, 144, 194, 0.05) 100%);
+            padding: 20px;
+            border-radius: 12px;
             backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px var(--shadow-light);
+            border: 1px solid rgba(74, 144, 194, 0.1);
+            transition: all 0.3s ease;
+        }}
+        .info-card:hover {{
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px var(--shadow-light);
+        }}
+        .info-card strong {{
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 8px;
+        }}
+        .info-card-value {{
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--dark-text);
         }}
         .status-indicator {{
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #4CAF50;
+            width: 16px;
+            height: 16px;
+            background: var(--success-color);
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 10px;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 16px rgba(39, 174, 96, 0.4);
         }}
         @keyframes pulse {{
-            0% {{ opacity: 1; }}
-            50% {{ opacity: 0.5; }}
-            100% {{ opacity: 1; }}
+            0% {{ opacity: 1; transform: scale(1); }}
+            50% {{ opacity: 0.7; transform: scale(1.1); }}
+            100% {{ opacity: 1; transform: scale(1); }}
         }}
         .footer {{
-            margin-top: 30px;
-            opacity: 0.7;
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--background-white);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px var(--shadow-light);
+            color: var(--light-text);
             font-size: 14px;
+        }}
+        .error-message {{
+            background: linear-gradient(135deg, var(--danger-color) 0%, #c0392b 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(231, 76, 60, 0.3);
+        }}
+        .error-message h3 {{
+            margin-top: 0;
+            font-size: 1.5rem;
+        }}
+        
+        .stream-button {{
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(44, 90, 160, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 15px 0;
+        }}
+        .stream-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(44, 90, 160, 0.4);
+        }}
+        .stream-button:active {{
+            transform: translateY(0);
+        }}
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {{
+            .container {{
+                padding: 0 10px;
+            }}
+            h1 {{
+                font-size: 2rem;
+                flex-direction: column;
+                gap: 10px;
+            }}
+            .stream-container {{
+                padding: 20px;
+            }}
+            .info-panel {{
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1><span class="status-indicator"></span>{headline}</h1>
+        <h1>
+            <span class="status-indicator"></span>
+            {headline}
+        </h1>
         
         <div class="stream-container">
             <img src="/stream.mjpg" 
                  class="stream-image"
                  alt="Live Camera Stream" 
                  onerror="this.style.display='none'; document.getElementById('error-msg').style.display='block';">
-            <div id="error-msg" style="display: none; color: #ff6b6b; padding: 20px;">
-                <h3>Stream Unavailable</h3>
-                <p>Camera stream is not available. Check camera connection and settings.</p>
+            <div id="error-msg" class="error-message" style="display: none;">
+                <h3>📷 Stream Unavailable</h3>
+                <p>Camera stream is not available. Please check camera connection and settings.</p>
             </div>
         </div>
         
         <div class="info-panel">
             <div class="info-card">
-                <strong>Resolution</strong><br>
-                {width} × {height}
+                <strong>📏 Resolution</strong>
+                <div class="info-card-value">{width} × {height}</div>
             </div>
             <div class="info-card">
-                <strong>Target FPS</strong><br>
-                <span id="targetFps">{settings_manager.get('Stream.framerate', 15)}</span>
+                <strong>🎯 Target FPS</strong>
+                <div class="info-card-value">
+                    <span id="targetFps">{settings_manager.get('Stream.framerate')}</span>
+                </div>
             </div>
             <div class="info-card">
-                <strong>Actual FPS</strong><br>
-                <span id="actualFps" style="font-weight: bold; color: #007bff;">--</span>
+                <strong>📊 Actual FPS</strong>
+                <div class="info-card-value">
+                    <span id="actualFps" style="font-weight: bold; color: var(--secondary-color);">--</span>
+                </div>
             </div>
             <div class="info-card">
-                <strong>Server</strong><br>
-                {hostname}:{port}
+                <strong>🌐 Server</strong>
+                <div class="info-card-value" style="font-size: 1.1rem;">{hostname}:{port}</div>
+            </div>
+            <div class="info-card" style="display: flex; align-items: center; justify-content: center;">
+                <button class="stream-button" onclick="openStreamOnly()">
+                    🎥 Open Raw Stream
+                </button>
             </div>
         </div>
         
         <div class="footer">
-            <p>PyRpiCamController Streaming Server</p>
+            <p><strong>🏠 Sensorwebben PyRpiCamController</strong><br>
+            Live Camera Stream Interface</p>
         </div>
     </div>
     
     <script>
+        // Open raw stream in new tab
+        function openStreamOnly() {{
+            const streamUrl = window.location.origin + '/stream.mjpg';
+            window.open(streamUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        }}
+        
         // Auto-refresh stream on error
         document.querySelector('.stream-image').addEventListener('error', function() {{
             setTimeout(() => {{
@@ -283,13 +409,13 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                         
                         actualFpsElement.textContent = actualFps.toFixed(1);
                         
-                        // Color code based on performance
+                        // Color code based on performance vs target
                         if (actualFps >= targetFps * 0.9) {{
-                            actualFpsElement.style.color = '#28a745'; // Green
+                            actualFpsElement.style.color = 'var(--success-color)'; // Green
                         }} else if (actualFps >= targetFps * 0.7) {{
-                            actualFpsElement.style.color = '#ffc107'; // Yellow
+                            actualFpsElement.style.color = 'var(--warning-color)'; // Orange
                         }} else {{
-                            actualFpsElement.style.color = '#dc3545'; // Red
+                            actualFpsElement.style.color = 'var(--danger-color)'; // Red
                         }}
                     }}
                 }})
@@ -366,10 +492,10 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             
             info = {
                 'status': 'running',
-                'resolution': settings_manager.get('Stream.resolution', [800, 600]),
-                'framerate': settings_manager.get('Stream.framerate', 15),
+                'resolution': settings_manager.get('Stream.resolution'),
+                'framerate': settings_manager.get('Stream.framerate'),
                 'actual_fps': actual_fps,
-                'port': settings_manager.get('Stream.port', 8000),
+                'port': settings_manager.get('Stream.port'),
                 'clients': getattr(streaming_server.output, 'clients', 0) if streaming_server and streaming_server.output else 0,
                 'timestamp': time.time()
             }
@@ -389,11 +515,11 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         """Serve current stream settings"""
         try:
             stream_settings = {
-                'resolution': settings_manager.get('Stream.resolution', [800, 600]),
-                'framerate': settings_manager.get('Stream.framerate', 15),
-                'port': settings_manager.get('Stream.port', 8000),
-                'pagetitle': settings_manager.get('Stream.pagetitle', 'Camera Stream'),
-                'h1title': settings_manager.get('Stream.h1title', 'Live Camera Stream')
+                'resolution': settings_manager.get('Stream.resolution'),
+                'framerate': settings_manager.get('Stream.framerate'),
+                'port': settings_manager.get('Stream.port'),
+                'pagetitle': settings_manager.get('Stream.pagetitle'),
+                'h1title': settings_manager.get('Stream.h1title')
             }
             
             content = json.dumps(stream_settings).encode('utf-8')
@@ -437,9 +563,9 @@ class CameraStreamer:
             
             # Get camera type from hardware config
             cam_chip = settings.get('CamChip', 'PiCam3')
-            resolution = settings_manager.get('Stream.resolution', [800, 600])
-            framerate = settings_manager.get('Stream.framerate', 15)
-            port = settings_manager.get('Stream.port', 8000)
+            resolution = settings_manager.get('Stream.resolution')
+            framerate = settings_manager.get('Stream.framerate')
+            port = settings_manager.get('Stream.port')
             
             logger.info(f"Camera type: {cam_chip}, Resolution: {resolution}, FPS: {framerate}, Port: {port}")
             
@@ -663,7 +789,7 @@ if __name__ == "__main__":
     
     if streamer.initialize(test_settings):
         print("Streaming server started successfully!")
-        print(f"Open http://localhost:{settings_manager.get('Stream.port', 8000)} in your browser")
+        print(f"Open http://localhost:{settings_manager.get('Stream.port')} in your browser")
         
         try:
             while True:

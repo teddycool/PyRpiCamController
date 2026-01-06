@@ -13,6 +13,13 @@ A user-guide is found here: link:_doc/userguide.adoc[User Guide]
 
 A document that provides a comprehensive overview of the CamController architecture, design patterns, and implementation details for developers working with or extending the PyRpiCamController systemis found here: link:_doc/CAMCONTROLLER_ARCHITECTURE.adoc[CamController Architecture Guide]
 
+== System Overview
+
+
+image::_doc/pyrpicam-system-overview.png["PyRpiCamController System Overview"]
+
+
+
 
 == General
 
@@ -65,16 +72,14 @@ Flask-based web interface for remote camera system configuration:
 === tools
 Installation and setup utilities:
 
-* **install-all.py** - Main installation script that sets up the entire system
-* **update-service.py** - Service file update utility
+* **install-all-optimized.py** - Main installation script that sets up the entire system
 * Various helper scripts for system configuration and deployment
 
 === Services
 System service configurations for external dependencies:
 
-* **smb.conf** - Samba configuration for network file sharing
-* **comitup.conf** - Configuration file for the Wi-Fi setup tool 'comitup'
-* **fix_samba_anonymous.sh** - Utility script to fix Samba anonymous access issues
+* **smb.conf** - Samba configuration for network file sharing without any password or restrictions (use locally only)
+* **comitup.conf** - Configuration file for the Wi-Fi setup tool 'comitup' from Dave Steele https://github.com/davesteele/comitup/
 
 === _doc
 Documentation and reference materials:
@@ -92,19 +97,11 @@ Over-The-Air update system for remote software deployment:
 * **camcontroller-update.service** - Systemd service for background update checking
 * **recovery.sh** - Recovery script for failed updates
 * **test_updates.py** - Test script for update system validation
-* **UPDATE_GUIDE.adoc** - Comprehensive documentation (link:Updates/UPDATE_GUIDE.adoc[Update Guide])
 
 **Features:** Full system updates, git tag support, automatic rollback, service management
 * **UPDATE_GUIDE.adoc** - Complete documentation for update system setup and usage (link:Updates/UPDATE_GUIDE.adoc[Update Guide])
 * **SECURITY_GUIDE.adoc** - Security considerations for update deployments (link:Updates/SECURITY_GUIDE.adoc[Security Guide])
 
-=== timelapse
-Timelapse video creation utilities:
-
-* **timelaps.py** - Script for creating timelapse videos from captured images
-
-=== shared
-Runtime directories for logs and captured content (created during installation)
 
 === backend
 Server-side infrastructure for receiving images and data from the camera system when using HTTP publishing mode. Includes a comprehensive OTA (Over-The-Air) update system for remote software deployment and device management (link:backend/BACKEND.adoc[Backend Guide]).
@@ -127,10 +124,9 @@ Server-side infrastructure for receiving images and data from the camera system 
 * Can control a led-strip or other light-source with PWM (needs extra hardware)
 * Can control a addressable RGB LED for status indication (needs extra hardware)
 * Monitors the CPU-temp and take actions if needed
-* Installed and run as a Linux service
+* Installed and run as a set of Linux services
 * A provided install-script for needed packages and default-settings etc
 * Using WiFi management with 'commitup' from Dave Steel. 
-* Tested with RPi 3B+ and Zero W but probably works for all raspberry pi models
 
 == Planned features (upcoming)
 
@@ -147,12 +143,12 @@ Server-side infrastructure for receiving images and data from the camera system 
 * **Centralized Logging** - All logs accessible via network share
 * **Enhanced Installation** - Complete system setup with single script 
 
-A circuic-diagram for the needed extra hardware used for some features can be found here: link:_doc/extra_hardware.pdf["Circuit-diagram"]
+A circuit-diagram for the needed extra hardware used for some features can be found here: link:_doc/extra_hardware.pdf["Circuit-diagram"]
 
 == How to install and get started (the easy way)
 
 === Prerequisites
-You need a Raspberry Pi with a camera module (picam3 or picam3HQ which is currently supported) and a WiFi connection. The software is tested with Raspberry Pi 3B, 3B+, Zero W and Zero W2 but should work with all models.
+You need a Raspberry Pi with a camera module (picam3 or picam3HQ which is currently supported) and a WiFi connection. The software is tested with Raspberry Pi 3B+ and 4B (4GB) but should work with all models.
 
 === Clone the repo and fix settings
 Clone this repository to your computer. 
@@ -174,34 +170,40 @@ Copy these folder from the cloned repo the home-root of the pi-user. Default is 
 
 === How to install the software
 
-Note that the swap-file needs to be enlarged for zero and zero v2 before you run this or the install will fail. See detailed instructions here: link:_doc/sraspi-zero.adoc[How to adjust swap on Raspberry Pi Zero and Zero v2]
+Note that the swap-file needs to be enlarged for zero and zero v2 before you run this or the install will fail. See detailed instructions here: link:_doc/raspi-zero.adoc[How to adjust swap on Raspberry Pi Zero and Zero v2]
 
-Now, run the tools/install-all.py script on your pi which will update the os and then install all needed packages and services. This will take a while. At the end the system will reboot with a new node-name (the pi cpu-serial) and the CamController will start as a service.
-
-[source]
-----
-python tools/install-all.py
-----
-
-When the install is done, you will be offered to reboot and you might need to set up the network again, using the comitup captive portal.
-
-The CamController now starts as a service and will run in the background. You can check the status with:
+Now, run the tools/install-all-optimized.py script on your pi which will update the os and then install all needed packages and services. This will take a while. At the end you will se some information and when the system reboot it will have a new node-name (the pi cpu-serial) and the CamController will start as a service.
 
 [source]
 ----
-sudo systemctl status camcontroller.service
+sudo python3 PyRpiCamController/tools/install-all-optimized.py
 ----
-You can also check the log-file in shared/logs/ to see if everything is working as expected.
+
+At the end you will se the result as:
 [source]
 ----
-cat /home/pi/shared/logs/camera.log
+============================================================
+INSTALLATION COMPLETED SUCCESSFULLY!
+============================================================
+Total time: 544 seconds (9m 4s)
+Cache location: /home/pi/.pycam_install_cache
+Hostname: <hostname>.local
+Web interface: http://<hostname>.local:8080
+Samba share: \\<hostname>.local\shared
+
+Next steps:
+1. Reboot to activate all services
+2. Configure WiFi via ComitUp portal
+3. Access web interface for camera settings
+============================================================
 ----
+
 
 
 == WIFI management with Comitup
-The wifi is handled by the awesome software 'commitup' from Dave Steel. If the wifi doesn't find a known connection it starts an access-point and make it possible to define a new wifi-connection in a web-interface. 
+The wifi is handled by the awesome software 'comitup' from Dave Steel. If the wifi doesn't find a known connection it starts an access-point and make it possible to define a new wifi-connection in a web-interface. 
 
-https://github.com/davesteele/comitup/wiki/Installing-Comitup
+The hotspot will named AP-<hostname> and no password is needed to connect to it. After connecting to the access-point, open a web-browser and go to http://10.41.0.1 and you will see the comitup configuration website. Here you can select your wifi-network and enter the password. After this, the pi will try to connect to the wifi-network and if successful the access-point will disappear. More info at https://github.com/davesteele/comitup/ 
 
 
 == How the cam-software works
@@ -214,30 +216,23 @@ The software uses a **unified settings system** with three key components:
 * **user_settings.json** - User customizations that override schema defaults
 
 Configuration can be managed in two ways:
-* **Web interface** - Swedish language GUI at http://localhost:5000 for user-friendly editing
+* **Web interface** - Swedish language GUI at http://hostname.local:8080 for user-friendly editing
 * **Python code** - Direct programmatic access via the settings manager
 
 The software acts like a 'game-loop' with a main that starts a mainloop and runs update on all activated objects. The mainloop is a while-loop that runs until the program is stopped or killed. Different behavior is implemented as different cam-states and the mainloop updates the state that is currently active.
 
-Logging is implemented with python's logging module and the loglevel is set in the unified settings. The logging is done to a file on the pi and/or to a backend-server with http. For http a receiving-script needs to be implemented on the server-side an example is provided in the 'backend' folder.
+Logging is implemented with python's logging module and the loglevel is set in the unified settings. The logging is done to a file on the pi and/or to a backend-server with http. For http, a receiving-script needs to be implemented on the server-side an example is provided in the 'backend' folder.
 
 == Changing the settings
 
 The camera system uses a unified settings management system:
 
-=== Web Interface (Recommended)
-Access the Swedish language web interface at `http://hostname.local:8000` after installation (note: port 8000, not 5000):
+=== Web Interface 
+Access the Swedish language web interface at `http://hostname.local:8080` after installation:
 
 * **Basic Settings Tab** - Essential configuration options for typical users
 * **Advanced Settings Tab** - Advanced options for power users
 * **Real-time Validation** - Immediate feedback on setting changes
-* **Password Fields** - Secure handling of API keys and sensitive data
-
-=== Settings Files
-For advanced users, settings can also be managed via configuration files:
-
-* **Settings/user_settings.json** - User customizations (recommended for programmatic changes)
-* **Settings/settings_schema.json** - Complete schema with all available options
 
 === Documentation
 Refer to `Settings/UNIFIED_SETTINGS_GUIDE.adoc` for comprehensive documentation on:

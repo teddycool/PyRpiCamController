@@ -4,10 +4,16 @@ After=multi-user.target
 Requires=network.target
 
 [Service]
+Type=simple
+ExecStartPre=/bin/bash -c 'chown pi:pi /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'chmod 664 /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
 ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/CamController/Main.py
 WorkingDirectory=/home/pi/PyRpiCamController/CamController
+Environment=PYTHONPATH=/home/pi/PyRpiCamController
 User=root
 Group=root
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target

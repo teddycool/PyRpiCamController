@@ -207,7 +207,7 @@ class SettingsManager:
                         'default': value['value'],
                         'readonly': value.get('readonly', False),
                         'web_editable': value.get('web_editable', True),
-                        'level': value.get('level', value.get('ui', {}).get('level', 'basic'))
+                        'level': value.get('ui', {}).get('level', 'basic')
                     }
                     
                     # Add type-specific constraints

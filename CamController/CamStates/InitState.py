@@ -10,7 +10,6 @@ from Connectivity import WiFi
 from CamStates import BaseState
 # Add project root to path for settings manager
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from Settings.settings_manager import settings_manager
 
 import logging
