@@ -72,8 +72,9 @@ Flask-based web interface for remote camera system configuration:
 === tools
 Installation and setup utilities:
 
-* **install-all-optimized.py** - Main installation script that sets up the entire system
-* Various helper scripts for system configuration and deployment
+* **OPTIMIZED_INSTALL_GUIDE.md** - Complete installation guide with troubleshooting and configuration details (link:tools/OPTIMIZED_INSTALL_GUIDE.md[Installation Guide])
+* **install-all-optimized.py** - Simple, one-time installation script that sets up the entire system
+* Various helper scripts for system testing and validation
 
 === Services
 System service configurations for external dependencies:
@@ -145,58 +146,21 @@ Server-side infrastructure for receiving images and data from the camera system 
 
 A circuit-diagram for the needed extra hardware used for some features can be found here: link:_doc/extra_hardware.pdf["Circuit-diagram"]
 
-== How to install and get started (the easy way)
+== Installation
 
-=== Prerequisites
-You need a Raspberry Pi with a camera module (picam3 or picam3HQ which is currently supported) and a WiFi connection. The software is tested with Raspberry Pi 3B+ and 4B (4GB) but should work with all models.
+=== Quick Start
+For detailed installation instructions, troubleshooting, and configuration options, see the comprehensive installation guide:
 
-=== Clone the repo and fix settings
-Clone this repository to your computer. 
+📋 **link:tools/OPTIMIZED_INSTALL_GUIDE.md[Installation Guide]**
 
-=== Prepare the USB-stick or SD-card and start the pi
+=== Summary
+1. **Prerequisites**: Raspberry Pi with camera module, fresh Raspberry Pi OS (Bookworm), internet connection
+2. **Clone project**: `git clone https://github.com/teddycool/PyRpiCamController.git /home/pi/PyRpiCamController`
+3. **Install**: `sudo python3 /home/pi/PyRpiCamController/tools/install-all-optimized.py`
+4. **Duration**: Typically 15-30 minutes
+5. **Access**: Web interface at `http://hostname.local:8080` after reboot
 
-I prefer using a USB-stick since this is faster and more reliable than using an SD-card. Note that this only works for Raspberry Pi 3B+ and later models (and not with zero either).
-
-Start with an image of bookworm Raspberry Pi OS lite 32 or 64 bit depending on model (Trixie OS will NOT work yet). Use Raspberry Pi imager to pre-set WiFi and hostname etc and build an image for your pi-type and write it to a USB-stick or SD-card.
-
-When the pi starts it will automatically connect to the WiFi and get an IP-address. If you have set a hostname it will be available on the network with that name.
-
-When the WiFi is pre-set, you can directly start 'headless', ssh to target and copy the needed
-
-=== What files to copy
-Copy these folder from the cloned repo the home-root of the pi-user. Default is /home/pi/..
-
-/CamController, /Updates, /Settings, /Services, /tools, /WebGui
-
-=== How to install the software
-
-Note that the swap-file needs to be enlarged for zero and zero v2 before you run this or the install will fail. See detailed instructions here: link:_doc/raspi-zero.adoc[How to adjust swap on Raspberry Pi Zero and Zero v2]
-
-Now, run the tools/install-all-optimized.py script on your pi which will update the os and then install all needed packages and services. This will take a while. At the end you will se some information and when the system reboot it will have a new node-name (the pi cpu-serial) and the CamController will start as a service.
-
-[source]
-----
-sudo python3 PyRpiCamController/tools/install-all-optimized.py
-----
-
-At the end you will se the result as:
-[source]
-----
-============================================================
-INSTALLATION COMPLETED SUCCESSFULLY!
-============================================================
-Total time: 544 seconds (9m 4s)
-Cache location: /home/pi/.pycam_install_cache
-Hostname: <hostname>.local
-Web interface: http://<hostname>.local:8080
-Samba share: \\<hostname>.local\shared
-
-Next steps:
-1. Reboot to activate all services
-2. Configure WiFi via ComitUp portal
-3. Access web interface for camera settings
-============================================================
-----
+The installer automatically configures all services, sets up file sharing, and prepares the system for immediate use.
 
 
 
