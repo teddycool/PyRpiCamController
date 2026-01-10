@@ -1,0 +1,6 @@
+{
+  "admin_username": "admin",
+  "admin_password": "K7#mN9@pQ4*vX2!wZ8$rF6&hL3^dS5",
+  "ota_server": "https://www.sensorwebben.se/pycamota",
+  "description": "OTA Admin Configuration for PyRpiCamController"
+}

@@ -683,7 +683,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             console.log('Loading devices...');
             try {
                 // Use the working simple list API
-                const response = await fetch(`${API_BASE}/api/simplelist`, {
+                const response = await fetch(`${API_BASE}/utils/simple_device_list.php`, {
                     method: 'GET',
                     credentials: 'include',
                     headers: {
@@ -848,7 +848,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         async function updateDevice(deviceId) {
             if (confirm(`Är du säker på att du vill uppdatera enheten ${deviceId}?`)) {
                 try {
-                    await apiCall('/device_management.php?action=update', {
+                    await apiCall('/api/device_management.php?action=update', {
                         method: 'POST',
                         body: JSON.stringify({ device_id: deviceId })
                     });
@@ -864,7 +864,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         async function deleteDevice(deviceId) {
             if (confirm(`Är du säker på att du vill ta bort enheten ${deviceId}?`)) {
                 try {
-                    await apiCall('/device_management.php?action=delete', {
+                    await apiCall('/api/device_management.php?action=delete', {
                         method: 'POST',
                         body: JSON.stringify({ device_id: deviceId })
                     });
@@ -908,7 +908,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             formData.append('notes', document.getElementById('release-notes').value);
             
             try {
-                const response = await fetch(`${API_BASE}/version_management.php?action=upload`, {
+                const response = await fetch(`${API_BASE}/api/version_management.php?action=upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -976,7 +976,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             console.log('API Base URL:', API_BASE);
             
             // Check if we can reach the API
-            fetch(API_BASE + '/device_management.php?action=list')
+            fetch(API_BASE + '/api/device_management.php?action=list')
                 .then(response => {
                     console.log('Initial API test response:', response.status, response.statusText);
                     return response.text();
