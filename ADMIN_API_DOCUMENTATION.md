@@ -109,8 +109,8 @@ metadata: {
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 7. Database Storage                                        │
-│    - INSERT into versions table                           │
+│ 7. Database Storage                                         │
+│    - INSERT into versions table                             │
 │    - Store: version, description, file_path, file_size    │
 │    - Handle duplicate version errors                      │
 └─────────────────────────────────────────────────────────────┘
