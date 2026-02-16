@@ -2,7 +2,10 @@
 backend/secrets.php
 backend/*/utils/secrets.php
 backend/**/secrets.php
-dev_tools/*
+dev_tools/
+
+# OTA admin credentials - sensitive information (but allow template)
+tools/ota_credentials.txt
 
 
 
