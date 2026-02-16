@@ -1,0 +1,187 @@
+{
+  "Vision": {
+    "description": "Pipeline-based vision system settings",
+    "type": "object",
+    "properties": {
+      "enabled_processors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["motion", "object", "face"]
+        },
+        "default": ["motion"],
+        "description": "List of enabled vision processors"
+      },
+      "processor_order": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["motion", "object", "face"]
+        },
+        "default": ["motion", "object"],
+        "description": "Order of processors in the pipeline (determines execution sequence)"
+      },
+      "performance_monitoring": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable performance monitoring and statistics"
+      },
+      "debug_output": {
+        "type": "boolean", 
+        "default": false,
+        "description": "Enable debug output and intermediate image saving"
+      }
+    }
+  },
+  "MotionDetector": {
+    "description": "Motion detection settings",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable motion detection"
+      },
+      "history": {
+        "type": "integer",
+        "default": 50,
+        "minimum": 10,
+        "maximum": 500,
+        "description": "Number of background frames to maintain"
+      },
+      "motioncount": {
+        "type": "integer",
+        "default": 200,
+        "minimum": 1,
+        "maximum": 10000,
+        "description": "Minimum changed pixels for motion detection"
+      },
+      "learning_rate": {
+        "type": "number",
+        "default": -1,
+        "minimum": -1,
+        "maximum": 1,
+        "description": "Background learning rate (-1 for automatic)"
+      },
+      "motion_threshold": {
+        "type": "integer",
+        "default": 200,
+        "minimum": 1,
+        "maximum": 10000,
+        "description": "Threshold for motion detection in pipeline mode"
+      },
+      "draw_results": {
+        "type": "boolean",
+        "default": true,
+        "description": "Draw motion detection results on image"
+      }
+    }
+  },
+  "ObjectDetector": {
+    "description": "YOLO-based object detection settings",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": false,
+        "description": "Enable object detection"
+      },
+      "weights_path": {
+        "type": "string",
+        "default": "models/yolov3.weights",
+        "description": "Path to YOLO weights file"
+      },
+      "config_path": {
+        "type": "string", 
+        "default": "models/yolov3.cfg",
+        "description": "Path to YOLO config file"
+      },
+      "classes_path": {
+        "type": "string",
+        "default": "models/coco.names",
+        "description": "Path to class names file"
+      },
+      "confidence_threshold": {
+        "type": "number",
+        "default": 0.5,
+        "minimum": 0.1,
+        "maximum": 1.0,
+        "description": "Minimum confidence for object detection"
+      },
+      "nms_threshold": {
+        "type": "number",
+        "default": 0.4,
+        "minimum": 0.1,
+        "maximum": 1.0,
+        "description": "Non-maximum suppression threshold"
+      },
+      "target_classes": {
+        "type": ["array", "null"],
+        "items": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "Specific object classes to detect (null for all classes)"
+      },
+      "draw_results": {
+        "type": "boolean",
+        "default": true,
+        "description": "Draw detection bounding boxes on image"
+      },
+      "max_detections": {
+        "type": "integer",
+        "default": 50,
+        "minimum": 1,
+        "maximum": 200,
+        "description": "Maximum number of objects to detect per frame"
+      }
+    }
+  },
+  "VisionPipeline": {
+    "description": "Pipeline-specific settings",
+    "type": "object", 
+    "properties": {
+      "processor_order": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["crop", "motion", "object"]
+        },
+        "default": ["motion", "object"],
+        "description": "Order of processors in the pipeline"
+      },
+      "error_handling": {
+        "type": "string",
+        "enum": ["skip", "stop", "continue"],
+        "default": "continue",
+        "description": "How to handle processor errors"
+      },
+      "save_intermediate": {
+        "type": "boolean",
+        "default": false,
+        "description": "Save intermediate processing results for debugging"
+      }
+    }
+  },
+  "Cam": {
+    "description": "Camera settings for testing",
+    "type": "object",
+    "properties": {
+      "test_image_path": {
+        "type": "string",
+        "default": "test_images/sample.jpg",
+        "description": "Path to test image for standalone testing"
+      },
+      "test_video_path": {
+        "type": "string", 
+        "default": "test_videos/sample.mp4",
+        "description": "Path to test video for continuous testing"
+      },
+      "output_path": {
+        "type": "string",
+        "default": "output/",
+        "description": "Directory for saving test results"
+      }
+    }
+  }
+}

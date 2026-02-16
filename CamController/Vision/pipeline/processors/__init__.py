@@ -6,5 +6,6 @@ __author__ = 'teddycool'
 
 from .CropProcessor import CropProcessor
 from .MotionDetectionProcessor import MotionDetectionProcessor
+from .ObjectDetectionProcessor import ObjectDetectionProcessor, DetectedObject
 
-__all__ = ['CropProcessor', 'MotionDetectionProcessor']
+__all__ = ['CropProcessor', 'MotionDetectionProcessor', 'ObjectDetectionProcessor', 'DetectedObject']

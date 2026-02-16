@@ -10,7 +10,7 @@
       "ui": {
         "name": "Versionsnummer",
         "section": "System",
-        "description": "Version of the settings structure",
+        "description": "Version av inställningsschemat",
         "level": "advanced"
       },
       "web_editable": false
@@ -94,7 +94,7 @@
         "ui": {
           "name": "Installationssökväg",
           "section": "System",
-          "description": "Path where application is installed",
+          "description": "Lokal sökväg för installation",
           "level": "advanced"
         },
         "web_editable": false
@@ -107,7 +107,7 @@
         "ui": {
           "name": "Antal backup-versioner",
           "section": "System",
-          "description": "Number of backup versions to keep",
+          "description": "Antal backup-versioner att behålla",
           "level": "advanced"
         },
         "web_editable": true
@@ -120,7 +120,7 @@
         "ui": {
           "name": "Hälsokontroll timeout (s)",
           "section": "System",
-          "description": "Time to wait for service to become healthy after update",
+          "description": "Tid att vänta på att tjänsten ska bli frisk efter uppdatering",
           "level": "advanced"
         },
         "web_editable": true
@@ -133,7 +133,7 @@
         "ui": {
           "name": "Nedladdning timeout (s)",
           "section": "System",
-          "description": "Maximum time to wait for update download",
+          "description": "Maximal tid att vänta på nedladdning av uppdatering",
           "level": "advanced"
         },
         "web_editable": true
@@ -144,7 +144,7 @@
         "ui": {
           "name": "Auto-apply updates",
           "section": "Updates",
-          "description": "Automatically apply updates when found (not recommended)",
+          "description": "Tillämpa uppdateringar automatiskt när de hittas (rekommenderas inte)",
           "level": "advanced"
         },
         "web_editable": true
@@ -153,9 +153,9 @@
         "value": true,
         "type": "bool",
         "ui": {
-          "name": "Notify when updates available",
+          "name": "Visa notifikation när uppdateringar finns",
           "section": "Updates",
-          "description": "Show notification when new updates are detected",
+          "description": "Visa notifikation när nya uppdateringar upptäcks",
           "level": "basic"
         },
         "web_editable": true
@@ -165,9 +165,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Current Version",
+          "name": "Aktuell version",
           "section": "Updates",
-          "description": "Currently installed software version",
+          "description": "Installerad programvaruversion",
           "level": "basic"
         },
         "web_editable": false
@@ -177,9 +177,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Available Version",
+          "name": "Tillgänglig version",
           "section": "Updates",
-          "description": "Latest available software version",
+          "description": "Senast tillgängliga programvaruversion",
           "level": "basic"
         },
         "web_editable": false
@@ -189,9 +189,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Last Check",
+          "name": "Senast kontrollerad",
           "section": "Updates",
-          "description": "When updates were last checked",
+          "description": "När uppdateringar senast kontrollerades",
           "level": "basic"
         },
         "web_editable": false
@@ -202,9 +202,9 @@
         "options": ["idle", "checking", "downloading", "available", "applying", "error"],
         "readonly": true,
         "ui": {
-          "name": "Update Status",
+          "name": "Uppdateringsstatus",
           "section": "Updates",
-          "description": "Current update process status",
+          "description": "Aktuell status för uppdateringsprocessen",
           "level": "basic"
         },
         "web_editable": false
@@ -357,7 +357,7 @@
           "ui": {
             "name": "Rörelsedetektor aktiv",
             "section": "Kamera",
-            "description": "Enable motion detection",
+            "description": "Aktivera rörelsedetektering",
             "level": "advanced"
           },
           "web_editable": true,
@@ -371,7 +371,7 @@
           "ui": {
             "name": "Rörelsedetektor antal",
             "section": "Kamera",
-            "description": "Motion detection threshold",
+            "description": "Tröskel för rörelsedetektering",
             "level": "advanced"
           },
           "web_editable": true,
@@ -385,7 +385,7 @@
           "ui": {
             "name": "Rörelsedetektor historik",
             "section": "Kamera",
-            "description": "Motion detection history frames",
+            "description": "Historik för rörelsedetektering",
             "level": "advanced"
           },
           "web_editable": true,
@@ -398,7 +398,7 @@
         "ui": {
           "name": "Beskär bild",
           "section": "Kamera",
-          "description": "Enable image cropping",
+          "description": "Aktivera beskärning av bild",
           "level": "advanced"
         },
         "web_editable": true,
@@ -413,7 +413,7 @@
         "ui": {
           "name": "Beskärning övre vänster (x, y)",
           "section": "Kamera",
-          "description": "Crop top-left coordinates",
+          "description": "Beskärning övre vänster koordinater",
           "level": "advanced"
         },
         "web_editable": true,
@@ -428,7 +428,7 @@
         "ui": {
           "name": "Beskärning nedre höger (x, y)",
           "section": "Kamera",
-          "description": "Crop bottom-right coordinates",
+          "description": "Beskärning nedre höger koordinater",
           "level": "advanced"
         },
         "web_editable": true,
@@ -449,7 +449,7 @@
         "ui": {
           "name": "Streamupplösning",
           "section": "Stream",
-          "description": "Stream resolution (width x height)",
+          "description": "Streamupplösning (bredd x höjd)",
           "level": "basic"
         },
         "web_editable": true,
@@ -463,7 +463,7 @@
         "ui": {
           "name": "Stream framerate",
           "section": "Stream",
-          "description": "Frames per second for streaming",
+          "description": "Bildrutor per sekund för streaming",
           "level": "advanced"
         },
         "web_editable": true,
@@ -477,7 +477,7 @@
         "ui": {
           "name": "Stream-port",
           "section": "Stream",
-          "description": "Port for streaming server",
+          "description": "Port för streamingserver",
           "level": "advanced"
         },
         "web_editable": true,
@@ -489,7 +489,7 @@
         "ui": {
           "name": "Webbsidans titel",
           "section": "Stream",
-          "description": "Web page title for stream",
+          "description": "Webbsidans titel för stream",
           "level": "advanced"
         },
         "web_editable": true,
@@ -501,7 +501,7 @@
         "ui": {
           "name": "Webbsidans huvudrubrik",
           "section": "Stream",
-          "description": "Main heading for stream page",
+          "description": "Huvudrubrik för stream-sidan",
           "level": "basic"
         },
         "web_editable": true,
@@ -517,7 +517,7 @@
         "ui": {
           "name": "Max CPU-temp",
           "section": "System",
-          "description": "Maximum CPU temperature before shutdown",
+          "description": "Maximal CPU-temperatur innan avstängning",
           "level": "advanced"
         },
         "web_editable": false
@@ -530,7 +530,7 @@
         "ui": {
           "name": "Varning CPU-temp",
           "section": "System",
-          "description": "CPU temperature warning threshold",
+          "description": "Tröskel för varning av CPU-temperatur",
           "level": "advanced"
         },
         "web_editable": true,
@@ -545,7 +545,7 @@
       "ui": {
         "name": "Ljusnivå (%)",
         "section": "System",
-        "description": "Light intensity percentage",
+        "description": "Ljusintensitet i procent",
         "level": "advanced"
       },
       "web_editable": true,
@@ -564,7 +564,7 @@
       "ui": {
         "name": "Loggnivå",
         "section": "System",
-        "description": "Logging verbosity level",
+        "description": "Loggnivå för detaljeringsgrad",
         "level": "advanced"
       },
       "web_editable": true,
@@ -576,7 +576,7 @@
       "ui": {
         "name": "Logga till fil",
         "section": "System",
-        "description": "Enable file logging",
+        "description": "Aktivera loggning till fil",
         "level": "advanced"
       },
       "web_editable": true,
@@ -588,7 +588,7 @@
       "ui": {
         "name": "Loggfilssökväg",
         "section": "System",
-        "description": "Path to log file",
+        "description": "Sökväg till loggfil",
         "level": "advanced"
       },
       "web_editable": true,
@@ -602,7 +602,7 @@
       "ui": {
         "name": "Max loggfilstorlek (bytes)",
         "section": "System",
-        "description": "Maximum log file size before rotation",
+        "description": "Maximal loggfilstorlek innan rotation",
         "level": "advanced"
       },
       "web_editable": true,
@@ -616,7 +616,7 @@
       "ui": {
         "name": "Antal logg-backuper",
         "section": "System",
-        "description": "Number of backup log files to keep",
+        "description": "Antal backup-loggfiler att behålla",
         "level": "advanced"
       },
       "web_editable": true,
@@ -628,7 +628,7 @@
       "ui": {
         "name": "Logga till server",
         "section": "System",
-        "description": "Enable remote server logging",
+        "description": "Aktivera loggning till server",
         "level": "advanced"
       },
       "web_editable": true,
@@ -640,7 +640,7 @@
       "ui": {
         "name": "Loggserver",
         "section": "System",
-        "description": "Remote logging server hostname",
+        "description": "Hostname för remote loggserver",
         "level": "advanced"
       },
       "web_editable": true,
@@ -652,7 +652,7 @@
       "ui": {
         "name": "Loggserver-URL",
         "section": "System",
-        "description": "Remote logging endpoint URL",
+        "description": "URL för remote loggserver",
         "level": "advanced"
       },
       "web_editable": true,
@@ -666,7 +666,7 @@
       "ui": {
         "name": "Kolla nya inställningar (s)",
         "section": "System",
-        "description": "Interval for checking new settings",
+        "description": "Intervall för att kolla nya inställningar",
         "level": "basic"
       },
       "web_editable": false
@@ -679,7 +679,7 @@
       "ui": {
         "name": "Kolla CPU-temp (s)",
         "section": "System",
-        "description": "Interval for CPU temperature checks",
+        "description": "Intervall för att kolla CPU-temperatur",
         "level": "advanced"
       },
       "web_editable": false
@@ -691,7 +691,7 @@
         "ui": {
           "name": "URL för internetdetektering",
           "section": "System",
-          "description": "URL for internet connectivity tests",
+          "description": "URL för internetanslutningstester",
           "level": "advanced"
         },
         "web_editable": false
@@ -704,7 +704,7 @@
         "ui": {
           "name": "Bildanalys aktiverad",
           "section": "Vision",
-          "description": "Enable vision processing pipeline",
+          "description": "Aktivera bildanalys-pipeline",
           "level": "advanced"
         },
         "web_editable": true,
@@ -718,7 +718,7 @@
             "ui": {
               "name": "Beskärning aktiverad",
               "section": "Vision",
-              "description": "Enable image cropping processor",
+              "description": "Aktivera bildbeskärningsprocessor",
               "level": "advanced"
             },
             "web_editable": true,
@@ -730,7 +730,7 @@
             "ui": {
               "name": "Validera beskärningskoordinater",
               "section": "Vision",
-              "description": "Validate crop coordinates before applying",
+              "description": "Validera beskärningskoordinater innan tillämpning",
               "level": "advanced"
             },
             "web_editable": true,
@@ -744,7 +744,7 @@
             "ui": {
               "name": "Rörelsedetektering aktiverad",
               "section": "Vision",
-              "description": "Enable motion detection processor",
+              "description": "Aktivera rörelsedetekteringsprocessor",
               "level": "advanced"
             },
             "web_editable": true,
@@ -758,7 +758,7 @@
             "ui": {
               "name": "Rörelsetröskel",
               "section": "Vision",
-              "description": "Minimum changed pixels for motion detection",
+              "description": "Minsta antal förändrade pixlar för rörelsedetektering",
               "level": "advanced"
             },
             "web_editable": true,
@@ -772,7 +772,7 @@
             "ui": {
               "name": "Bakgrundshistorik",
               "section": "Vision",
-              "description": "Number of background frames to maintain",
+              "description": "Antal bakgrundsramar att behålla",
               "level": "advanced"
             },
             "web_editable": true,
@@ -784,7 +784,7 @@
             "ui": {
               "name": "Detektera rörelseområden",
               "section": "Vision",
-              "description": "Find and report individual motion areas",
+              "description": "Hitta och rapportera individuella rörelseområden",
               "level": "advanced"
             },
             "web_editable": true,
@@ -798,7 +798,7 @@
             "ui": {
               "name": "Minsta rörelseområde",
               "section": "Vision",
-              "description": "Minimum area in pixels to consider as motion",
+              "description": "Minsta area i pixlar för att betraktas som rörelse",
               "level": "advanced"
             },
             "web_editable": true,
@@ -810,7 +810,7 @@
             "ui": {
               "name": "Inkludera rörelsemask",
               "section": "Vision",
-              "description": "Include motion mask in metadata (for debugging)",
+              "description": "Inkludera rörelsemask i metadata (för felsökning)",
               "level": "advanced"
             },
             "web_editable": true,
@@ -826,7 +826,7 @@
             "ui": {
               "name": "Ansiktsigenkänning",
               "section": "Vision",
-              "description": "Enable face detection (future feature)",
+              "description": "Aktivera ansiktsigenkänning (framtida funktion)",
               "level": "advanced"
             },
             "web_editable": true,
@@ -840,7 +840,7 @@
             "ui": {
               "name": "Ansiktsdetektering säkerhet",
               "section": "Vision",
-              "description": "Face detection confidence threshold",
+              "description": "Säkerhetströskel för ansiktsdetektering",
               "level": "advanced"
             },
             "web_editable": true,
@@ -854,13 +854,68 @@
             "ui": {
               "name": "Objektdetektering",
               "section": "Vision",
-              "description": "Enable object detection (future feature)",
+              "description": "Aktivera objektdetektering (framtida funktion)",
               "level": "advanced"
             },
             "web_editable": true,
             "level": "advanced"
           }
         }
+      }
+    },
+    "storage_management": {
+      "enabled": {
+        "value": true,
+        "type": "bool",
+        "ui": {
+          "name": "Aktivera diskhantering", 
+          "section": "Lagring",
+          "description": "Aktivera automatisk diskutrymmehantering",
+          "level": "basic"
+        },
+        "web_editable": true
+      },
+      "mode": {
+        "value": "delete_old",
+        "type": "enum", 
+        "options": [
+          "stop_saving",
+          "delete_old"
+        ],
+        "ui": {
+          "name": "Hanteringsläge",
+          "section": "Lagring", 
+          "description": "stop_saving: Sluta spara när utrymmet tar slut, delete_old: Radera gamla filer automatiskt",
+          "level": "advanced"
+        },
+        "web_editable": true
+      },
+      "threshold_value": {
+        "value": 500,
+        "type": "int",
+        "min": 50,
+        "max": 10000,
+        "ui": {
+          "name": "Tröskelvärde",
+          "section": "Lagring",
+          "description": "Tröskelvärde för fri diskplats (MB)",
+          "level": "advanced" 
+        },
+        "web_editable": true
+      },
+      "threshold_unit": {
+        "value": "MB",
+        "type": "enum",
+        "options": [
+          "MB"
+        ],
+        "ui": {
+          "name": "Enhet för tröskelvärde",
+          "section": "Lagring",
+          "description": "MB: Absolut värde i megabyte", 
+          "level": "advanced"
+        },
+        "web_editable": true
       }
     }
   }

@@ -1,0 +1,6 @@
+cpu_id,device_name,location,update_group
+10000000a1b2c3d4,Kitchen Camera,Kitchen Counter,production
+20000000e5f6g7h8,Living Room Camera,Living Room TV Stand,production
+30000000i9j0k1l2,Outdoor Camera,Garden Entrance,production
+40000000m3n4o5p6,Workshop Camera,Workshop Bench,beta
+50000000q7r8s9t0,Garage Camera,Garage Door,production

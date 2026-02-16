@@ -1,0 +1,19 @@
+# Test requirements for PyRpiCamController
+# Install with: pip install -r tests/requirements.txt
+
+# Core testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+
+# For mocking system calls
+mock>=4.0.0
+
+# For temporary file management in tests
+tempfile
+
+# For JSON validation
+jsonschema>=4.0.0
+
+# For code coverage reporting
+coverage>=7.0.0

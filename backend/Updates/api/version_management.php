@@ -7,20 +7,88 @@
  * @author teddycool
  */
 
+// Force clear OPcache for this file
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate(__FILE__, true);
+}
+if (function_exists('opcache_reset')) {
+    opcache_reset();
+}
+
 /**
  * Version Management API
  * 
- * Endpoints:
- * GET /api/versions - List all versions
- * POST /api/versions - Upload new version
- * PUT /api/versions/{id} - Update version metadata
- * DELETE /api/versions/{id} - Delete version
- * POST /api/versions/{id}/promote - Promote version to stable
- * POST /api/versions/{id}/rollback - Rollback version to testing
+ * Simplified API - All admin operations use POST with JSON body
  */
 
 require_once '../utils/config.php';
-require_once 'admin_auth.php';
+require_once '../admin/admin_auth.php';
+
+// SIMPLE TEST - Always respond for ANY upload action, regardless of method
+if (isset($_GET['action']) && $_GET['action'] === 'upload') {
+    sendJsonResponse(['message' => 'UPLOAD ENDPOINT HIT - FILE UPDATED', 'timestamp' => date('Y-m-d H:i:s')]);
+}
+
+// CRITICAL: Initialize admin session FIRST before any authentication checks
+start_admin_session();
+
+// Check for file upload FIRST (before authentication)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'upload') {
+    // Perform authentication check specifically for upload
+    if (!is_admin_authenticated()) {
+        sendJsonResponse(['error' => 'Authentication required for upload'], 401);
+    }
+    
+    try {
+        $pdo = getDbConnection();
+        uploadVersion($pdo);
+    } catch (Exception $e) {
+        sendJsonResponse(['error' => 'Upload error', 'details' => $e->getMessage()], 500);
+    }
+    exit;
+}
+
+// IMMEDIATE DEBUG - This should show up if the new file is loaded
+if (isset($_GET['debug']) && $_GET['debug'] === 'test') {
+    sendJsonResponse(['message' => 'File updated at 2026-01-11 12:30:00 - TEST VERSION', 'timestamp' => date('Y-m-d H:i:s')]);
+}
+
+// AUTH TEST - Check if authentication is working
+if (isset($_GET['debug']) && $_GET['debug'] === 'auth') {
+    // Session already started at the top of the file
+    $authStatus = [
+        'session_name' => session_name(),
+        'session_id' => session_id(),
+        'session_data' => $_SESSION ?? [],
+        'is_authenticated' => is_admin_authenticated(),
+        'cookies' => $_COOKIE ?? [],
+        'admin_session_name' => defined('ADMIN_SESSION_NAME') ? ADMIN_SESSION_NAME : 'not defined',
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    sendJsonResponse(['auth_debug' => $authStatus]);
+}
+
+// Enhanced debugging for upload requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+    $debugInfo = [
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'action_param' => $_GET['action'],
+        'all_get' => $_GET,
+        'has_files' => !empty($_FILES),
+        'request_uri' => $_SERVER['REQUEST_URI'],
+        'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'not set',
+        'session_id' => session_id(),
+        'session_data' => $_SESSION ?? [],
+        'cookies' => $_COOKIE ?? [],
+        'session_name' => session_name(),
+        'auth_check' => is_admin_authenticated() ? 'authenticated' : 'not authenticated'
+    ];
+    
+    // Log debug info for upload requests but don't return early
+    if ($_GET['action'] === 'upload') {
+        error_log('Upload request debug: ' . json_encode($debugInfo));
+    }
+}
 
 // Require authentication for all admin operations
 require_admin_auth();
@@ -29,165 +97,75 @@ require_admin_auth();
 handleCors();
 validateAdminApiRequest();
 
-// Check if this is a simple query parameter request from dashboard
-if (isset($_GET['action'])) {
+// Create debug info to return in response
+$debug = [
+    'request_method' => $_SERVER['REQUEST_METHOD'],
+    'get_params' => $_GET,
+    'post_params' => $_POST,
+    'files_keys' => array_keys($_FILES),
+    'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'not set'
+];
+
+// Handle other POST requests with JSON body
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $debug['path_taken'] = 'JSON';
+    
     try {
         $pdo = getDbConnection();
-        switch ($_GET['action']) {
+        
+        // Parse JSON body for other requests
+        $rawInput = file_get_contents('php://input');
+        $debug['raw_input'] = $rawInput;
+        $input = json_decode($rawInput, true);
+        $debug['parsed_input'] = $input;
+        
+        if ($input === null) {
+            $debug['error_reason'] = 'JSON is null';
+            sendJsonResponse(['error' => 'Invalid JSON body', 'debug' => $debug], 400);
+        }
+        
+        $action = $input['action'] ?? null;
+        $debug['action_found'] = $action;
+        
+        switch ($action) {
             case 'list':
                 listVersions($pdo);
                 break;
-            case 'upload':
-                uploadVersion($pdo);
-                break;
             case 'delete':
-                if (isset($_POST['version']) || isset($_GET['version'])) {
-                    $version = $_POST['version'] ?? $_GET['version'];
+                $version = $input['version'] ?? null;
+                if ($version) {
                     deleteVersion($pdo, $version);
                 } else {
                     sendJsonResponse(['error' => 'Version required'], 400);
                 }
                 break;
             default:
-                sendJsonResponse(['error' => 'Invalid action'], 400);
+                $debug['error_reason'] = 'Invalid action: ' . $action;
+                sendJsonResponse(['error' => 'Invalid action', 'debug' => $debug], 400);
         }
     } catch (Exception $e) {
-        error_log("Version management error: " . $e->getMessage());
-        sendJsonResponse(['error' => 'Internal server error'], 500);
+        sendJsonResponse(['error' => 'Internal server error', 'details' => $e->getMessage(), 'debug' => $debug], 500);
     }
     exit;
 }
 
-// Parse the URL to determine action
-$requestUri = $_SERVER['REQUEST_URI'];
-$urlPath = parse_url($requestUri, PHP_URL_PATH);
-$pathParts = explode('/', trim($urlPath, '/'));
-
-// Expected format: api/versions[/{id}[/{action}]]
-if (count($pathParts) < 2 || $pathParts[0] !== 'api' || $pathParts[1] !== 'versions') {
-    sendJsonResponse(['error' => 'Invalid endpoint'], 404);
-}
-
-$versionId = $pathParts[2] ?? null;
-$action = $pathParts[3] ?? null;
-$method = $_SERVER['REQUEST_METHOD'];
-
-try {
-    $pdo = getDbConnection();
-    
-    switch ($method) {
-        case 'GET':
-            if ($versionId === null) {
-                // List all versions
-                listVersions($pdo);
-            } else {
-                // Get specific version
-                getVersion($pdo, $versionId);
-            }
-            break;
-            
-        case 'POST':
-            if ($versionId === null) {
-                // Upload new version
-                uploadVersion($pdo);
-            } elseif ($action === 'promote') {
-                // Promote to stable
-                promoteVersion($pdo, $versionId);
-            } elseif ($action === 'rollback') {
-                // Rollback to testing
-                rollbackVersion($pdo, $versionId);
-            } else {
-                sendJsonResponse(['error' => 'Invalid endpoint'], 404);
-            }
-            break;
-            
-        case 'PUT':
-            if ($versionId !== null) {
-                // Update version metadata
-                updateVersion($pdo, $versionId);
-            } else {
-                sendJsonResponse(['error' => 'Version ID required for update'], 400);
-            }
-            break;
-            
-        case 'DELETE':
-            if ($versionId !== null) {
-                // Delete version
-                deleteVersion($pdo, $versionId);
-            } else {
-                sendJsonResponse(['error' => 'Version ID required for delete'], 400);
-            }
-            break;
-            
-        default:
-            sendJsonResponse(['error' => 'Method not allowed'], 405);
-    }
-    
-} catch (Exception $e) {
-    logMessage('ERROR', 'Version API error', [
-        'error' => $e->getMessage(),
-        'method' => $method,
-        'version_id' => $versionId ?? 'none',
-        'trace' => $e->getTraceAsString()
-    ]);
-    sendJsonResponse(['error' => 'Internal server error'], 500);
-}
+// If we get here, it's an invalid request
+sendJsonResponse(['error' => 'Invalid request method or action'], 400);
 
 /**
  * List all versions with filtering and pagination
  */
 function listVersions($pdo) {
-    $page = (int)($_GET['page'] ?? 1);
-    $limit = min((int)($_GET['limit'] ?? 20), 100);
-    $offset = ($page - 1) * $limit;
-    
-    $status = $_GET['status'] ?? '';
-    $updateGroup = $_GET['update_group'] ?? '';
-    $minVersion = $_GET['min_version'] ?? '';
-    
-    // Build WHERE clause
-    $whereConditions = [];
-    $params = [];
-    
-    if (!empty($status)) {
-        $whereConditions[] = "status = ?";
-        $params[] = $status;
-    }
-    
-    if (!empty($minVersion)) {
-        $whereConditions[] = "version >= ?";
-        $params[] = $minVersion;
-    }
-    
-    $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
-    
-    $totalCount = 0;
     $versions = [];
+    $totalCount = 0;
     
     try {
-        // Get total count
-        $countQuery = "SELECT COUNT(*) FROM versions {$whereClause}";
-        $stmt = $pdo->prepare($countQuery);
-        $stmt->execute($params);
-        $totalCount = $stmt->fetchColumn();
-        
-        // Get versions with usage statistics
-        $query = "
-            SELECT 
-                v.*,
-                COUNT(d.cpu_id) as device_count,
-                GROUP_CONCAT(DISTINCT d.update_group) as used_by_groups
-            FROM versions v
-            LEFT JOIN devices d ON v.version = d.current_version
-            {$whereClause}
-            GROUP BY v.id
-            ORDER BY v.release_date DESC
-            LIMIT {$limit} OFFSET {$offset}
-        ";
-        
+        // Simple query to get all versions
+        $query = "SELECT id, version, description, release_date, status, file_size FROM versions ORDER BY release_date DESC";
         $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
+        $stmt->execute();
         $versions = $stmt->fetchAll();
+        $totalCount = count($versions);
         
     } catch (PDOException $e) {
         // Table might not exist or other error
@@ -196,115 +174,111 @@ function listVersions($pdo) {
         $totalCount = 0;
     }
     
-    $filterByGroup = !empty($updateGroup);
-    
-    // Add download statistics
-    foreach ($versions as $key => &$version) {
-        $version['update_groups'] = parseJsonField($version['update_groups']);
-        $version['used_by_groups'] = $version['used_by_groups'] ? explode(',', $version['used_by_groups']) : [];
-        
-        // Filter by update group if specified
-        if ($filterByGroup && !empty($updateGroup)) {
-            if (!is_array($version['update_groups']) || !in_array($updateGroup, $version['update_groups'])) {
-                unset($versions[$key]);
-                continue;
-            }
-        }
-        
-        // Get download count
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) as downloads,
-                   COUNT(CASE WHEN status = 'completed' THEN 1 END) as successful_updates
-            FROM ota_logs 
-            WHERE to_version = ?
-        ");
-        $stmt->execute([$version['version']]);
-        $stats = $stmt->fetch();
-        $version['downloads'] = (int)$stats['downloads'];
-        $version['successful_updates'] = (int)$stats['successful_updates'];
-    }
-    
     sendJsonResponse([
-        'versions' => array_values($versions), // Re-index array after filtering
+        'versions' => $versions,
         'pagination' => [
-            'page' => $page,
-            'limit' => $limit,
-            'total' => count($versions), // Update total after filtering
-            'pages' => ceil(count($versions) / $limit)
+            'page' => 1,
+            'limit' => 50,
+            'total' => $totalCount,
+            'pages' => 1
         ]
     ]);
 }
 
 /**
- * Get specific version details
+ * Delete version
  */
-function getVersion($pdo, $versionId) {
-    $stmt = $pdo->prepare("SELECT * FROM versions WHERE id = ?");
-    $stmt->execute([$versionId]);
-    $version = $stmt->fetch();
+function deleteVersion($pdo, $version) {
+    // First check if version exists
+    $stmt = $pdo->prepare("SELECT id, file_path FROM versions WHERE version = ?");
+    $stmt->execute([$version]);
+    $versionData = $stmt->fetch();
     
-    if (!$version) {
+    if (!$versionData) {
         sendJsonResponse(['error' => 'Version not found'], 404);
     }
     
-    $version['update_groups'] = parseJsonField($version['update_groups']);
-    
-    // Get device usage
-    $stmt = $pdo->prepare("
-        SELECT cpu_id, device_name, location, last_seen
-        FROM devices 
-        WHERE current_version = ?
-        ORDER BY last_seen DESC
-    ");
-    $stmt->execute([$version['version']]);
-    $version['devices'] = $stmt->fetchAll();
-    
-    // Get update statistics
-    $stmt = $pdo->prepare("
-        SELECT 
-            status,
-            COUNT(*) as count,
-            AVG(CASE WHEN status = 'completed' THEN 
-                TIMESTAMPDIFF(SECOND, started_at, completed_at) 
-                ELSE NULL END) as avg_duration
-        FROM ota_logs 
-        WHERE to_version = ?
-        GROUP BY status
-    ");
-    $stmt->execute([$version['version']]);
-    $version['update_stats'] = $stmt->fetchAll();
-    
-    sendJsonResponse(['version' => $version]);
+    try {
+        $pdo->beginTransaction();
+        
+        // Delete from database
+        $stmt = $pdo->prepare("DELETE FROM versions WHERE version = ?");
+        $stmt->execute([$version]);
+        
+        // Delete file if it exists
+        if (!empty($versionData['file_path']) && file_exists($versionData['file_path'])) {
+            unlink($versionData['file_path']);
+        }
+        
+        $pdo->commit();
+        
+        logMessage('INFO', 'Version deleted', ['version' => $version]);
+        sendJsonResponse(['status' => 'success', 'message' => 'Version deleted successfully']);
+        
+    } catch (Exception $e) {
+        $pdo->rollback();
+        error_log("Version deletion error: " . $e->getMessage());
+        sendJsonResponse(['error' => 'Failed to delete version'], 500);
+    }
 }
 
 /**
- * Upload new version
+ * Upload new version (simplified version)
  */
 function uploadVersion($pdo) {
+    $debug = [];
+    $debug['step'] = 'Starting upload';
+    $debug['files'] = $_FILES;
+    $debug['post'] = $_POST;
+    
     // Check if file was uploaded
-    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-        sendJsonResponse(['error' => 'No file uploaded or upload error'], 400);
+    if (!isset($_FILES['file'])) {
+        $debug['error'] = 'No file field';
+        sendJsonResponse(['error' => 'No file field in upload', 'debug' => $debug], 400);
+    }
+    
+    if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        $error = $_FILES['file']['error'];
+        $errorMsg = [
+            UPLOAD_ERR_INI_SIZE => 'File too large (exceeds upload_max_filesize)',
+            UPLOAD_ERR_FORM_SIZE => 'File too large (exceeds MAX_FILE_SIZE)',
+            UPLOAD_ERR_PARTIAL => 'File only partially uploaded',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+            UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
+        ][$error] ?? "Unknown upload error ($error)";
+        
+        $debug['error'] = "Upload error: $error - $errorMsg";
+        sendJsonResponse(['error' => 'File upload error', 'details' => $errorMsg, 'debug' => $debug], 400);
     }
     
     $uploadedFile = $_FILES['file'];
-    $metadata = json_decode($_POST['metadata'] ?? '{}', true);
+    $debug['step'] = 'File upload OK';
     
-    // Validate metadata
-    $validationErrors = validateInput($metadata, [
-        'version' => ['required' => true, 'type' => 'string', 'length' => 50],
-        'description' => ['required' => false, 'type' => 'string', 'length' => 1000],
-        'release_notes' => ['required' => false, 'type' => 'string', 'length' => 5000],
-        'update_groups' => ['required' => false, 'type' => 'array'],
-        'min_version' => ['required' => false, 'type' => 'string', 'length' => 50]
-    ]);
-    
-    if (!empty($validationErrors)) {
-        sendJsonResponse(['error' => 'Invalid metadata', 'details' => $validationErrors], 400);
+    // Check metadata
+    if (!isset($_POST['metadata'])) {
+        $debug['error'] = 'No metadata in POST';
+        sendJsonResponse(['error' => 'No metadata provided', 'debug' => $debug], 400);
     }
     
-    // Validate version format (semantic versioning)
-    if (!preg_match('/^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/', $metadata['version'])) {
-        sendJsonResponse(['error' => 'Invalid version format. Use semantic versioning (e.g., 1.0.0)'], 400);
+    $debug['step'] = 'Metadata found';
+    $debug['raw_metadata'] = $_POST['metadata'];
+    
+    $metadata = json_decode($_POST['metadata'], true);
+    
+    if ($metadata === null) {
+        $debug['error'] = 'Invalid JSON in metadata';
+        sendJsonResponse(['error' => 'Invalid metadata JSON', 'debug' => $debug], 400);
+    }
+    
+    $debug['step'] = 'Metadata parsed';
+    $debug['metadata'] = $metadata;
+    
+    // Basic validation
+    if (empty($metadata['version'])) {
+        $debug['error'] = 'Version missing in metadata';
+        sendJsonResponse(['error' => 'Version required in metadata', 'debug' => $debug], 400);
     }
     
     // Check if version already exists
@@ -314,23 +288,25 @@ function uploadVersion($pdo) {
         sendJsonResponse(['error' => 'Version already exists'], 409);
     }
     
-    // Validate file
+    // Validate file type
     if (!str_ends_with($uploadedFile['name'], '.tar.gz')) {
         sendJsonResponse(['error' => 'Invalid file type. Only .tar.gz files allowed'], 400);
-    }
-    
-    $maxFileSize = 500 * 1024 * 1024; // 500MB
-    if ($uploadedFile['size'] > $maxFileSize) {
-        sendJsonResponse(['error' => 'File too large. Maximum size: 500MB'], 400);
     }
     
     try {
         $pdo->beginTransaction();
         
+        // Check if STORAGE_DIR is defined
+        if (!defined('STORAGE_DIR')) {
+            throw new Exception("STORAGE_DIR not defined");
+        }
+        
         // Create storage directory
         $storageDir = STORAGE_DIR . "/versions/{$metadata['version']}";
+        error_log("Attempting to create storage dir: $storageDir");
+        
         if (!mkdir($storageDir, 0755, true) && !is_dir($storageDir)) {
-            throw new Exception("Failed to create storage directory");
+            throw new Exception("Failed to create storage directory: $storageDir");
         }
         
         $fileName = "PyRpiCamController-{$metadata['version']}.tar.gz";
@@ -348,8 +324,8 @@ function uploadVersion($pdo) {
         $stmt = $pdo->prepare("
             INSERT INTO versions (
                 version, description, release_notes, file_name, file_path, 
-                file_size, checksum, update_groups, min_version, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'testing')
+                file_size, checksum, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'testing')
         ");
         
         $stmt->execute([
@@ -359,13 +335,10 @@ function uploadVersion($pdo) {
             $fileName,
             $filePath,
             $uploadedFile['size'],
-            $checksum,
-            json_encode($metadata['update_groups'] ?? ['stable']),
-            $metadata['min_version'] ?? '0.0.0'
+            $checksum
         ]);
         
         $versionId = $pdo->lastInsertId();
-        
         $pdo->commit();
         
         logMessage('INFO', 'Version uploaded', [
@@ -390,167 +363,6 @@ function uploadVersion($pdo) {
             unlink($filePath);
         }
         
-        throw $e;
-    }
-}
-
-/**
- * Update version metadata
- */
-function updateVersion($pdo, $versionId) {
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    $allowedFields = ['description', 'release_notes', 'update_groups', 'min_version'];
-    $updates = [];
-    $params = [];
-    
-    foreach ($allowedFields as $field) {
-        if (isset($input[$field])) {
-            if ($field === 'update_groups') {
-                $updates[] = "{$field} = ?";
-                $params[] = json_encode($input[$field]);
-            } else {
-                $updates[] = "{$field} = ?";
-                $params[] = $input[$field];
-            }
-        }
-    }
-    
-    if (empty($updates)) {
-        sendJsonResponse(['error' => 'No valid fields to update'], 400);
-    }
-    
-    $params[] = $versionId;
-    
-    $stmt = $pdo->prepare("
-        UPDATE versions 
-        SET " . implode(', ', $updates) . "
-        WHERE id = ?
-    ");
-    
-    $result = $stmt->execute($params);
-    
-    if ($stmt->rowCount() === 0) {
-        sendJsonResponse(['error' => 'Version not found'], 404);
-    }
-    
-    logMessage('INFO', 'Version updated', [
-        'version_id' => $versionId,
-        'updated_fields' => array_keys($input)
-    ]);
-    
-    sendJsonResponse(['status' => 'success', 'message' => 'Version updated successfully']);
-}
-
-/**
- * Promote version to stable
- */
-function promoteVersion($pdo, $versionId) {
-    $stmt = $pdo->prepare("
-        UPDATE versions 
-        SET status = 'stable' 
-        WHERE id = ? AND status = 'testing'
-    ");
-    
-    $result = $stmt->execute([$versionId]);
-    
-    if ($stmt->rowCount() === 0) {
-        sendJsonResponse(['error' => 'Version not found or not in testing status'], 404);
-    }
-    
-    // Get version info for logging
-    $stmt = $pdo->prepare("SELECT version FROM versions WHERE id = ?");
-    $stmt->execute([$versionId]);
-    $version = $stmt->fetchColumn();
-    
-    logMessage('INFO', 'Version promoted to stable', [
-        'version_id' => $versionId,
-        'version' => $version
-    ]);
-    
-    sendJsonResponse(['status' => 'success', 'message' => 'Version promoted to stable']);
-}
-
-/**
- * Rollback version to testing
- */
-function rollbackVersion($pdo, $versionId) {
-    $stmt = $pdo->prepare("
-        UPDATE versions 
-        SET status = 'testing' 
-        WHERE id = ? AND status = 'stable'
-    ");
-    
-    $result = $stmt->execute([$versionId]);
-    
-    if ($stmt->rowCount() === 0) {
-        sendJsonResponse(['error' => 'Version not found or not in stable status'], 404);
-    }
-    
-    // Get version info for logging
-    $stmt = $pdo->prepare("SELECT version FROM versions WHERE id = ?");
-    $stmt->execute([$versionId]);
-    $version = $stmt->fetchColumn();
-    
-    logMessage('INFO', 'Version rolled back to testing', [
-        'version_id' => $versionId,
-        'version' => $version
-    ]);
-    
-    sendJsonResponse(['status' => 'success', 'message' => 'Version rolled back to testing']);
-}
-
-/**
- * Delete version
- */
-function deleteVersion($pdo, $versionId) {
-    try {
-        $pdo->beginTransaction();
-        
-        // Get version info before deletion
-        $stmt = $pdo->prepare("SELECT version, file_path FROM versions WHERE id = ?");
-        $stmt->execute([$versionId]);
-        $versionInfo = $stmt->fetch();
-        
-        if (!$versionInfo) {
-            sendJsonResponse(['error' => 'Version not found'], 404);
-        }
-        
-        // Check if version is in use by any devices
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM devices WHERE current_version = ? OR target_version = ?");
-        $stmt->execute([$versionInfo['version'], $versionInfo['version']]);
-        $usageCount = $stmt->fetchColumn();
-        
-        if ($usageCount > 0) {
-            sendJsonResponse(['error' => 'Cannot delete version that is in use by devices'], 409);
-        }
-        
-        // Delete version record
-        $stmt = $pdo->prepare("DELETE FROM versions WHERE id = ?");
-        $stmt->execute([$versionId]);
-        
-        // Delete file
-        if (file_exists($versionInfo['file_path'])) {
-            unlink($versionInfo['file_path']);
-        }
-        
-        // Remove directory if empty
-        $dir = dirname($versionInfo['file_path']);
-        if (is_dir($dir) && count(scandir($dir)) == 2) { // Only . and ..
-            rmdir($dir);
-        }
-        
-        $pdo->commit();
-        
-        logMessage('INFO', 'Version deleted', [
-            'version_id' => $versionId,
-            'version' => $versionInfo['version']
-        ]);
-        
-        sendJsonResponse(['status' => 'success', 'message' => 'Version deleted successfully']);
-        
-    } catch (Exception $e) {
-        $pdo->rollback();
         throw $e;
     }
 }

@@ -186,27 +186,26 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
             "Settings/", 
             "Services/",
             "tools/",
-            "webgui/",
-            "shared/",
-            "timelapse/",
-            "ota/",
+            "WebGui/",
+            "Updates/",
+            "_doc/",
             "VERSION",
             "LICENSE", 
-            "readme.adoc",
-            "_doc/userguide.adoc"
+            "readme.adoc"
         ]
         
         # Files to exclude
         exclude_patterns = [
             "__pycache__",
-            "*.pyc",
+            ".pyc",
             ".git",
-            ".venv",
-            "*.log",
+            ".venv", 
+            ".log",
             "user_settings.json",
             "secrets.php",
             "releases/",
-            "dist/"
+            "dist/",
+            "debug_packaging.py"
         ]
         
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:

@@ -1,0 +1,100 @@
+{
+  "HomeAssistantMQTT": {
+    "description": "MQTT integration for sending vision results to Home Assistant",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": false,
+        "description": "Enable MQTT integration with Home Assistant"
+      },
+      "broker_host": {
+        "type": "string", 
+        "default": "homeassistant.local",
+        "description": "MQTT broker hostname or IP address"
+      },
+      "broker_port": {
+        "type": "integer",
+        "default": 1883,
+        "minimum": 1,
+        "maximum": 65535,
+        "description": "MQTT broker port number"
+      },
+      "username": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "MQTT username (optional)"
+      },
+      "password": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "MQTT password (optional)"
+      },
+      "device_name": {
+        "type": "string",
+        "default": "PyRpiCamController",
+        "description": "Device name displayed in Home Assistant"
+      },
+      "discovery_prefix": {
+        "type": "string",
+        "default": "homeassistant",
+        "description": "Home Assistant MQTT discovery prefix"
+      },
+      "qos": {
+        "type": "integer",
+        "enum": [0, 1, 2],
+        "default": 0,
+        "description": "MQTT Quality of Service level"
+      },
+      "retain": {
+        "type": "boolean",
+        "default": true,
+        "description": "Set retain flag on MQTT messages"
+      },
+      "send_discovery": {
+        "type": "boolean", 
+        "default": true,
+        "description": "Send Home Assistant discovery configuration messages"
+      },
+      "motion_topic": {
+        "type": "string",
+        "default": "motion",
+        "description": "MQTT topic suffix for motion detection messages"
+      },
+      "objects_topic": {
+        "type": "string",
+        "default": "objects",
+        "description": "MQTT topic suffix for object detection messages"
+      },
+      "summary_topic": {
+        "type": "string",
+        "default": "summary", 
+        "description": "MQTT topic suffix for summary statistics messages"
+      },
+      "heartbeat_interval": {
+        "type": "integer",
+        "default": 300,
+        "minimum": 30,
+        "maximum": 3600,
+        "description": "Heartbeat message interval in seconds"
+      },
+      "min_confidence": {
+        "type": "number",
+        "default": 0.5,
+        "minimum": 0.1,
+        "maximum": 1.0,
+        "description": "Minimum confidence threshold for reporting objects"
+      },
+      "report_all_frames": {
+        "type": "boolean",
+        "default": false,
+        "description": "Send MQTT message for every frame (vs only on changes)"
+      },
+      "include_coordinates": {
+        "type": "boolean",
+        "default": true,
+        "description": "Include bounding box coordinates in object messages"
+      }
+    }
+  }
+}

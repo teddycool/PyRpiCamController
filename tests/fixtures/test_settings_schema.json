@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "settings": {
+    "Version": {
+      "value": 1,
+      "type": "int",
+      "readonly": true,
+      "ui": {
+        "name": "Version",
+        "section": "System",
+        "description": "Settings schema version",
+        "level": "advanced"
+      },
+      "web_editable": false
+    },
+    "Cam": {
+      "publishers": {
+        "file": {
+          "publish": {
+            "value": true,
+            "type": "bool",
+            "ui": {
+              "name": "Save to file",
+              "section": "Camera",
+              "description": "Enable file publishing",
+              "level": "basic"
+            },
+            "web_editable": true
+          },
+          "location": {
+            "value": "/tmp/test_images",
+            "type": "text",
+            "ui": {
+              "name": "Image path",
+              "section": "Camera", 
+              "description": "Local path for image storage",
+              "level": "basic"
+            },
+            "web_editable": true
+          },
+          "format": {
+            "value": "jpg",
+            "type": "enum",
+            "options": ["jpg", "png"],
+            "ui": {
+              "name": "Image format",
+              "section": "Camera",
+              "description": "Image file format",
+              "level": "basic"
+            },
+            "web_editable": true
+          }
+        }
+      },
+      "storage_management": {
+        "enabled": {
+          "value": true,
+          "type": "bool",
+          "ui": {
+            "name": "Enable disk management",
+            "section": "Storage",
+            "description": "Enable automatic disk space management",
+            "level": "basic"
+          },
+          "web_editable": true
+        },
+        "mode": {
+          "value": "delete_old",
+          "type": "enum",
+          "options": ["stop_saving", "delete_old"],
+          "ui": {
+            "name": "Management mode",
+            "section": "Storage",
+            "description": "stop_saving: Stop saving when space runs out, delete_old: Delete old files automatically",
+            "level": "basic"
+          },
+          "web_editable": true
+        },
+        "threshold_value": {
+          "value": 100,
+          "type": "int",
+          "min": 50,
+          "max": 10000,
+          "ui": {
+            "name": "Threshold value",
+            "section": "Storage",
+            "description": "Threshold value for free disk space",
+            "level": "basic"
+          },
+          "web_editable": true
+        },
+        "threshold_unit": {
+          "value": "MB",
+          "type": "enum",
+          "options": ["MB", "percent"],
+          "ui": {
+            "name": "Threshold unit",
+            "section": "Storage",
+            "description": "MB: Absolute value in megabytes, percent: Percentage of total disk size",
+            "level": "basic"
+          },
+          "web_editable": true
+        }
+      }
+    }
+  }
+}

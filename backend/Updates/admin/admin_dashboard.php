@@ -400,7 +400,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         <div class="header">
             <div class="header-content">
                 <h1>🎥 PyRpiCam OTA Dashboard</h1>
-                <p>Uppdateringshantering för PyRpiCamController</p>
+                <p>Update Management for PyRpiCamController</p>
             </div>
             <div class="user-info">
                 <div class="username">Inloggad: <?= htmlspecialchars($admin_username) ?></div>
@@ -411,16 +411,16 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         
         <!-- Cache notice for debugging -->
         <div id="cache-notice" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: none;">
-            <strong>💡 Tips:</strong> Om dashboard inte fungerar korrekt, prova att rensa webbläsarens cache:
-            <br><strong>Firefox:</strong> Ctrl+Shift+R eller F5
-            <br><strong>Chrome:</strong> Ctrl+Shift+R eller Ctrl+F5
+            <strong>💡 Tip:</strong> If the dashboard doesn't work correctly, try clearing your browser cache:
+            <br><strong>Firefox:</strong> Ctrl+Shift+R or F5
+            <br><strong>Chrome:</strong> Ctrl+Shift+R or Ctrl+F5
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('devices')">Enheter</button>
-            <button class="tab" onclick="showTab('versions')">Versioner</button>
-            <button class="tab" onclick="showTab('logs')">Loggar</button>
-            <button class="tab" onclick="showTab('settings')">Inställningar</button>
+            <button class="tab active" onclick="showTab('devices')">Devices</button>
+            <button class="tab" onclick="showTab('versions')">Versions</button>
+            <button class="tab" onclick="showTab('logs')">Logs</button>
+            <button class="tab" onclick="showTab('settings')">Settings</button>
         </div>
 
         <!-- Devices Tab -->
@@ -429,15 +429,15 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3 id="total-devices">-</h3>
-                        <p>Totalt antal enheter</p>
+                        <p>Total devices</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="online-devices">-</h3>
-                        <p>Online enheter</p>
+                        <p>Online devices</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="pending-updates">-</h3>
-                        <p>Väntande uppdateringar</p>
+                        <p>Pending updates</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="last-update">-</h3>
@@ -445,7 +445,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                     </div>
                 </div>
                 
-                <button class="btn" onclick="refreshDevices()">🔄 Uppdatera lista</button>
+                <button class="btn" onclick="refreshDevices()">🔄 Refresh list</button>
                 
                 <div class="table-container">
                     <table id="devices-table">
@@ -460,7 +460,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="6" class="loading">Laddar enheter...</td></tr>
+                            <tr><td colspan="6" class="loading">Loading devices...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -468,26 +468,55 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
 
             <!-- Versions Tab -->
             <div id="versions" class="tab-content">
-                <h2>Versionshantering</h2>
-                <p>Hantera tillgängliga programvaruversioner för uppdatering.</p>
+                <h2>Version Management</h2>
+                <p>Manage available software versions for updates.</p>
                 
-                <button class="btn btn-success" onclick="showModal('uploadModal')">📦 Ladda upp ny version</button>
-                <button class="btn" onclick="refreshVersions()">🔄 Uppdatera lista</button>
+                <!-- PHP Configuration Display -->
+                <div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
+                    <h3 style="margin-top: 0; color: #495057;">📊 PHP Upload Configuration</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
+                        <div>
+                            <strong>upload_max_filesize:</strong> <?php echo ini_get('upload_max_filesize'); ?>
+                        </div>
+                        <div>
+                            <strong>post_max_size:</strong> <?php echo ini_get('post_max_size'); ?>
+                        </div>
+                        <div>
+                            <strong>max_execution_time:</strong> <?php echo ini_get('max_execution_time'); ?>s
+                        </div>
+                        <div>
+                            <strong>memory_limit:</strong> <?php echo ini_get('memory_limit'); ?>
+                        </div>
+                        <div>
+                            <strong>max_input_time:</strong> <?php echo ini_get('max_input_time'); ?>s
+                        </div>
+                        <div>
+                            <strong>max_file_uploads:</strong> <?php echo ini_get('max_file_uploads'); ?>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                        <strong>⚠️ Important:</strong> Your release file (PyRpiCamController-1.0.0.tar.gz) is approximately 18MB. 
+                        If <code>upload_max_filesize</code> or <code>post_max_size</code> is smaller than 18MB, uploads will fail silently.
+                    </div>
+                </div>
+                
+                <button class="btn btn-success" onclick="showModal('uploadModal')">📦 Upload new version</button>
+                <button class="btn" onclick="refreshVersions()">🔄 Refresh list</button>
                 
                 <div class="table-container">
                     <table id="versions-table">
                         <thead>
                             <tr>
                                 <th>Version</th>
-                                <th>Datum</th>
-                                <th>Filstorlek</th>
-                                <th>Nedladdningar</th>
+                                <th>Date</th>
+                                <th>File size</th>
+                                <th>Downloads</th>
                                 <th>Status</th>
-                                <th>Åtgärder</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="6" class="loading">Laddar versioner...</td></tr>
+                            <tr><td colspan="6" class="loading">Loading versions...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -496,12 +525,12 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             <!-- Logs Tab -->
             <div id="logs" class="tab-content">
                 <h2>Systemloggar</h2>
-                <p>Visa systemloggar och uppdateringsaktivitet.</p>
+                <p>View system logs and update activity.</p>
                 
                 <div class="form-group">
                     <label for="log-type">Loggtyp:</label>
                     <select id="log-type" onchange="loadLogs()">
-                        <option value="ota">OTA Uppdateringar</option>
+                        <option value="ota">OTA Updates</option>
                         <option value="system">Systemloggar</option>
                         <option value="errors">Felloggar</option>
                     </select>
@@ -520,7 +549,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="update-server">Uppdateringsserver:</label>
+                        <label for="update-server">Update server:</label>
                         <input type="url" id="update-server" placeholder="https://www.sensorwebben.se/pycamota/">
                     </div>
                     <div class="form-group">
@@ -556,28 +585,28 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="hideModal('uploadModal')">&times;</span>
-            <h2>Ladda upp ny version</h2>
+            <h2>Upload New Version</h2>
             <form id="upload-form" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="version-number">Versionsnummer:</label>
-                    <input type="text" id="version-number" required placeholder="t.ex. 3.1.0">
+                    <label for="version-number">Version Number:</label>
+                    <input type="text" id="version-number" required placeholder="e.g. 3.1.0">
                 </div>
                 <div class="form-group">
-                    <label for="version-file">Versionsfil (.tar.gz):</label>
+                    <label for="version-file">Version File (.tar.gz):</label>
                     <input type="file" id="version-file" accept=".tar.gz,.tgz" required>
                 </div>
                 <div class="form-group">
-                    <label for="release-notes">Ändringskommentarer:</label>
-                    <textarea id="release-notes" rows="4" placeholder="Beskriv vad som är nytt i denna version..."></textarea>
+                    <label for="release-notes">Release Notes:</label>
+                    <textarea id="release-notes" rows="4" placeholder="Describe what's new in this version..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-success">📦 Ladda upp</button>
+                <button type="submit" class="btn btn-success">📦 Upload</button>
             </form>
         </div>
     </div>
 
     <script>
         // API base URL - updated for subfolder deployment
-        const API_BASE = '/pycamota';
+        const API_BASE = '..';
         
         // Tab switching
         function showTab(tabName) {
@@ -609,7 +638,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                     loadLogs();
                     break;
                 case 'settings':
-                    loadSettings();
+                    // loadSettings(); // Temporarily disabled - no config API yet
                     break;
             }
         }
@@ -717,23 +746,23 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                     tbody.innerHTML = data.devices.map(device => `
                         <tr>
                             <td>${escapeHtml(device.cpu_id || 'Okänt')}</td>
-                            <td>${escapeHtml(device.device_name || 'Okänd')}</td>
-                            <td>${escapeHtml(device.current_version || 'Okänd')}</td>
-                            <td>${escapeHtml(device.last_seen || 'Aldrig')}</td>
+                            <td>${escapeHtml(device.device_name || 'Unknown')}</td>
+                            <td>${escapeHtml(device.current_version || 'Unknown')}</td>
+                            <td>${escapeHtml(device.last_seen || 'Never')}</td>
                             <td><span class="status ${device.status || 'offline'}">${escapeHtml(device.status || 'offline')}</span></td>
                             <td>
-                                <button class="btn" onclick="updateDevice('${escapeHtml(device.cpu_id || '')}')">🔄 Uppdatera</button>
-                                <button class="btn btn-danger" onclick="deleteDevice('${escapeHtml(device.cpu_id || '')}')">🗑️ Ta bort</button>
+                                <button class="btn" onclick="updateDevice('${escapeHtml(device.cpu_id || '')}')">🔄 Update</button>
+                                <button class="btn btn-danger" onclick="deleteDevice('${escapeHtml(device.cpu_id || '')}')">🗑️ Delete</button>
                             </td>
                         </tr>
                     `).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="loading">Inga enheter registrerade.<br><br>Enheter registreras automatiskt när de ansluter för första gången.<br>Om du har enheter men de inte visas, kontrollera att de kör rätt programvara och kan nå servern.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No devices registered.<br><br>Devices are automatically registered when they connect for the first time.<br>If you have devices but they don\'t appear, check that they are running the correct software and can reach the server.</td></tr>';
                 }
             } catch (error) {
                 console.error('Error loading devices:', error);
                 const tbody = document.querySelector('#devices-table tbody');
-                tbody.innerHTML = '<tr><td colspan="6" class="error">Fel vid laddning av enheter.<br><br>Detta kan bero på:<br>• Databasen är inte installerad<br>• Nätverksproblem<br>• Serverkonfigurationsfel<br><br>Kontrollera konsolen för mer information.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="error">Error loading devices.<br><br>This could be due to:<br>• Database not installed<br>• Network problems<br>• Server configuration error<br><br>Check console for more information.</td></tr>';
                 
                 // Set default stats when there's an error
                 document.getElementById('total-devices').textContent = '?';
@@ -747,7 +776,10 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         async function loadVersions() {
             console.log('Loading versions...');
             try {
-                const data = await apiCall('/version_management.php?action=list');
+                const data = await apiCall('/api/version_management.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'list' })
+                });
                 console.log('Version data received:', data);
                 
                 const tbody = document.querySelector('#versions-table tbody');
@@ -761,7 +793,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                             <td><span class="status ${(version.status || 'unknown')}">${escapeHtml(version.status || 'okänt')}</span></td>
                             <td>
                                 <button class="btn" onclick="downloadVersion('${escapeHtml(version.version || '')}')">📥 Ladda ner</button>
-                                <button class="btn btn-danger" onclick="deleteVersion('${escapeHtml(version.version || '')}')">🗑️ Ta bort</button>
+                                <button class="btn btn-danger" onclick="deleteVersion('${escapeHtml(version.version || '')}')">🗑️ Delete</button>
                             </td>
                         </tr>
                     `).join('');
@@ -771,7 +803,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             } catch (error) {
                 console.error('Error loading versions:', error);
                 document.querySelector('#versions-table tbody').innerHTML = 
-                    '<tr><td colspan="6" class="error">Fel vid laddning av versioner.<br><br>Detta kan bero på:<br>• Databasen är inte installerad<br>• Versionshanteringstabell saknas<br>• Serverkonfigurationsfel<br><br>Kontrollera konsolen för mer information.</td></tr>';
+                    '<tr><td colspan="6" class="error">Error loading versions.<br><br>This could be due to:<br>• Database not installed<br>• Version management table missing<br>• Server configuration error<br><br>Check console for more information.</td></tr>';
             }
         }
         
@@ -783,7 +815,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             logContent.textContent = 'Laddar loggar...';
             
             try {
-                const data = await apiCall(`/ota_report.php?action=logs&type=${logType}`);
+                const data = await apiCall(`/api/ota_report.php?action=logs&type=${logType}`);
                 
                 if (data.logs) {
                     logContent.textContent = data.logs;
@@ -801,7 +833,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         // Load settings
         async function loadSettings() {
             try {
-                const data = await apiCall('/config.php?action=get_settings');
+                const data = await apiCall('/utils/config.php?action=get_settings');
                 
                 if (data.settings) {
                     document.getElementById('update-server').value = data.settings.update_server || '';
@@ -824,7 +856,7 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                     auto_cleanup: document.getElementById('auto-cleanup').value
                 };
                 
-                await apiCall('/config.php?action=save_settings', {
+                await apiCall('/utils/config.php?action=save_settings', {
                     method: 'POST',
                     body: JSON.stringify(settings)
                 });
@@ -848,48 +880,48 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         async function updateDevice(deviceId) {
             if (confirm(`Är du säker på att du vill uppdatera enheten ${deviceId}?`)) {
                 try {
-                    await apiCall('/api/device_management.php?action=update', {
+                    await apiCall('/api/device_management.php', {
                         method: 'POST',
-                        body: JSON.stringify({ device_id: deviceId })
+                        body: JSON.stringify({ action: 'update', device_id: deviceId })
                     });
                     
-                    showSuccess(`Uppdatering initierad för enhet ${deviceId}`);
+                    showSuccess(`Update initiated for device ${deviceId}`);
                     loadDevices();
                 } catch (error) {
-                    showError(`Fel vid uppdatering av enhet ${deviceId}`);
+                    showError(`Error updating device ${deviceId}`);
                 }
             }
         }
         
         async function deleteDevice(deviceId) {
-            if (confirm(`Är du säker på att du vill ta bort enheten ${deviceId}?`)) {
+            if (confirm(`Are you sure you want to delete device ${deviceId}?`)) {
                 try {
-                    await apiCall('/api/device_management.php?action=delete', {
+                    await apiCall('/api/device_management.php', {
                         method: 'POST',
-                        body: JSON.stringify({ device_id: deviceId })
+                        body: JSON.stringify({ action: 'delete', device_id: deviceId })
                     });
                     
-                    showSuccess(`Enhet ${deviceId} borttagen`);
+                    showSuccess(`Device ${deviceId} deleted`);
                     loadDevices();
                 } catch (error) {
-                    showError(`Fel vid borttagning av enhet ${deviceId}`);
+                    showError(`Error deleting device ${deviceId}`);
                 }
             }
         }
         
         // Version actions
         async function deleteVersion(version) {
-            if (confirm(`Är du säker på att du vill ta bort version ${version}?`)) {
+            if (confirm(`Are you sure you want to delete version ${version}?`)) {
                 try {
-                    await apiCall('/version_management.php?action=delete', {
+                    await apiCall('/api/version_management.php', {
                         method: 'POST',
-                        body: JSON.stringify({ version: version })
+                        body: JSON.stringify({ action: 'delete', version: version })
                     });
                     
-                    showSuccess(`Version ${version} borttagen`);
+                    showSuccess(`Version ${version} deleted`);
                     loadVersions();
                 } catch (error) {
-                    showError(`Fel vid borttagning av version ${version}`);
+                    showError(`Error deleting version ${version}`);
                 }
             }
         }
@@ -902,33 +934,122 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
         document.getElementById('upload-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const formData = new FormData();
-            formData.append('version', document.getElementById('version-number').value);
-            formData.append('file', document.getElementById('version-file').files[0]);
-            formData.append('notes', document.getElementById('release-notes').value);
+            const version = document.getElementById('version-number').value;
+            const file = document.getElementById('version-file').files[0];
+            const notes = document.getElementById('release-notes').value;
             
-            try {
-                const response = await fetch(`${API_BASE}/api/version_management.php?action=upload`, {
-                    method: 'POST',
-                    body: formData
-                });
+            // Check file size against PHP limits
+            if (file) {
+                const fileSize = file.size;
+                const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                // Get PHP limits (these would be set by the PHP display section)
+                const uploadMaxFilesize = '<?php echo ini_get("upload_max_filesize"); ?>';
+                const postMaxSize = '<?php echo ini_get("post_max_size"); ?>';
+                
+                // Convert PHP size formats (like "2M", "8M") to bytes for comparison
+                const parsePhpSize = (size) => {
+                    if (!size) return 0;
+                    const units = {
+                        'K': 1024,
+                        'M': 1024 * 1024,
+                        'G': 1024 * 1024 * 1024
+                    };
+                    const match = size.toString().match(/^(\d+)([KMG])?$/i);
+                    if (!match) return parseInt(size) || 0;
+                    const num = parseInt(match[1]);
+                    const unit = match[2] ? match[2].toUpperCase() : '';
+                    return num * (units[unit] || 1);
+                };
+                
+                const maxUploadBytes = parsePhpSize(uploadMaxFilesize);
+                const maxPostBytes = parsePhpSize(postMaxSize);
+                const minLimit = Math.min(maxUploadBytes, maxPostBytes);
+                
+                console.log(`File size: ${fileSizeMB}MB (${fileSize} bytes)`);
+                console.log(`PHP upload_max_filesize: ${uploadMaxFilesize} (${maxUploadBytes} bytes)`);
+                console.log(`PHP post_max_size: ${postMaxSize} (${maxPostBytes} bytes)`);
+                console.log(`Effective limit: ${(minLimit / (1024 * 1024)).toFixed(2)}MB`);
+                
+                if (fileSize > minLimit && minLimit > 0) {
+                    const limitMB = (minLimit / (1024 * 1024)).toFixed(2);
+                    alert(`File too large! Your file is ${fileSizeMB}MB but the server limit is ${limitMB}MB.\n\nYou need to increase PHP settings:\n- upload_max_filesize\n- post_max_size\n\nOr compress your release package further.`);
+                    return;
                 }
                 
-                const data = await response.json();
+                if (fileSizeMB > 50) {
+                    if (!confirm(`This is a large file (${fileSizeMB}MB). Upload may take a while and could timeout. Continue?`)) {
+                        return;
+                    }
+                }
+            }
+            
+            const metadata = {
+                version: version,
+                description: `Version ${version}`,
+                release_notes: notes
+            };
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('metadata', JSON.stringify(metadata));
+            
+            try {
+                // Add debugging info before the request
+                console.log('Making upload request to:', `${API_BASE}/api/versions?action=upload`);
+                console.log('FormData contents:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(`  ${key}:`, value);
+                }
                 
-                if (data.success) {
-                    showSuccess('Version uppladdad!');
+                const response = await fetch(`${API_BASE}/api/versions?action=upload`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'  // Ensure session cookie is sent
+                });
+                
+                // Log response details for debugging
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const responseText = await response.text();
+                console.log('Response body:', responseText);
+                
+                // Always try to parse as JSON for more detailed error info
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('Parsed response:', data);
+                } catch (parseError) {
+                    console.error('Failed to parse response as JSON:', parseError);
+                    console.log('Raw response text:', responseText);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
+                }
+                
+                if (!response.ok) {
+                    // Include debug info in error if available
+                    const debugInfo = data.debug ? `\nDebug: ${JSON.stringify(data.debug, null, 2)}` : '';
+                    throw new Error(`HTTP ${response.status}: ${data.error || responseText}${debugInfo}`);
+                }
+                
+                if (data.status === 'success') {
+                    showSuccess('Version uploaded successfully!');
                     hideModal('uploadModal');
                     document.getElementById('upload-form').reset();
                     loadVersions();
                 } else {
-                    throw new Error(data.error || 'Okänt fel');
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
-                showError(`Fel vid uppladdning: ${error.message}`);
+                console.error('Upload error:', error);
+                console.error('Full error details:', error.stack);
+                
+                // Log the response for debugging
+                if (error.message.includes('HTTP')) {
+                    console.error('Check browser network tab for server response details');
+                }
+                
+                showError(`Upload error: ${error.message}. Check browser console for details.`);
             }
         });
         
@@ -976,7 +1097,11 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
             console.log('API Base URL:', API_BASE);
             
             // Check if we can reach the API
-            fetch(API_BASE + '/api/device_management.php?action=list')
+            fetch(API_BASE + '/api/device_management.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'list' })
+            })
                 .then(response => {
                     console.log('Initial API test response:', response.status, response.statusText);
                     return response.text();
@@ -996,8 +1121,8 @@ $login_time = $_SESSION['admin_login_time'] ?? time();
                 const errorElements = document.querySelectorAll('.error');
                 if (errorElements.length > 0) {
                     console.warn('Errors detected - you may need to clear browser cache');
-                    console.log('Firefox: Ctrl+Shift+R eller Ctrl+F5 för hård uppdatering');
-                    console.log('Chrome: Ctrl+Shift+R eller Ctrl+F5');
+                    console.log('Firefox: Ctrl+Shift+R or Ctrl+F5 for hard refresh');
+                    console.log('Chrome: Ctrl+Shift+R or Ctrl+F5');
                     
                     // Show cache notice
                     document.getElementById('cache-notice').style.display = 'block';
