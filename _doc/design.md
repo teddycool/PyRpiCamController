@@ -1,0 +1,13 @@
+# Design Choices and Rules
+
+## Core Principles
+
+- SD-image for complete system and a base-configuration
+- Settings from server
+- Everything handled by settings either from server or via SSH
+- No writing to SD-card
+- SSH is enabled, the password is available on account
+
+## Basics
+
+(Content to be expanded with specific design decisions and architectural principles)

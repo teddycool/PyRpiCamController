@@ -38,7 +38,7 @@ class DeviceProvisioner:
         self.deployment_dir = Path("deployments")
         self.deployment_dir.mkdir(exist_ok=True)
         
-    def create_device_settings(self, api_key, cpu_id, device_name=None, location=None):
+    def create_device_settings(self, api_key, cpu_id, device_name=None, location=None, update_group="production", is_test_device=False):
         """Create device-specific settings.json with embedded API key"""
         
         # Load default settings schema
@@ -49,10 +49,18 @@ class DeviceProvisioner:
         settings['settings']['OtaEnable']['value'] = True
         settings['settings']['OTA']['api_key']['value'] = api_key
         
-        # Optional: Set device-specific defaults
+        # Set device name and update group
         if device_name:
-            # Could set hostname or other device-specific settings
-            pass
+            settings['settings']['DeviceName']['value'] = device_name
+        
+        settings['settings']['UpdateGroup']['value'] = update_group
+        
+        # Configure test device mode
+        if is_test_device or update_group == "development":
+            settings['settings']['TestDevice']['value'] = True
+            print(f"   🧪 Configured as test device with development channel access")
+        
+        # Optional: Set device-specific defaults
         if location and 'kitchen' in location.lower():
             # Location-specific defaults (e.g., different image locations)
             settings['settings']['Cam']['publishers']['file']['location']['value'] = f"/home/pi/shared/images/{location.lower()}/"
@@ -71,7 +79,9 @@ class DeviceProvisioner:
             device_config['api_key'],
             device_config['cpu_id'],
             device_config.get('device_name'),
-            device_config.get('location')
+            device_config.get('location'),
+            device_config.get('update_group', 'production'),
+            device_config.get('is_test_device', False)
         )
         
         settings_file = package_dir / "settings.json"
@@ -159,10 +169,16 @@ The `settings.json` contains sensitive API keys. Keep secure and delete after de
         
         return package_dir
     
-    def provision_single_device(self, cpu_id, device_name=None, location=None, update_group="production"):
+    def provision_single_device(self, cpu_id, device_name=None, location=None, update_group="production", is_test_device=False):
         """Provision a single device"""
         
+        # Auto-detect test device from update group
+        if update_group == "development":
+            is_test_device = True
+        
         print(f"🔧 Provisioning device {cpu_id}...")
+        if is_test_device:
+            print(f"   🧪 Test device mode enabled")
         
         # Authenticate and register with backend
         session = authenticate_admin()
@@ -171,6 +187,10 @@ The `settings.json` contains sensitive API keys. Keep secure and delete after de
             return None
             
         device_config = register_device(session, cpu_id, device_name, location, update_group)
+        
+        if device_config:
+            # Add test device flag to config
+            device_config['is_test_device'] = is_test_device
         
         if not device_config:
             print(f"❌ Failed to register device {cpu_id}")
@@ -198,11 +218,19 @@ The `settings.json` contains sensitive API keys. Keep secure and delete after de
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                is_test = row.get('test_device', '').lower() in ['true', '1', 'yes']
+                update_group = row.get('update_group', 'production')
+                
+                # Auto-detect test device from development update group
+                if update_group == 'development':
+                    is_test = True
+                    
                 devices.append({
                     'cpu_id': row['cpu_id'],
                     'device_name': row.get('device_name'),
                     'location': row.get('location'),
-                    'update_group': row.get('update_group', 'production')
+                    'update_group': update_group,
+                    'is_test_device': is_test
                 })
         
         return self.provision_batch(devices)
@@ -235,6 +263,8 @@ The `settings.json` contains sensitive API keys. Keep secure and delete after de
             )
             
             if device_config:
+                # Add test device flag to config
+                device_config['is_test_device'] = device.get('is_test_device', False)
                 package_dir = self.create_deployment_package(device_config, deployment_dir)
                 results.append({
                     'device_config': device_config,
@@ -276,6 +306,7 @@ def main():
     parser.add_argument('--name', help='Device name')
     parser.add_argument('--location', help='Device location')
     parser.add_argument('--update-group', default='production', help='Update group')
+    parser.add_argument('--test-device', action='store_true', help='Configure as test device (enables development channel)')
     parser.add_argument('--batch', help='CSV file with device list')
     parser.add_argument('--count', type=int, help='Auto-generate N devices (for testing)')
     parser.add_argument('--prefix', default='Test-Device', help='Prefix for auto-generated devices')
@@ -290,7 +321,8 @@ def main():
             args.cpu_id, 
             args.name, 
             args.location, 
-            args.update_group
+            args.update_group,
+            args.test_device
         )
     
     elif args.batch:
@@ -305,7 +337,8 @@ def main():
                 'cpu_id': f"test{i:04d}000000000000",
                 'device_name': f"{args.prefix}-{i+1:02d}",
                 'location': f"Location-{i+1:02d}",
-                'update_group': 'development'
+                'update_group': 'development',
+                'is_test_device': True  # Auto-generated are always test devices
             })
         provisioner.provision_batch(devices)
     

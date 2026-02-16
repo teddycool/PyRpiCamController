@@ -83,17 +83,19 @@ This will:
 Create a CSV file with device information:
 
 ```csv
-cpu_id,device_name,location,update_group
-10000000a1b2c3d4,Kitchen Camera,Kitchen Counter,production
-20000000e5f6g7h8,Living Room Camera,Living Room TV Stand,production
-30000000i9j0k1l2,Outdoor Camera,Garden Entrance,beta
+cpu_id,device_name,location,update_group,test_device
+10000000a1b2c3d4,Kitchen Camera,Kitchen Counter,production,false
+20000000e5f6g7h8,Living Room Camera,Living Room TV Stand,production,false
+30000000i9j0k1l2,Outdoor Camera,Garden Entrance,beta,false
+40000000m3n4o5p6,Test Camera 1,Development Lab,development,true
 ```
 
 Required columns:
 - `cpu_id` - Raspberry Pi CPU serial (get with `cat /proc/cpuinfo | grep Serial`)
 - `device_name` - Friendly name for the device
-- `location` - Physical location description
+- `location` - Physical location description  
 - `update_group` - Update channel: production, beta, development
+- `test_device` - Set to `true` for test hardware (enables development channel access)
 
 ## Security Considerations
 
@@ -156,6 +158,25 @@ The tools use your existing backend API endpoints:
 2. **First-Boot Scripts:** Run deployment automatically on first boot
 3. **QR Codes:** Generate QR codes with deployment URLs for field staff
 4. **Status Reports:** Collect deployment success/failure status
+
+### For Test Hardware
+
+1. **Test Device Mode:** Use `--test-device` flag or set `test_device=true` in CSV
+2. **Development Channel:** Test devices automatically get access to development updates
+3. **Web GUI Access:** Test devices can select development channel in advanced settings
+4. **Auto-Detection:** Devices with `update_group=development` are auto-flagged as test devices
+
+**Test device provisioning:**
+```bash
+# Single test device
+python3 tools/provision_devices.py --cpu-id "test0001000000000" --name "Test-Cam-1" --test-device
+
+# Test device with development channel
+python3 tools/provision_devices.py --cpu-id "test0002000000000" --update-group "development"
+
+# Batch test devices from CSV (with test_device=true column)
+python3 tools/provision_devices.py --batch test_devices.csv
+```
 
 ## Troubleshooting
 

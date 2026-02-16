@@ -41,6 +41,56 @@
       },
       "web_editable": true
     },
+    "DeviceName": {
+      "value": "",
+      "type": "text",
+      "ui": {
+        "name": "Enhetsnamn",
+        "section": "System",
+        "description": "Beskrivande namn för denna kamera (t.ex. 'Kök-kamera', 'Vardagsrum')",
+        "level": "basic"
+      },
+      "web_editable": true
+    },
+    "TestDevice": {
+      "value": false,
+      "type": "bool",
+      "ui": {
+        "name": "Testenhet",
+        "section": "System", 
+        "description": "Aktivera testläge för utveckling och avancerade uppdateringskanaler (endast för testutrustning)",
+        "level": "advanced"
+      },
+      "web_editable": true
+    },
+    "UpdateGroup": {
+      "value": "production",
+      "type": "enum",
+      "options": [
+        "production",
+        "beta"
+      ],
+      "options_conditional": {
+        "TestDevice": {
+          "true": [
+            "production",
+            "beta", 
+            "development"
+          ],
+          "false": [
+            "production",
+            "beta"
+          ]
+        }
+      },
+      "ui": {
+        "name": "Uppdateringsgrupp",
+        "section": "System",
+        "description": "Välj uppdateringskanal: Production (stabil), Beta (förhandsversion), eller Development (endast testenheter)",
+        "level": "advanced"
+      },
+      "web_editable": true
+    },
     "OTA": {
       "server_url": {
         "value": "https://www.biwebben.se",
