@@ -18,14 +18,16 @@ Both interfaces use the **same** underlying settings schema, ensuring consistenc
 
 ```
 PyRpiCamController/
+├── CamController/
+│   └── hwconfig.py                # Hardware-specific configuration (camera type, GPIO)
 ├── Settings/
 │   ├── settings_schema.json       # Single source of truth - defines all settings
 │   ├── settings_manager.py        # Python interface for code access
-│   ├── user_settings.json         # User customizations (overrides defaults)
-│   ├── demo_settings.py           # Demonstration script
-│   └── add_setting_levels.py      # Schema categorization tool
+│   ├── add_setting_levels.py      # Schema categorization tool
+│   └── UNIFIED_SETTINGS_GUIDE.md # This documentation
 └── WebGui/                        # Web interface
     ├── web_app.py                 # Flask web application
+    ├── camcontroller-web.service  # Systemd service file
     └── templates/
         └── settings_form.html     # Auto-generated web form
 ```
@@ -82,6 +84,20 @@ The settings are organized into logical sections:
 
 - `Settings/settings_schema.json`: Master schema (version controlled)
 - `Settings/user_settings.json`: User overrides (gitignored/user-specific)
+
+### Hardware Configuration
+
+**Important Separation**: The unified settings system handles all dynamic application settings, but hardware-specific configuration is kept separate:
+
+- `CamController/hwconfig.py`: Hardware configuration (camera type, GPIO pins, board type)
+  - These settings require physical access to modify
+  - Changes require service restart
+  - Examples: Camera chip type (`"PiCam3"` or `"PiCamHQ"`), GPIO pin assignments
+
+**Why Separate?**
+- Hardware settings are deployment-specific and rarely change
+- Dynamic settings can be modified via web interface without restart
+- Clear separation prevents accidental hardware misconfiguration
 
 ### User Settings Persistence
 

@@ -1,268 +1,192 @@
 # PyRpiCamController
 
-**Table of Contents**
-- [System Overview](#system-overview)
-- [General](#general)
-- [Project Structure](#project-structure)
-- [Currently implemented features](#currently-implemented-features)
-- [Planned features](#planned-features-upcoming)
-- [Recently implemented features](#recently-implemented-features)
-- [Installation](#installation)
-- [WiFi management with Comitup](#wifi-management-with-comitup)
-- [How the cam-software works](#how-the-cam-software-works)
-- [Changing the settings](#changing-the-settings)
-- [Over-The-Air Updates](#over-the-air-updates)
-- [Samba file-sharing](#samba-file-sharing-for-easy-access-to-images-and-logs)
+A modern Python camera control system for Raspberry Pi with web interface, designed for research, time-lapse photography, and automated image collection.
+
+[![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://python.org)
+[![Raspberry Pi](https://img.shields.io/badge/platform-raspberry%20pi-red.svg)](https://raspberrypi.org)
+[![License](https://img.shields.io/badge/license-GPL%20v3-green.svg)](LICENSE)
+
+## 🎯 What is PyRpiCamController?
+
+A comprehensive camera control software originally developed for bee-research and machine-learning data collection. The system provides:
+
+- **Automated Photography**: Configurable time-lapse
+- **Live Streaming**: Real-time video streaming with web viewer
+- **Web Interface**: Modern browser-based configuration and control
+- **Motion Detection**: Trigger capture based on movement
+- **Hardware Integration**: LED lighting control and status indicators
+- **Research Ready**: Metadata collection and backend data posting
+
+Perfect for wildlife monitoring, time-lapse projects, security applications, and any automated photography needs.
+
+If you like the project and want to support it, consider donating a small amount via [PayPal](https://www.paypal.com/donate/?business=6X9PRDMLYC4NN&no_recurring=1&currency_code=SEK)
+
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Hardware Support](#hardware-support)
 - [Contributing](#contributing)
-- [Examples](#some-examples-of-products-using-this-software)
-- [Hardware images](#hardware-images)
+- [Examples](#examples)
+- [Hardware Gallery](#hardware-gallery)
+
+## ✨ Features
+
+### Core Functionality
+* **Multi-Camera Support**: Raspberry Pi Camera Module 3 and HQ Camera
+* **Unified Settings System**: JSON schema-based configuration with web interface
+* **Real-time Streaming**: Live video with configurable resolution and framerate
+* **Smart Scheduling**: Time-based capture with customizable intervals
+* **Motion Detection**: Configurable sensitivity and background modeling
+* **Temperature Monitoring**: CPU thermal management with automatic cooling
+* **Built-in Network Storage**: Automatic file sharing for images and logs
+
+### Advanced Features
+* **Web Configuration**: Browser-based settings management with auto-save
+* **RESTful API**: Programmatic control and integration
+* **Multi-destination Logging**: File, console, and HTTP backend logging
+* **Hardware Control**: PWM lighting (2500Hz flicker-free) and RGB status LEDs (needs auxiliary hardware)
+* **Network Management**: WiFi setup via captive portal (zero-touch configuration)
+* **Service Integration**: Systemd services for production deployment
+* **Research Features**: Metadata collection, backend posting, structured logging
 
-A python control-software for a raspberry pi with a camera, saving or posting images. The software can also control a light (led-strip etc) and a status-indicator with some extra hardware.
+### Technical Highlights
+* **Modular Architecture**: Easy to add new camera types, publishing-targets and image processing steps  
+* **High Performance**: Concurrent streaming with efficient resource usage
+* **Production Ready**: Service deployment with monitoring and auto-restart 
+* **All Python**: Easy to follow and well documented code, all open-source
 
-The software can be run completely locally without any internet-connection but can also post images and log-data to a backend with http(s) if configured with a correctly set up backend (examples are provided).
+### Auxiliary control hardware
+* PWM-controlled LED lighting (flicker-free 2500Hz)
+* Addressable RGB status indicators  
+* Temperature sensors for environmental monitoring
+* A circuit-diagram for the needed extra hardware used for some features can be found here: [Circuit-diagram](_doc/extra_hardware.pdf) and [the PCB can be ordered from Aisler](https://aisler.net/p/VECRZXIU)
+* Complete KiCAD project available in [this zip-file](_doc/RpiConnector_v2.1_kicad_9.0.7.zip).
 
-It was primarily intended for collecting image-data for research or machine-learning projects but can of course be used in other applications as well.
+## 🚀 Quick Start
 
-📖 **User Guide:** [User Guide](_doc/userguide.md)
+**Prerequisites**: Raspberry Pi (3B+, 4B, or 5) with camera module, WiFi, and USB boot capability
 
-🏗️ **Architecture Guide:** [CamController Architecture Guide](_doc/CAMCONTROLLER_ARCHITECTURE.md) - Comprehensive overview of the system architecture, design patterns, and implementation details for developers.
+1. **Get the Code**:
+   ```bash
+   git clone https://github.com/teddycool/PyRpiCamController.git
+   cd PyRpiCamController
+   ```
 
-## System Overview
+2. **Install**: Copy to your Pi (running from USB drive) and run the installer:
+   ```bash
+   scp -r PyRpiCamController pi@your-pi-ip:~/
+   ssh pi@your-pi-ip
+   cd PyRpiCamController && python tools/install-all.py
+   ```
 
-![PyRpiCamController System Overview](_doc/pyrpicam-system-overview.png)
+3. **Configure**: Access the web interface at `http://your-pi-ip`
 
-## General
+4. **Monitor**: Check status with `sudo systemctl status camcontroller.service`
 
-The project uses python3, libcamera and picamera2 among some other packages.
+📖 **Need detailed setup instructions?** → [INSTALLATION.md](INSTALLATION.md)
 
-The software should work with all raspberry pi's but depending on computational power some features now or in the future might not work with all raspberry pi models.
+## 📚 Documentation
 
-Current supported camera-types has an implementation in the CamController/Cam -module and it is fairly easy to add new camera-types here if needed.
+| Document | Description |
+|----------|-------------|
+| [INSTALLATION.md](INSTALLATION.md) | Complete installation guide with WiFi setup |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture and design details |
+| [UNIFIED_SETTINGS_GUIDE.md](Settings/UNIFIED_SETTINGS_GUIDE.md) | Unified settings system documentation |
 
-The system features a unified settings management system with a Swedish language web interface for easy configuration. Settings can be managed through the web interface or programmatically through configuration files.
-The software is designed to be used 'headless' and installed and run as a service.
+## 🔧 Hardware Support
 
-## Project Structure
+### Currrently Supported Cameras
+- **Raspberry Pi Camera Module 3**: Full resolution (4608x2592), autofocus
+- **Raspberry Pi High Quality Camera**: Interchangeable lenses, high sensitivity
 
-This project is licensed under the terms of the GNU General Public License v3.0. See the LICENSE file for details.
-The project is structured in the following way:
+### Supported Boards  
+- **Raspberry Pi 3B+**: USB boot capable (recommended for start)
+- **Raspberry Pi 4B**: All variants with USB 3.0 boot support
+- **Raspberry Pi 5**: Full USB boot support
 
-### CamController
-The main application folder containing the core camera control software written in Python. This includes:
+**Note**: Raspberry Pi Zero models and 3B (non-+) are **not supported**  out of the box as they cannot boot directly from USB. 
 
-- **Main.py** - Entry point and logging configuration
-- **MainLoop.py** - Main execution loop that manages different camera states
-- **Cam/** - Camera interface modules supporting different camera types (PiCam3, etc.)
-- **CamStates/** - State machine implementation for different camera behaviors (PostState, etc.)
-- **IO/** - Input/output modules for hardware control (Display, lighting, etc.)
-- **Publishers/** - Publishing modules for saving images and metadata (FilePublisher, HttpPublisher)
-- **Connectivity/** - Network and connectivity management modules
-- **camcontroller.service** - Systemd service file for the camera application
+### Storage Requirements
+- **High-Performance USB Drive**: SanDisk Ultra Fit 32GB+ or similar is recommended
+- **USB 3.0+ Support**: For optimal performance with image processing
+- **No SD Card**: System runs entirely from USB for superior performance and reliability
 
-### Settings
-Unified settings management system:
+### Built-in Network Storage (SMB)
+- **Built-in SMB Server**: Automatic file sharing for images and logs
+- **Guest Access**: No authentication required for easy access
+- **Cross-Platform**: Access from Windows, Mac or Linux via network share
+- **Auto-Configuration**: Setup handled by installation script
 
-- **settings_manager.py** - Python interface for accessing and managing all settings
-- **settings_schema.json** - Complete schema with defaults, validation, and UI metadata
-- **user_settings.json** - User customizations that override defaults
-- **[Settings Guide](Settings/UNIFIED_SETTINGS_GUIDE.md)** - Comprehensive documentation for the settings system
 
-**Features:** Schema-driven validation, web interface integration, backward compatibility
+## 🤝 Contributing
 
-### WebGui
-Flask-based web interface for remote camera system configuration:
+I encourage everyone to contribute! 
 
-- **web_app.py** - Flask application with settings schema and web routes (Swedish language interface)
-- **templates/** - HTML templates for the configuration interface
-- **static/** - Static web resources (CSS, images)
-- **camcontroller-web.service** - Systemd service configuration for production deployment
+**Ways to contribute:**
+- 🐛 **Report Issues**: Bug reports, feature requests, and feedback
+- 💡 **Feature Requests**: New camera types, processing features, hardware integrations
+- 🔧 **Pull Requests**: Code contributions (one feature per PR for easier review)
+- 📚 **Documentation**: Improvements to guides and technical documentation
+- 🧪 **Testing**: Hardware compatibility testing across Pi models
 
-**Features:** Basic/Advanced tabs, Swedish language interface, password fields, real-time validation
+**Development Focus Areas:**
+- Additional camera support (Arducam, USB cameras)
+- Advanced computer vision features (YOLO integration)
+- Home Assistant sensor integration
+- OTA update system
+- Enhanced vision processing pipeline
 
-### tools
-Installation and setup utilities:
+## 🌟 Examples
 
-- **[Installation Guide](tools/OPTIMIZED_INSTALL_GUIDE.md)** - Complete installation guide with troubleshooting and configuration details
-- **install-all-optimized.py** - Simple, one-time installation script that sets up the entire system
-- Various helper scripts for system testing and validation
+Real-world applications of PyRpiCamController:
 
-### Services
-System service configurations for external dependencies:
+### 🐝 Bee Hive Monitoring
 
-- **smb.conf** - Samba configuration for network file sharing without any password or restrictions (use locally only)
-- **comitup.conf** - Configuration file for the Wi-Fi setup tool 'comitup' from Dave Steele https://github.com/davesteele/comitup/
+**Inside Hive Camera**: Raspberry Pi 3B+ with PiCam3 wide-lens and autofocus. Integrated lightbox and status LED for minimal disturbance monitoring. USB storage for reliable 24/7 operation.
+[Buy a Pre-built beehive-cam](https://www.sensorwebben.se/kamera-bikupa/)
 
-### _doc
-Documentation and reference materials:
+**Entrance Monitoring**: Raspberry Pi 4B with PiCam3 in weatherproof enclosure. Status LED and SMB file sharing for remote access to entrance activity data.
 
-- **extra_hardware.pdf** - Circuit diagrams for optional hardware components
-- **[Raspberry Pi Zero Setup](_doc/raspi-zero.md)** - Instructions for configuring swap on Raspberry Pi Zero
-- Hardware images and setup photos
 
-### Updates
-Over-The-Air update system for remote software deployment:
 
-- **camcontroller_update_daemon.py** - Background daemon for automatic update checks
-- **camcontroller_update_manager.py** - Main update manager with robust error handling
-- **camcontroller_update_legacy.py** - Legacy update implementation
-- **camcontroller-update.service** - Systemd service for background update checking
-- **recovery.sh** - Recovery script for failed updates
-- **test_updates.py** - Test script for update system validation
+### 🌸 Natural Science Research
 
-**Features:** Full system updates, git tag support, automatic rollback, service management
-- **[Update Guide](Updates/UPDATE_GUIDE.md)** - Complete documentation for update system setup and usage
-- **[Security Guide](Updates/SECURITY_GUIDE.md)** - Security considerations for update deployments
+**Flower Visitor Documentation**: Raspberry Pi 3B+ with PiCamHQ for high-quality macro photography. Ideal for documenting insect behavior and plant interactions.
 
-### backend
-Server-side infrastructure for receiving images and data from the camera system when using HTTP publishing mode. Includes a comprehensive OTA (Over-The-Air) update system for remote software deployment and device management ([Backend Guide](backend/BACKEND.md)).
+### 🔬 General Research Applications
 
-## Currently implemented features
+- Wildlife monitoring with motion detection
+- Time-lapse plant growth studies  
+- Laboratory equipment monitoring
+- Security and surveillance
 
-- Support for running from USB-stick (faster and more reliable than SD-card)
-- Support for picam3 and picam3HQ (probably also picam2 and picamHQ)
-- Saving still-images and meta-data at a configurable interval
-- Saving the images to a shared folder on the usb-stick, shared with samba
-- Video streaming to the local network
-- Can post images to a backend with http (a simple example-receive-script is provided)
-- Support for motion-detection (basic implementation)
-- Fully configurable from a config file via WebGui or directly in the config-file
-- Logging to a server with http to a configurable url
-- Logging to a file in the pi
-- Configurable image and video resolution
-- Configurable log-level
-- Can control a led-strip or other light-source with PWM (needs extra hardware)
-- Can control a addressable RGB LED for status indication (needs extra hardware)
-- Monitors the CPU-temp and take actions if needed
-- Installed and run as a set of Linux services
-- A provided install-script for needed packages and default-settings etc
-- Using WiFi management with 'commitup' from Dave Steel.
+## 📸 Hardware Gallery
 
-## Planned features (upcoming)
+### Raspberry Pi 3B+ with Camera Module 3
+!["Rpi3 with a cam"](_doc/rpi3_picam3.jpg)
 
-- Support for more camera-types
-- Support for an extra tempsensor inside the cam-box (needs extra hardware)
-- Support for simple image-analyze with YOLO or similar
-- Support for using the camera as a 'sensor' in homeassistant
 
-## Recently implemented features
+### Raspberry Pi with HQ Camera
+!["Rpi3 with a HQ camera"](_doc/rpi3-hq-cam.jpg)
 
-- **Unified Settings System** - Schema-driven configuration with web interface
-- **Swedish Web Interface** - User-friendly configuration with basic/advanced tabs
-- **OTA Update System** - Remote software deployment and management
-- **Centralized Logging** - All logs accessible via network share
-- **Enhanced Installation** - Complete system setup with single script
+### Inside beehive cam
+!["Beehive cam"](_doc/bikupekamera_j.png)
 
-📋 **Hardware Circuit Diagram:** [Circuit-diagram](_doc/extra_hardware.pdf)
+### Deployed Beehive Camera Systems
+!["Beehive cams"](_doc/bee-hive-cams.jpg)
 
-## Installation
+---
 
-### Quick Start
-For detailed installation instructions, troubleshooting, and configuration options, see the comprehensive installation guide:
+## 📄 License
 
-📋 **[Installation Guide](tools/OPTIMIZED_INSTALL_GUIDE.md)**
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
-### Summary
-1. **Prerequisites**: Raspberry Pi with camera module, fresh Raspberry Pi OS (Bookworm), internet connection
-2. **Clone project**: `git clone https://github.com/teddycool/PyRpiCamController.git /home/pi/PyRpiCamController`
-3. **Install**: `sudo python3 /home/pi/PyRpiCamController/tools/install-all-optimized.py`
-4. **Duration**: Typically 15-30 minutes
-5. **Access**: Web interface at `http://hostname.local:8080` after reboot
+## 🙋‍♂️ Support
 
-The installer automatically configures all services, sets up file sharing, and prepares the system for immediate use.
-
-## WiFi management with Comitup
-The wifi is handled by the awesome software 'comitup' from Dave Steel. If the wifi doesn't find a known connection it starts an access-point and make it possible to define a new wifi-connection in a web-interface.
-
-The hotspot will named AP-<hostname> and no password is needed to connect to it. After connecting to the access-point, open a web-browser and go to http://10.41.0.1 and you will see the comitup configuration website. Here you can select your wifi-network and enter the password. After this, the pi will try to connect to the wifi-network and if successful the access-point will disappear. More info at https://github.com/davesteele/comitup/
-
-## How the cam-software works
-The basic function is to take pictures and publish those to a file or/and a backend.
-
-The software uses a **unified settings system** with three key components:
-
-- **settings_schema.json** - Defines all available settings, types, and validation rules
-- **settings_manager.py** - Python interface for accessing settings programmatically
-- **user_settings.json** - User customizations that override schema defaults
-
-Configuration can be managed in two ways:
-- **Web interface** - Swedish language GUI at http://hostname.local:8080 for user-friendly editing
-- **Python code** - Direct programmatic access via the settings manager
-
-The software acts like a 'game-loop' with a main that starts a mainloop and runs update on all activated objects. The mainloop is a while-loop that runs until the program is stopped or killed. Different behavior is implemented as different cam-states and the mainloop updates the state that is currently active.
-
-Logging is implemented with python's logging module and the loglevel is set in the unified settings. The logging is done to a file on the pi and/or to a backend-server with http. For http, a receiving-script needs to be implemented on the server-side an example is provided in the 'backend' folder.
-
-## Changing the settings
-
-The camera system uses a unified settings management system:
-
-### Web Interface
-Access the Swedish language web interface at `http://hostname.local:8080` after installation:
-
-- **Basic Settings Tab** - Essential configuration options for typical users
-- **Advanced Settings Tab** - Advanced options for power users
-- **Real-time Validation** - Immediate feedback on setting changes
-
-### Documentation
-Refer to [Settings Guide](Settings/UNIFIED_SETTINGS_GUIDE.md) for comprehensive documentation on:
-
-- Available settings and their purposes
-- Schema structure and validation rules
-- Web interface integration
-
-## Over-The-Air Updates
-
-The system includes a comprehensive OTA update mechanism for remote software deployment. This allows you to update the camera software without physical access to the device.
-
-### OTA Documentation
-Refer to [Update Guide](Updates/UPDATE_GUIDE.md) for complete documentation on:
-
-- Setting up the OTA server infrastructure
-- Configuring devices for OTA updates
-- Security considerations and best practices
-- Troubleshooting update issues
-
-Refer to [Security Guide](Updates/SECURITY_GUIDE.md) for security guidelines when deploying updates.
-
-## Samba file-sharing for easy access to images and logs
-A samba server is installed as a part of the install-script. This makes it possible to share the images and /home/pi/shared/logs folders on the network.
-This makes it easy to get the images and logs from the pi without having to ssh or use scp or similar.
-
-## Contributing
-
-I encourage everyone to contribute!
-
-Either by posting issues/bugreport/feature-request or by making pull-requests. For pull-requests, please only add one feature or bugfix for each pull-request which makes it easier to review and merge.
-
-## Some examples of products using this software
-
-### A surveillance cam connected to home-assistant
-
-A raspberry pi 3B+ using a picam3 with auto-focus. The software create a video-stream that is connected to home-assistant with the 'generic camera' integration.
-
-### A cam for the inside of a bee-hive
-
-A raspberry pi 3B+ using a picam3 with a 'wide-lens' and auto-focus. The software controls a lightbox and a status-led.
-
-### A cam for the outside/entrance of a bee-hive
-
-A raspberry pi Zero W using a picam3 with a 'std-lens' and auto-focus in a waterproof box. The software controls a status-led on the backside of the box.
-
-### A cam for arbitrary use, such as documenting insects visiting flowers
-
-A Raspberry pi 3B+ using a picam3HQ camera on a tri-pod.
-
-## Hardware images
-
-### Rpi3 with a cam
-
-![Rpi3 with a cam](_doc/rpi3_picam3.jpg)
-
-### Zero W with a cam and extra hardware
-![Zero W with a cam and extra hardware](_doc/zerow_picam3.jpg)
-
-### Rpi with HQ cam
-![Rpi3 with a HQ camera](_doc/rpi3-hq-cam.jpg)
-
-### Beehive cams
-![Beehive cams](_doc/bee-hive-cams.jpg)
+For questions, issues, or contributions:
+- 📧 **Issues**: [GitHub Issues](https://github.com/teddycool/PyRpiCamController/issues)
+- 🤝 **Discussions**: [GitHub Discussions](https://github.com/teddycool/PyRpiCamController/discussions) 
+- 💻 **Technical Details**: See [ARCHITECTURE.md](ARCHITECTURE.md) for implementation details
+- 🔧 **Installation Help**: See [INSTALLATION.md](INSTALLATION.md) for step-by-step setup

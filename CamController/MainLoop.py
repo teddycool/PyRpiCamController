@@ -61,7 +61,7 @@ class MainLoop(object):
         self._cputemp = self._cputempmonitor.get_cpu_temperature()
 
         
-        #Setup IO, these settings are NOT configurable from backend but hardware (camera) dependent
+        #Setup IO, these settings are NOT configurable from backend but hardware dependent
         self._display = Display.Display(hwconfig["Io"]["displaycontrolgpio"], hwconfig["Io"]["displaysize"])   
         self._display.startup()     
      

@@ -138,33 +138,26 @@ def package_install():
         log_step("ERROR", "Failed to install APT packages")
         return False
     
-    # Install Python packages
-    log_step("PACKAGES", "Installing Python packages...")
-    
-    # Install rpi-ws281x with multiple fallback methods
-    log_step("PACKAGES", "Installing rpi-ws281x (LED control library)...")
-    rpi_ws281x_methods = [
-        "sudo pip3 install rpi-ws281x --break-system-packages",
-        "sudo pip install rpi-ws281x --break-system-packages", 
-        "sudo apt-get install -y python3-rpi-ws281x"
-    ]
-    
-    rpi_ws281x_installed = False
-    for method in rpi_ws281x_methods:
-        if run_cmd(method, check=False):
-            if run_cmd("python3 -c 'import rpi_ws281x'", capture=False, check=False):
-                log_step("PACKAGES", "rpi-ws281x installed successfully!")
-                rpi_ws281x_installed = True
-                break
-        
-    if not rpi_ws281x_installed:
-        log_step("WARNING", "Failed to install rpi_ws281x - LED functionality will be disabled")
-    
-    # Install other Python packages
-    other_packages = ["numpy", "simplejpeg", "requests", "flask", "pyserial"]
-    for package in other_packages:
-        log_step("PACKAGES", f"Installing {package}...")
-        run_cmd(f"sudo pip3 install {package} --break-system-packages", check=False)
+    # Install Python packages from requirements file
+    requirements_file = Path(PROJECT_ROOT) / "tools" / "requirements.txt"
+    if not requirements_file.exists():
+        log_step("ERROR", f"Requirements file not found: {requirements_file}")
+        return False
+
+    log_step("PACKAGES", f"Installing Python packages from {requirements_file}...")
+    pip_cmd = f"sudo pip3 install --break-system-packages -r {requirements_file}"
+    if not run_cmd(pip_cmd, check=False):
+        log_step("WARNING", "pip requirements installation reported errors")
+
+    # Validate rpi-ws281x and fallback to apt package if needed.
+    if not run_cmd("python3 -c 'import rpi_ws281x'", capture=False, check=False):
+        log_step("PACKAGES", "rpi-ws281x import failed, trying apt fallback...")
+        run_cmd("sudo apt-get install -y python3-rpi-ws281x", check=False)
+
+        if run_cmd("python3 -c 'import rpi_ws281x'", capture=False, check=False):
+            log_step("PACKAGES", "rpi-ws281x installed successfully via apt fallback")
+        else:
+            log_step("WARNING", "Failed to install rpi_ws281x - LED functionality will be disabled")
     
     return True
 

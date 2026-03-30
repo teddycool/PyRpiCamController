@@ -1,0 +1,21 @@
+# PyRpiCamController Python dependencies (runtime + tooling scripts)
+# Installed by tools/install-all-optimized.py using pip.
+# Hardware/system-specific libraries are installed via apt in the installer:
+# - python3-picamera2
+# - python3-libcamera
+# - python3-rpi.gpio
+# - python3-opencv
+
+# Core runtime
+numpy>=1.24
+requests>=2.31
+flask>=2.3
+simplejpeg>=1.7
+pyserial>=3.5
+paho-mqtt>=1.6
+
+# Legacy/compatibility modules referenced in codebase
+picamera>=1.13
+
+# LED strip support (with apt fallback in installer)
+rpi-ws281x>=5.0
