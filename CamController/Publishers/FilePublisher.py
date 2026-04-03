@@ -172,7 +172,7 @@ class FilePublisher(PublisherBase):
         
         return False
 
-    def publish(self, jpgimagedata, metadata):
+    def publish(self, jpgimagedata, metadata, save_metadata_json=False):
         try:
             # Check and manage storage space before saving
             if not self.manage_storage_space():
@@ -181,17 +181,19 @@ class FilePublisher(PublisherBase):
             
             timestamp = int(time.time())
             img_filename = os.path.join(self.location, f"{timestamp}.{self.img_format}")
-            meta_filename = os.path.join(self.location, f"{timestamp}.json")
 
             # Write image data to file
             with open(img_filename, "wb") as img_file:
                 img_file.write(jpgimagedata.tobytes())
 
-            # Write metadata to JSON file
-            with open(meta_filename, "w") as meta_file:
-                json.dump(metadata, meta_file, indent=2)
-
-            logger.debug(f"Saved image to {img_filename} and metadata to {meta_filename}")
+            if save_metadata_json:
+                meta_filename = os.path.join(self.location, f"{timestamp}.json")
+                # Write metadata to JSON file
+                with open(meta_filename, "w") as meta_file:
+                    json.dump(metadata, meta_file, indent=2)
+                logger.debug(f"Saved image to {img_filename} and metadata to {meta_filename}")
+            else:
+                logger.debug(f"Saved image to {img_filename} (metadata json disabled)")
             
             # Log current disk usage periodically (every 10th save)
             if timestamp % 10 == 0:

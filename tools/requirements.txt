@@ -4,18 +4,16 @@
 # - python3-picamera2
 # - python3-libcamera
 # - python3-rpi.gpio
-# - python3-opencv
+# - python3-opencv, opencv-data (required; vision pipeline uses cv2)
+# - python3-rpi-ws281x (with pip fallback)
 
 # Core runtime
 numpy>=1.24
-requests>=2.31
-flask>=2.3
+requests>=2.28
+flask>=2.2
 simplejpeg>=1.7
 pyserial>=3.5
 paho-mqtt>=1.6
 
 # Legacy/compatibility modules referenced in codebase
 picamera>=1.13
-
-# LED strip support (with apt fallback in installer)
-rpi-ws281x>=5.0

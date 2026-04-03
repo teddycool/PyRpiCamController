@@ -69,6 +69,8 @@ class PostState(BaseState.BaseState):
         
         #create the publishers using the settings from the config ["Cam"]["publishers"]
         self._publishers = []
+        self._save_metadata_json = bool(settings_manager.get("Cam.save_metadata_json"))
+        logger.info(f"Save metadata json enabled: {self._save_metadata_json}")
         for pub_type, pub_settings in settings["Cam"]["publishers"].items():
             if pub_type == "url" and pub_settings.get("publish", True):
                 from Publishers.HttpPublisher import HttpPublisher
@@ -131,7 +133,7 @@ class PostState(BaseState.BaseState):
                             
                             # Publish to all configured publishers
                             for publisher in self._publishers:
-                                publisher.publish(jpgimagedata, final_metadata)      
+                                publisher.publish(jpgimagedata, final_metadata, self._save_metadata_json)
                                 logger.debug("Posted image-data to " + type(publisher).__name__)
 
                         else:

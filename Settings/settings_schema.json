@@ -39,7 +39,7 @@
         "description": "Aktivera trådlösa uppdateringar över luften",
         "level": "advanced"
       },
-      "web_editable": true
+      "web_editable": false
     },
     "DeviceName": {
       "value": "",
@@ -61,7 +61,7 @@
         "description": "Aktivera testläge för utveckling och avancerade uppdateringskanaler (endast för testutrustning)",
         "level": "advanced"
       },
-      "web_editable": true
+      "web_editable": false
     },
     "UpdateGroup": {
       "value": "production",
@@ -89,7 +89,7 @@
         "description": "Välj uppdateringskanal: Production (stabil), Beta (förhandsversion), eller Development (endast testenheter)",
         "level": "advanced"
       },
-      "web_editable": true
+      "web_editable": false
     },
     "OTA": {
       "server_url": {
@@ -101,7 +101,7 @@
           "description": "Server-URL för OTA-uppdateringar",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "check_interval": {
         "value": 3600,
@@ -114,7 +114,7 @@
           "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "api_key": {
         "value": "",
@@ -125,7 +125,7 @@
           "description": "API-nyckel för OTA-serverautentisering",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "service_name": {
         "value": "camcontroller.service",
@@ -160,7 +160,7 @@
           "description": "Antal backup-versioner att behålla",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "health_check_timeout": {
         "value": 120,
@@ -173,7 +173,7 @@
           "description": "Tid att vänta på att tjänsten ska bli frisk efter uppdatering",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "download_timeout": {
         "value": 300,
@@ -186,7 +186,7 @@
           "description": "Maximal tid att vänta på nedladdning av uppdatering",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "auto_apply": {
         "value": false,
@@ -197,7 +197,7 @@
           "description": "Tillämpa uppdateringar automatiskt när de hittas (rekommenderas inte)",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "notify_available": {
         "value": true,
@@ -208,7 +208,7 @@
           "description": "Visa notifikation när nya uppdateringar upptäcks",
           "level": "basic"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "current_version": {
         "value": "",
@@ -290,6 +290,17 @@
           "section": "Kamera",
           "description": "Tid mellan bilder i sekunder",
           "level": "basic"
+        },
+        "web_editable": true
+      },
+      "save_metadata_json": {
+        "value": false,
+        "type": "bool",
+        "ui": {
+          "name": "Spara metadata som JSON",
+          "section": "Kamera",
+          "description": "Spara/publicera bildmetadata i JSON-format för alla publishers",
+          "level": "advanced"
         },
         "web_editable": true
       },

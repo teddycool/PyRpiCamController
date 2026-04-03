@@ -15,20 +15,26 @@ from PublisherBase import PublisherBase
 logger = logging.getLogger("cam.publisher.http")
 
 class HttpPublisher(PublisherBase):
-    def __init__(self, url):
+    def __init__(self, url=""):
         self.url = url
         self.cpuid = cpuserial.getserial()
         logger.info(f"HttpPublisher initialized with URL: {self.url} and CPU ID: {self.cpuid}")
 
     def initialize(self, settings):
-        # Optionally update self.url or other settings from config
-        self.url = settings.get("Cam", {}).get("posturl", self.url)
+        # Update URL from unified settings schema
+        self.url = settings.get("Cam", {}).get("publishers", {}).get("url", {}).get("location", self.url)
 
-    def publish(self, jpgimagedata, metadata):
+    def publish(self, jpgimagedata, metadata, save_metadata_json=False):
         try:        
+            if not self.url:
+                logger.error("HttpPublisher URL is not configured")
+                return None
+
             data = jpgimagedata.tobytes()
             files = {'media': data}
-            url = self.url + '?cpu=' + self.cpuid + '&meta=' + json.dumps(metadata)
+            url = self.url + '?cpu=' + self.cpuid
+            if save_metadata_json:
+                url += '&meta=' + json.dumps(metadata)
             r = requests.post(url, files=files)
             logger.debug("Posted image-data to " + url)
             logger.debug("Received http-status: " + str(r.status_code))

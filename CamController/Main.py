@@ -4,10 +4,18 @@
 
 __author__ = 'teddycool'
 
-import MainLoop
-import time
 import os
 import sys
+
+# Ensure the project root (parent of CamController/) is on the path so that
+# top-level packages like Settings, Updates, etc. can always be imported,
+# regardless of the working directory or PYTHONPATH at launch time.
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+import MainLoop
+import time
 import logging
 import logging.handlers
 from Connectivity import cpuserial

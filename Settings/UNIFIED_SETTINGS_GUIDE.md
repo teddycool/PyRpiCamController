@@ -78,6 +78,18 @@ The settings are organized into logical sections:
 - **Network**: WiFi configuration
 - **System**: Timezone, startup options
 
+### Notable Advanced Camera Setting
+
+- `Cam.save_metadata_json` (bool, default: `false`, level: `advanced`)
+  - Controls whether image metadata is saved/published as JSON.
+  - Applied globally to all publisher types.
+  - When `false`:
+    - File publisher saves image files only (no companion `.json` metadata file).
+    - HTTP publisher posts image data without metadata JSON payload.
+  - When `true`:
+    - File publisher saves both image and metadata `.json` file.
+    - HTTP publisher includes metadata JSON in the request payload.
+
 ## File Locations
 
 ### Schema Files

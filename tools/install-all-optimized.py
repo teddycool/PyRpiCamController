@@ -20,6 +20,7 @@ import os
 import time
 import subprocess
 import sys
+import argparse
 from pathlib import Path
 
 # Configuration
@@ -97,7 +98,37 @@ def detect_memory_size():
         pass
     return 1
 
-def package_install():
+def setup_led_dependency():
+    """Install rpi_ws281x using apt package detection with pip fallback."""
+    log_step("PACKAGES", "Ensuring LED dependency (rpi_ws281x)...")
+
+    if run_cmd("/usr/bin/python3 -c 'import rpi_ws281x'", capture=False, check=False):
+        log_step("PACKAGES", "rpi_ws281x already available")
+        return True
+
+    apt_candidates = ["python3-rpi-ws281x", "python3-ws281x"]
+    for pkg in apt_candidates:
+        if run_cmd(f"apt-cache show {pkg} >/dev/null 2>&1", check=False):
+            log_step("PACKAGES", f"Installing {pkg} via apt...")
+            run_cmd(f"sudo apt-get install -y --no-install-recommends {pkg}", check=False)
+            if run_cmd("/usr/bin/python3 -c 'import rpi_ws281x'", capture=False, check=False):
+                log_step("PACKAGES", "rpi_ws281x installed successfully")
+                return True
+
+    log_step("PACKAGES", "Apt package unavailable, installing build deps for pip fallback...")
+    run_cmd("sudo apt-get install -y --no-install-recommends python3-dev build-essential", check=False)
+
+    log_step("PACKAGES", "Trying pip fallback for rpi-ws281x...")
+    run_cmd("sudo /usr/bin/python3 -m pip install --break-system-packages rpi-ws281x", check=False)
+
+    if run_cmd("/usr/bin/python3 -c 'import rpi_ws281x'", capture=False, check=False):
+        log_step("PACKAGES", "rpi_ws281x installed successfully")
+        return True
+
+    log_step("WARNING", "Failed to install rpi_ws281x - LED functionality will be disabled")
+    return False
+
+def package_install(with_opencv=False):
     """Install all required packages efficiently"""
     log_step("PACKAGES", "Starting package installation...")
     
@@ -124,11 +155,14 @@ def package_install():
     
     # Install all APT packages in one batch
     apt_packages = [
-        "python3-pip", "python3-dev", "python3-picamera2", "libcamera-apps", "python3-libcamera",
-        "python3-lgpio", "python3-rpi.gpio", "python3-opencv", "opencv-data", "python3-numpy",
-        "ffmpeg", "git", "curl", "samba", "samba-common-bin", "smbclient", "gunicorn", 
-        "build-essential", "python3-setuptools", "python3-wheel"
+        "python3-pip", "python3-picamera2", "libcamera-apps", "python3-libcamera",
+        "python3-lgpio", "python3-rpi.gpio", "python3-numpy",
+        "python3-opencv", "opencv-data",
+        "ffmpeg", "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
     ]
+
+    if with_opencv:
+        pass  # opencv now always installed above
     
     package_list = " ".join(apt_packages)
     install_cmd = f"sudo apt-get install -y --no-install-recommends {package_list}"
@@ -149,15 +183,7 @@ def package_install():
     if not run_cmd(pip_cmd, check=False):
         log_step("WARNING", "pip requirements installation reported errors")
 
-    # Validate rpi-ws281x and fallback to apt package if needed.
-    if not run_cmd("python3 -c 'import rpi_ws281x'", capture=False, check=False):
-        log_step("PACKAGES", "rpi-ws281x import failed, trying apt fallback...")
-        run_cmd("sudo apt-get install -y python3-rpi-ws281x", check=False)
-
-        if run_cmd("python3 -c 'import rpi_ws281x'", capture=False, check=False):
-            log_step("PACKAGES", "rpi-ws281x installed successfully via apt fallback")
-        else:
-            log_step("WARNING", "Failed to install rpi_ws281x - LED functionality will be disabled")
+    setup_led_dependency()
     
     return True
 
@@ -184,10 +210,10 @@ def setup_comitup():
         log_step("WARNING", "Failed to install ComitUp repository")
         return False
     
-    # Update package lists and install ComitUp
+    # Update package lists and install ComitUp + NetworkManager runtime
     log_step("COMITUP", "Installing ComitUp packages...")
     run_cmd("sudo apt-get update")
-    if not run_cmd("sudo apt-get install -y comitup comitup-watch", check=False):
+    if not run_cmd("sudo apt-get install -y --no-install-recommends network-manager comitup comitup-watch", check=False):
         log_step("WARNING", "Failed to install ComitUp packages")
         return False
     
@@ -198,12 +224,54 @@ def setup_comitup():
     
     # Configure network services
     log_step("COMITUP", "Configuring network services...")
-    services_to_mask = ["dnsmasq.service", "dhcpcd.service", "wpa_supplicant.service"]
+    services_to_mask = ["dnsmasq.service", "dhcpcd.service"]
     for service in services_to_mask:
+        run_cmd(f"sudo systemctl stop {service}", check=False)
+        run_cmd(f"sudo systemctl disable {service}", check=False)
         run_cmd(f"sudo systemctl mask {service}", check=False)
-    
+
+    # Undo older masking from previous installer runs.
+    run_cmd("sudo systemctl unmask wpa_supplicant.service", check=False)
+
+    # Ensure NetworkManager manages interfaces including wlan0.
+    nm_conf = """[main]
+plugins=ifupdown,keyfile
+
+[ifupdown]
+managed=true
+
+[device]
+wifi.scan-rand-mac-address=no
+"""
+    run_cmd("sudo mkdir -p /etc/NetworkManager", check=False)
+    run_cmd("sudo tee /etc/NetworkManager/NetworkManager.conf >/dev/null <<'EOF'\n" + nm_conf + "EOF", check=False)
+
+    # Ensure comitup starts after NetworkManager and hardware init settles.
+    override_conf = """[Unit]
+After=NetworkManager.service network-online.target
+Wants=NetworkManager.service
+
+[Service]
+Restart=on-failure
+RestartSec=5
+ExecStartPre=/bin/sleep 5
+"""
+    run_cmd("sudo mkdir -p /etc/systemd/system/comitup.service.d", check=False)
+    run_cmd("sudo tee /etc/systemd/system/comitup.service.d/override.conf >/dev/null <<'EOF'\n" + override_conf + "EOF", check=False)
+
+    # Bring up required services in correct order.
+    run_cmd("sudo rfkill unblock wifi", check=False)
+    run_cmd("sudo systemctl daemon-reload", check=False)
     run_cmd("sudo systemctl enable NetworkManager.service", check=False)
+    run_cmd("sudo systemctl restart NetworkManager.service", check=False)
+    run_cmd("sudo systemctl enable comitup.service", check=False)
+    run_cmd("sudo systemctl restart comitup.service", check=False)
+    
     run_cmd("sudo systemctl enable ssh", check=False)
+
+    nm_state = run_cmd("systemctl is-active NetworkManager.service", capture=True, check=False) or "unknown"
+    cu_state = run_cmd("systemctl is-active comitup.service", capture=True, check=False) or "unknown"
+    log_step("COMITUP", f"Service states: NetworkManager={nm_state}, comitup={cu_state}")
     
     return True
 
@@ -227,6 +295,14 @@ def setup_samba():
     """Setup Samba file sharing"""
     log_step("SAMBA", "Setting up Samba file sharing...")
     
+    # Install Samba packages only when this feature is enabled.
+    if not run_cmd("sudo apt-get install -y --no-install-recommends samba samba-common-bin smbclient avahi-daemon libnss-mdns", check=False):
+        log_step("WARNING", "Samba packages failed to install")
+        return False
+
+    # wsdd improves SMB discovery on modern Windows systems when available.
+    run_cmd("sudo apt-get install -y --no-install-recommends wsdd", check=False)
+
     # Copy Samba configuration
     smb_conf_source = f"{PROJECT_ROOT}/Services/smb.conf"
     if os.path.exists(smb_conf_source):
@@ -237,8 +313,10 @@ def setup_samba():
         return False
     
     # Enable and start Samba services
-    run_cmd("sudo systemctl enable smbd nmbd")
-    run_cmd("sudo systemctl restart smbd nmbd")
+    run_cmd("sudo systemctl enable smbd nmbd avahi-daemon", check=False)
+    run_cmd("sudo systemctl restart smbd nmbd avahi-daemon", check=False)
+    run_cmd("sudo systemctl enable wsdd", check=False)
+    run_cmd("sudo systemctl restart wsdd", check=False)
     
     return True
 
@@ -264,12 +342,42 @@ def setup_services():
     # Reload systemd daemon
     run_cmd("sudo systemctl daemon-reload")
 
+def sync_hostname_in_hosts(hostname):
+    """Ensure /etc/hosts contains a local mapping for the configured hostname."""
+    log_step("HOSTNAME", f"Syncing /etc/hosts mapping for {hostname}...")
+
+    # Keep a backup for recovery if the hosts update fails.
+    run_cmd("sudo cp /etc/hosts /etc/hosts.bak", check=False)
+
+    existing_entry = run_cmd("grep -E '^127\\.0\\.1\\.1[[:space:]]+' /etc/hosts | head -n1", capture=True, check=False)
+    if existing_entry:
+        run_cmd(f"sudo sed -i 's/^127\\.0\\.1\\.1[[:space:]]\+.*/127.0.1.1 {hostname}/' /etc/hosts", check=False)
+    else:
+        run_cmd(f"echo '127.0.1.1 {hostname}' | sudo tee -a /etc/hosts >/dev/null", check=False)
+
+    resolved = run_cmd(f"getent hosts {hostname}", capture=True, check=False)
+    if resolved:
+        log_step("HOSTNAME", f"Host resolution OK: {resolved}")
+    else:
+        log_step("WARNING", f"Hostname {hostname} not resolvable via /etc/hosts")
+
 def main():
     """Main installation routine"""
     start_time = time.time()
     
+    parser = argparse.ArgumentParser(description="Install PyRpiCamController on Raspberry Pi")
+    parser.add_argument(
+        "--with-opencv",
+        action="store_true",
+        help="(Deprecated - OpenCV is now always installed)",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("PyRpiCamController - Installation")
+    print("OpenCV install: enabled (required)")
+    print("ComitUp setup: enabled")
+    print("Samba setup: enabled")
     print("=" * 60)
     
     # Detect Pi model
@@ -298,7 +406,7 @@ def main():
         log_step("CHECK", "Project deployment verified ✓")
         
         # Package installation
-        if not package_install():
+        if not package_install(with_opencv=args.with_opencv):
             log_step("ERROR", "Package installation failed!")
             sys.exit(1)
         
@@ -317,6 +425,7 @@ def main():
         # Set hostname
         hostname = get_serial()
         run_cmd(f"sudo hostnamectl set-hostname {hostname}")
+        sync_hostname_in_hosts(hostname)
         log_step("HOSTNAME", f"Hostname set to: {hostname}")
         
         # Installation completed

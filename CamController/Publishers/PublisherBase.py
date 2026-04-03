@@ -18,5 +18,5 @@ class PublisherBase(object):
     def initialize(self, settings):  #Init publisher with current settings from config
         raise NotImplementedError   
     
-    def publish(self, jpgimagedata, metadata): #Publish the image and metadata 
+    def publish(self, jpgimagedata, metadata, save_metadata_json=False): #Publish the image and metadata 
         raise NotImplementedError
