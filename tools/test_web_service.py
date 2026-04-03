@@ -21,7 +21,7 @@ def run_cmd(cmd, check=True):
     except subprocess.CalledProcessError as e:
         return False, e.stdout, e.stderr
 
-def test_web_access(port=8080):
+def test_web_access(port=80):
     """Test if web interface is accessible"""
     try:
         response = requests.get(f"http://localhost:{port}", timeout=5)
@@ -101,8 +101,8 @@ def setup_web_service():
         
         # Test web access
         log("Testing web interface access...")
-        if test_web_access(8080):
-            log("✓ Web interface is accessible at http://localhost:8080")
+        if test_web_access(80):
+            log("✓ Web interface is accessible at http://localhost")
         else:
             log("✗ Web interface not accessible - check port or firewall")
         

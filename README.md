@@ -2,6 +2,8 @@
 
 A modern Python camera control system for Raspberry Pi with web interface, designed for research, time-lapse photography, and automated image collection.
 
+> ℹ️ **Note:** Still a work in progress but all basic functions and web-gui is working. Motion detection and vision-pipeline is not yet fully implemented.
+
 [![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://python.org)
 [![Raspberry Pi](https://img.shields.io/badge/platform-raspberry%20pi-red.svg)](https://raspberrypi.org)
 [![License](https://img.shields.io/badge/license-GPL%20v3-green.svg)](LICENSE)

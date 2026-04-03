@@ -531,7 +531,7 @@
         "level": "advanced"
       },
       "port": {
-        "value": 8081,
+        "value": 8554,
         "type": "int",
         "min": 1024,
         "max": 65535,

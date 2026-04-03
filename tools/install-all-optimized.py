@@ -437,7 +437,7 @@ def main():
         print("=" * 60)
         print(f"Total time: {install_duration} seconds ({install_duration//60}m {install_duration%60}s)")
         print(f"Hostname: {hostname}.local")
-        print(f"Web interface: http://{hostname}.local:8080")
+        print(f"Web interface: http://{hostname}.local")
         print(f"Samba share: \\\\{hostname}.local\\shared")
         print("\\nNext steps:")
         print("1. Reboot to activate all services")

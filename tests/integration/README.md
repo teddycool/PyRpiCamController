@@ -124,7 +124,7 @@ Edit `config/test_config.yaml`:
 target:
   host: "raspberrypi.local"  # Your Pi's hostname or IP
   web_port: 80
-  stream_port: 8081
+  stream_port: 8554
   image_directory: "/home/pi/shared/images/"
 
 timeouts:
