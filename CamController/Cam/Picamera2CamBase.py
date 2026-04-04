@@ -8,10 +8,16 @@ from Cam import CamBase
 from picamera2 import Picamera2
 import libcamera
 import logging
+from typing import Any
 
 
 class Picamera2CamBase(CamBase.CamBase):
-    def __init__(self, camera_name, image_resolutions, video_resolutions):
+    def __init__(
+        self,
+        camera_name: str,
+        image_resolutions: list[CamBase.Resolution],
+        video_resolutions: list[CamBase.Resolution],
+    ) -> None:
         super().__init__()
         self._camera_name = camera_name
         self._supported_image_resolutions = image_resolutions
@@ -20,7 +26,7 @@ class Picamera2CamBase(CamBase.CamBase):
         self._camera_config = None
         self._logger = logging.getLogger(f"cam.{camera_name}")
 
-    def _resolve_image_resolution(self, settings):
+    def _resolve_image_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
         requested_res = settings.get("Cam", {}).get("resolution", self._supported_image_resolutions[0])
         requested_res = tuple(requested_res)
 
@@ -35,7 +41,7 @@ class Picamera2CamBase(CamBase.CamBase):
 
         return requested_res
 
-    def _resolve_stream_resolution(self, settings):
+    def _resolve_stream_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
         requested_res = settings.get("Stream", {}).get("resolution", self._supported_video_resolutions[0])
         requested_res = tuple(requested_res)
 
@@ -50,7 +56,7 @@ class Picamera2CamBase(CamBase.CamBase):
 
         return requested_res
 
-    def _get_common_controls(self, settings):
+    def _get_common_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
         controls = {
             "AwbMode": libcamera.controls.AwbModeEnum.Auto,
             "AeEnable": True,
@@ -62,20 +68,20 @@ class Picamera2CamBase(CamBase.CamBase):
 
         return controls
 
-    def _get_camera_specific_controls(self, settings):
+    def _get_camera_specific_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
         return {}
 
-    def _get_stream_controls(self, settings):
+    def _get_stream_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
         return {
             "FrameRate": settings.get("Stream", {}).get("framerate", 20),
         }
 
-    def _apply_runtime_controls(self, settings):
+    def _apply_runtime_controls(self, settings: dict[str, Any]) -> None:
         controls = self._get_common_controls(settings)
         controls.update(self._get_camera_specific_controls(settings))
         self._cam.set_controls(controls)
 
-    def start(self, settings):
+    def start(self, settings: dict[str, Any]) -> None:
         res = self._resolve_image_resolution(settings)
         self._cam = Picamera2()
         self._camera_config = self._cam.create_still_configuration(
@@ -86,11 +92,11 @@ class Picamera2CamBase(CamBase.CamBase):
         self._cam.start(show_preview=False)
         self._apply_runtime_controls(settings)
 
-    def initialize(self, settings):
+    def initialize(self, settings: dict[str, Any]) -> None:
         if self._cam is not None:
             self._apply_runtime_controls(settings)
 
-    def update(self):
+    def update(self, context: Any = None) -> None:
         try:
             request = self._cam.capture_request()
             self._current_metadata = request.get_metadata()
@@ -104,7 +110,7 @@ class Picamera2CamBase(CamBase.CamBase):
             self._current_image = None
             self._current_metadata = None
 
-    def start_stream(self, settings=None):
+    def start_stream(self, settings: dict[str, Any] | None = None) -> None:
         if settings is None:
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
@@ -118,7 +124,7 @@ class Picamera2CamBase(CamBase.CamBase):
         self._cam.start(show_preview=False)
         self._apply_runtime_controls(settings)
 
-    def stop(self):
+    def stop(self) -> None:
         if self._cam is not None:
             self._cam.stop()
             self._cam.close()

@@ -10,11 +10,12 @@ import time
 import logging
 import json
 import datetime
+from typing import Any
 
 logger = logging.getLogger("cam.WebCam")
 
 class WebCam(CamBase.CamBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._supported_image_resolutions = [(1920, 1080), (1280, 720), (640, 480)]
         self._supported_video_resolutions = [(1920, 1080), (1280, 720), (640, 480)]
@@ -22,7 +23,7 @@ class WebCam(CamBase.CamBase):
         self._device_index = 0  # Default webcam device index
     
     #Cam mode   
-    def start(self, settings):
+    def start(self, settings: dict[str, Any]) -> None:
         res = tuple(settings["Cam"]["resolution"])
 
         if not self.is_image_resolution_supported(res):
@@ -62,7 +63,7 @@ class WebCam(CamBase.CamBase):
             self._cam.read()
             time.sleep(0.1)
     
-    def initialize(self, settings):
+    def initialize(self, settings: dict[str, Any]) -> None:
         # Webcam settings can be changed on the fly
         if self._cam is not None and self._cam.isOpened():
             if "brightness" in settings["Cam"]:
@@ -73,7 +74,7 @@ class WebCam(CamBase.CamBase):
                     brightness = 100
                 self._cam.set(cv2.CAP_PROP_BRIGHTNESS, brightness)
         
-    def update(self):
+    def update(self, context: Any = None) -> None:
         try:
             if self._cam is None or not self._cam.isOpened():
                 logger.error("Webcam is not initialized or opened")
@@ -112,7 +113,7 @@ class WebCam(CamBase.CamBase):
             self._current_metadata = None
         
     #Stream mode
-    def start_stream(self, settings=None):
+    def start_stream(self, settings: dict[str, Any] | None = None) -> None:
         if settings is None:
             settings = {}
         # For webcam, streaming is essentially the same as regular mode
@@ -120,7 +121,7 @@ class WebCam(CamBase.CamBase):
         self.start(settings)
         logger.info("Webcam streaming started")
         
-    def stop(self):
+    def stop(self) -> None:
         """Clean up webcam resources"""
         if self._cam is not None:
             self._cam.release()

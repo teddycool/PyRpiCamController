@@ -6,35 +6,39 @@ __author__ = 'teddycool'
 
 #Parent-class for all cams
 #https://en.wikipedia.org/wiki/State_pattern
+from typing import Any
+
+
+Resolution = tuple[int, int]
 
 
 class CamBase:
 
-    def __init__(self):
-        self._current_image = None  # Must be a numpy array
-        self._current_metadata = None  # A Python dictionary
-        self._supported_image_resolutions = []  # like: [(4608,2592)]
-        self._supported_video_resolutions = []  # like: [(800,600)]
+    def __init__(self) -> None:
+        self._current_image: Any = None  # Must be a numpy array
+        self._current_metadata: dict[str, Any] | None = None
+        self._supported_image_resolutions: list[Resolution] = []
+        self._supported_video_resolutions: list[Resolution] = []
 
-    def initialize(self):  #Init camera with current settings from config
+    def initialize(self, settings: dict[str, Any]) -> None:  # Init camera with current settings from config
         raise NotImplementedError
 
-    def update(self, context): #Update current image (and metadata) with latest frame from cam
+    def update(self, context: Any = None) -> None:  # Update current image (and metadata) with latest frame from cam
         raise NotImplementedError 
 
-    def is_image_resolution_supported(self, res): #Check if res (x,y) is supported by camera for images
+    def is_image_resolution_supported(self, res: Resolution) -> bool:  # Check if res (x,y) is supported by camera for images
         return self._supported_image_resolutions.count(res) == 1
     
-    def is_video_resolution_supported(self, res): #Check if res (x,y) is supported by camera for video
+    def is_video_resolution_supported(self, res: Resolution) -> bool:  # Check if res (x,y) is supported by camera for video
         return self._supported_video_resolutions.count(res) == 1
 
-    def start_stream(self, settings=None):   # Start streaming to io-buffer
+    def start_stream(self, settings: dict[str, Any] | None = None) -> None:  # Start streaming to io-buffer
         raise NotImplementedError
 
 
 
 
-def get_cam(camtype):
+def get_cam(camtype: str) -> CamBase:
     if (camtype == "PiCam2"):
         from Cam import PiCam2
         return PiCam2.PiCam2()
