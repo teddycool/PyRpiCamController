@@ -106,8 +106,8 @@ class PostState(BaseState.BaseState):
                 if  camupdated:  #Update of image buffer was successful                    
                     # Process image through vision pipeline
                     processed_image, enriched_metadata = self._image_processor.process(
-                        self._cam._currentimg, 
-                        self._cam._currentMetaData
+                        self._cam._current_image,
+                        self._cam._current_metadata
                     )
                     
                     # Use processed image for encoding
@@ -127,7 +127,7 @@ class PostState(BaseState.BaseState):
                         success, jpgimagedata = cv2.imencode(".jpg", currentImage)
                         if success:        
                             # Merge camera metadata with processing metadata
-                            final_metadata = self._cam._currentMetaData.copy() if self._cam._currentMetaData else {}
+                            final_metadata = self._cam._current_metadata.copy() if self._cam._current_metadata else {}
                             if enriched_metadata:
                                 final_metadata.update(enriched_metadata)
                             

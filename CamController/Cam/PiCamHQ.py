@@ -11,7 +11,7 @@ logger = logging.getLogger("cam.PiCamHQ")
 
 class PiCamHQ(Picamera2CamBase.Picamera2CamBase):
     def __init__(self):
-        super(PiCamHQ, self).__init__(
+        super().__init__(
             camera_name="PiCamHQ",
             image_resolutions=[
                 (4056, 3040),
@@ -37,13 +37,13 @@ class PiCamHQ(Picamera2CamBase.Picamera2CamBase):
             requested_res = (cam_settings["width"], cam_settings["height"])
 
         if requested_res is None:
-            requested_res = self._supportedImagesResolutions[0]
+            requested_res = self._supported_image_resolutions[0]
 
         requested_res = tuple(requested_res)
 
-        if requested_res not in self._supportedImagesResolutions:
+        if requested_res not in self._supported_image_resolutions:
             self._logger.warning("Cam resolution %s requested in config, but not supported by PiCamHQ", str(requested_res))
-            self._logger.info("Using fallback image resolution %s", str(self._supportedImagesResolutions[0]))
-            return self._supportedImagesResolutions[0]
+            self._logger.info("Using fallback image resolution %s", str(self._supported_image_resolutions[0]))
+            return self._supported_image_resolutions[0]
         return requested_res
     

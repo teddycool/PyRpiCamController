@@ -12,7 +12,7 @@ logger = logging.getLogger("cam.PiCam3")
 
 class PiCam3(Picamera2CamBase.Picamera2CamBase):
     def __init__(self):
-        super(PiCam3, self).__init__(
+        super().__init__(
             camera_name="PiCam3",
             image_resolutions=[
                 (4608, 2592),

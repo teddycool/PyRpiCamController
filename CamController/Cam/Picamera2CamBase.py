@@ -7,44 +7,46 @@ __author__ = 'teddycool'
 from Cam import CamBase
 from picamera2 import Picamera2
 import libcamera
+import logging
 
 
 class Picamera2CamBase(CamBase.CamBase):
     def __init__(self, camera_name, image_resolutions, video_resolutions):
-        super(Picamera2CamBase, self).__init__()
+        super().__init__()
         self._camera_name = camera_name
-        self._supportedImagesResolutions = image_resolutions
-        self._supportedVideoResolutions = video_resolutions
+        self._supported_image_resolutions = image_resolutions
+        self._supported_video_resolutions = video_resolutions
         self._cam = None
-        self._camconf = None
+        self._camera_config = None
+        self._logger = logging.getLogger(f"cam.{camera_name}")
 
     def _resolve_image_resolution(self, settings):
-        requested_res = settings.get("Cam", {}).get("resolution", self._supportedImagesResolutions[0])
+        requested_res = settings.get("Cam", {}).get("resolution", self._supported_image_resolutions[0])
         requested_res = tuple(requested_res)
 
-        if requested_res not in self._supportedImagesResolutions:
+        if requested_res not in self._supported_image_resolutions:
             self._logger.warning(
                 "Cam resolution %s requested in config, but not supported by %s",
                 str(requested_res),
                 self._camera_name,
             )
-            self._logger.info("Using fallback image resolution %s", str(self._supportedImagesResolutions[0]))
-            return self._supportedImagesResolutions[0]
+            self._logger.info("Using fallback image resolution %s", str(self._supported_image_resolutions[0]))
+            return self._supported_image_resolutions[0]
 
         return requested_res
 
     def _resolve_stream_resolution(self, settings):
-        requested_res = settings.get("Stream", {}).get("resolution", self._supportedVideoResolutions[0])
+        requested_res = settings.get("Stream", {}).get("resolution", self._supported_video_resolutions[0])
         requested_res = tuple(requested_res)
 
-        if requested_res not in self._supportedVideoResolutions:
+        if requested_res not in self._supported_video_resolutions:
             self._logger.warning(
                 "Stream resolution %s requested in config, but not supported by %s",
                 str(requested_res),
                 self._camera_name,
             )
-            self._logger.info("Using fallback stream resolution %s", str(self._supportedVideoResolutions[0]))
-            return self._supportedVideoResolutions[0]
+            self._logger.info("Using fallback stream resolution %s", str(self._supported_video_resolutions[0]))
+            return self._supported_video_resolutions[0]
 
         return requested_res
 
@@ -76,11 +78,11 @@ class Picamera2CamBase(CamBase.CamBase):
     def start(self, settings):
         res = self._resolve_image_resolution(settings)
         self._cam = Picamera2()
-        self._camconf = self._cam.create_still_configuration(
+        self._camera_config = self._cam.create_still_configuration(
             main={"format": "RGB888", "size": res}
         )
-        self._logger.info("%s still config: %s", self._camera_name, str(self._camconf.get("main")))
-        self._cam.configure(self._camconf)
+        self._logger.info("%s still config: %s", self._camera_name, str(self._camera_config.get("main")))
+        self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
         self._apply_runtime_controls(settings)
 
@@ -91,28 +93,28 @@ class Picamera2CamBase(CamBase.CamBase):
     def update(self):
         try:
             request = self._cam.capture_request()
-            self._currentMetaData = request.get_metadata()
-            self._currentimg = request.make_array("main")
+            self._current_metadata = request.get_metadata()
+            self._current_image = request.make_array("main")
             request.release()
 
-            self._logger.debug("Current image size: %s", str(self._currentimg.size))
+            self._logger.debug("Current image size: %s", str(self._current_image.size))
             self._logger.debug("Current image buffer updated")
         except Exception:
             self._logger.warning("Failed to update image buffer", exc_info=True)
-            self._currentimg = None
-            self._currentMetaData = None
+            self._current_image = None
+            self._current_metadata = None
 
     def start_stream(self, settings=None):
         if settings is None:
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
         self._cam = Picamera2()
-        self._camconf = self._cam.create_video_configuration(
+        self._camera_config = self._cam.create_video_configuration(
             main={"format": "RGB888", "size": stream_res},
             controls=self._get_stream_controls(settings),
         )
-        self._logger.info("%s stream config: %s", self._camera_name, str(self._camconf.get("main")))
-        self._cam.configure(self._camconf)
+        self._logger.info("%s stream config: %s", self._camera_name, str(self._camera_config.get("main")))
+        self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
         self._apply_runtime_controls(settings)
 

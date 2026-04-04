@@ -6,17 +6,15 @@ __author__ = 'teddycool'
 
 #Parent-class for all cams
 #https://en.wikipedia.org/wiki/State_pattern
-import time
 
 
-class CamBase(object):
+class CamBase:
 
     def __init__(self):
-        self._currentimg = None  #Must be a numpy array
-        self._currentMetaData = None #A Python dictionary
-        self._supportedImagesResolutions = [] # like: [(4608,2592)]
-        self._supportedVideoResolutions = [] # like: [(800,600)]
-        return
+        self._current_image = None  # Must be a numpy array
+        self._current_metadata = None  # A Python dictionary
+        self._supported_image_resolutions = []  # like: [(4608,2592)]
+        self._supported_video_resolutions = []  # like: [(800,600)]
 
     def initialize(self):  #Init camera with current settings from config
         raise NotImplementedError
@@ -25,10 +23,10 @@ class CamBase(object):
         raise NotImplementedError 
 
     def is_image_resolution_supported(self, res): #Check if res (x,y) is supported by camera for images
-        return self._supportedImagesResolutions.count(res)==1
+        return self._supported_image_resolutions.count(res) == 1
     
     def is_video_resolution_supported(self, res): #Check if res (x,y) is supported by camera for video
-        return self._supportedVideoResolutions.count(res)==1
+        return self._supported_video_resolutions.count(res) == 1
 
     def start_stream(self, settings=None):   # Start streaming to io-buffer
         raise NotImplementedError

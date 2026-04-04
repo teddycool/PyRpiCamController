@@ -8,36 +8,33 @@ from Cam import CamBase
 import cv2
 import time
 import logging
-import numpy as np
 import json
-import sys
 import datetime
 
 logger = logging.getLogger("cam.WebCam")
 
 class WebCam(CamBase.CamBase):
     def __init__(self):
-        super(WebCam, self).__init__()
-        self._supportedImagesResolutions = [(1920, 1080), (1280, 720), (640, 480)]
-        self._supportedVideoResolutions = [(1920, 1080), (1280, 720), (640, 480)]
+        super().__init__()
+        self._supported_image_resolutions = [(1920, 1080), (1280, 720), (640, 480)]
+        self._supported_video_resolutions = [(1920, 1080), (1280, 720), (640, 480)]
         self._cam = None
         self._device_index = 0  # Default webcam device index
-        return
     
     #Cam mode   
     def start(self, settings):
         res = tuple(settings["Cam"]["resolution"])
 
         if not self.is_image_resolution_supported(res):
-            logger.warning("Cam resolution " + str(res) + " requested in config, but not supported!")
-            logger.info("Setting first valid res from list " + str(self._supportedImagesResolutions))
-            res = self._supportedImagesResolutions[0]
+            logger.warning("Cam resolution %s requested in config, but not supported!", str(res))
+            logger.info("Setting first valid res from list %s", str(self._supported_image_resolutions))
+            res = self._supported_image_resolutions[0]
 
         # Initialize the webcam
         self._cam = cv2.VideoCapture(self._device_index)
         
         if not self._cam.isOpened():
-            logger.error("Could not open webcam device " + str(self._device_index))
+            logger.error("Could not open webcam device %s", str(self._device_index))
             raise RuntimeError("Failed to open webcam")
             
         # Set camera properties
@@ -58,11 +55,11 @@ class WebCam(CamBase.CamBase):
         # Verify actual resolution set
         actual_width = int(self._cam.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self._cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        logger.info("Webcam initialized with resolution: {}x{}".format(actual_width, actual_height))
+        logger.info("Webcam initialized with resolution: %sx%s", actual_width, actual_height)
         
         # Warm up the camera
-        for i in range(5):
-            ret, frame = self._cam.read()
+        for _ in range(5):
+            self._cam.read()
             time.sleep(0.1)
     
     def initialize(self, settings):
@@ -80,23 +77,23 @@ class WebCam(CamBase.CamBase):
         try:
             if self._cam is None or not self._cam.isOpened():
                 logger.error("Webcam is not initialized or opened")
-                self._currentimg = None
-                self._currentMetaData = None
+                self._current_image = None
+                self._current_metadata = None
                 return
                 
             ret, frame = self._cam.read()
             
             if not ret:
                 logger.warning("Failed to capture frame from webcam")
-                self._currentimg = None
-                self._currentMetaData = None
+                self._current_image = None
+                self._current_metadata = None
                 return
                 
             # Convert from BGR (OpenCV default) to RGB 
-            self._currentimg = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self._current_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
             # Create metadata similar to Pi camera
-            self._currentMetaData = {
+            self._current_metadata = {
                 "timestamp": datetime.datetime.now().isoformat(),
                 "ExposureTime": int(self._cam.get(cv2.CAP_PROP_EXPOSURE)) if self._cam.get(cv2.CAP_PROP_EXPOSURE) != -1 else 0,
                 "FrameWidth": int(self._cam.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -105,14 +102,14 @@ class WebCam(CamBase.CamBase):
                 "CameraType": "WebCam"
             }
              
-            logger.debug("Current image size: " + str(self._currentimg.size)) 
+            logger.debug("Current image size: %s", str(self._current_image.size))
             logger.debug("Current image buffer updated")   
-            logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
+            logger.debug("Current metadata: %s", json.dumps(self._current_metadata))
             
         except Exception as e:
-            logger.warning("Failed to update image buffer: %s" % str(e))
-            self._currentimg = None
-            self._currentMetaData = None
+            logger.warning("Failed to update image buffer: %s", str(e))
+            self._current_image = None
+            self._current_metadata = None
         
     #Stream mode
     def start_stream(self, settings=None):

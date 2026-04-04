@@ -7,32 +7,25 @@ __author__ = 'teddycool'
 #Hardware config
 from hwconfig import hwconfig1 as hwconfig
 
+import logging
 import time
-import os
-from Connectivity import cpuserial
-from IO import Display
-#from IO import Button
-from IO import Light
-from IO import Tempmonitor
+
+import RPi.GPIO as GPIO
+
 from CamStates import InitState
 from CamStates import PostState
 from CamStates import StreamState
-
-import RPi.GPIO as GPIO
-from hwconfig import hwconfig1 as hwconfig
-import time
-
-# Add project root to path for settings manager
-import sys
-import os
+from Connectivity import cpuserial
+from IO import Display
+from IO import Light
+from IO import Tempmonitor
 from Settings.settings_manager import settings_manager
 
-import logging
 logger = logging.getLogger("cam.mainloop")
 
 #States: Init. Idle, Post, (ImageStream)
 
-class MainLoop(object):
+class MainLoop:
 
     def __init__(self):
 
@@ -52,7 +45,7 @@ class MainLoop(object):
                 raise
                 
         self.mycpuserial = cpuserial.getserial()
-        logger.info("My serial is : " + self.mycpuserial)
+        logger.info("My serial is: %s", self.mycpuserial)
 
         self._lastconfigcheck = 0
         self._lasttempcheck = 0      
@@ -62,11 +55,11 @@ class MainLoop(object):
 
         
         #Setup IO, these settings are NOT configurable from backend but hardware dependent
-        self._display = Display.Display(hwconfig["Io"]["displaycontrolgpio"], hwconfig["Io"]["displaysize"])   
-        self._display.startup()     
+        self._display = Display.Display(hwconfig["Io"]["displaycontrolgpio"], hwconfig["Io"]["displaysize"])
+        self._display.startup()
      
         if (hwconfig["LightBox"]):
-            self._lightbox = Light.Light(GPIO,hwconfig["Io"]["lightcontrolgpio"])        
+            self._lightbox = Light.Light(GPIO, hwconfig["Io"]["lightcontrolgpio"])
         
         #Setup states
         self._initState = InitState.InitState()
@@ -78,11 +71,11 @@ class MainLoop(object):
                        "PostState": self._postState}              
 
     def initialize(self):
-        logger.info("Mainloop initialize")      
+        logger.info("Mainloop initialize")
         if (hwconfig["LightBox"]):
             light = settings_manager.get("Light")
             self._lightbox.start(light)
-            logger.info("Lightbox started with " + str(light) + "%")  
+            logger.info("Lightbox started with %s%%", light)
         
         # Check Mode setting to determine initial state
         mode = settings_manager.get("Mode", "Cam")
@@ -102,23 +95,23 @@ class MainLoop(object):
         #TODO: Check temperatures and other 'house-keeping'
 
         if time.time() - self._lasttempcheck > settings_manager.get("CheckCpuTemp"):
-            self._cputemp=self._cputempmonitor.get_cpu_temperature()
+            self._cputemp = self._cputempmonitor.get_cpu_temperature()
             self._lasttempcheck = time.time()
-            logger.debug("Current CPU-temperature: " + str(self._cputemp))
+            logger.debug("Current CPU-temperature: %s", str(self._cputemp))
             if self._cputemp > settings_manager.get("Limits.maxcputemp"):
-                logger.error("Critical CPU-temperature: " + str(self._cputemp))
+                logger.error("Critical CPU-temperature: %s", str(self._cputemp))
                 logger.error("Will halt system for 5 minutes to cool off")
                 time.sleep(300)
-                logger.info("CPU-temperature after cool-off is now: " + str(self._cputempmonitor.get_cpu_temperature()))
+                logger.info("CPU-temperature after cool-off is now: %s", str(self._cputempmonitor.get_cpu_temperature()))
             else:   
                 if self._cputemp > settings_manager.get("Limits.wcputemp"):
-                    logger.warning("High CPU-temperature: " + str(self._cputemp))
+                    logger.warning("High CPU-temperature: %s", str(self._cputemp))
         #Finally, update the current state logic..                  
         self._currentstate.update(self)      
 
  
     def set_state(self, statename):
-        logger.info("State changed to: " + statename)
+        logger.info("State changed to: %s", statename)
         #TODO: dispose resources from previous state
         self._currentstate = self.states[statename]
         
