@@ -18,11 +18,11 @@ class Light(object):
     def start(self, duty):
         self._softpwm.start(duty)
 
-    def setDuty(self, duty):
+    def set_duty(self, duty):
         self._softpwm.ChangeDutyCycle(duty)
         
     def stop(self):
-        self.setDuty(0)        
+        self.set_duty(0)        
         self._softpwm.stop()
         
 

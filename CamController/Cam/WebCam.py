@@ -28,7 +28,7 @@ class WebCam(CamBase.CamBase):
     def start(self, settings):
         res = tuple(settings["Cam"]["resolution"])
 
-        if not self.iResSupported(res):
+        if not self.is_image_resolution_supported(res):
             logger.warning("Cam resolution " + str(res) + " requested in config, but not supported!")
             logger.info("Setting first valid res from list " + str(self._supportedImagesResolutions))
             res = self._supportedImagesResolutions[0]
@@ -115,7 +115,9 @@ class WebCam(CamBase.CamBase):
             self._currentMetaData = None
         
     #Stream mode
-    def startStream(self, settings):
+    def start_stream(self, settings=None):
+        if settings is None:
+            settings = {}
         # For webcam, streaming is essentially the same as regular mode
         # The camera is already continuously capturing
         self.start(settings)

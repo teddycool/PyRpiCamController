@@ -22,7 +22,7 @@ class WiFi(object):
         logger.debug ("Init WiFi management")
 
 
-    def ConnectionCheck(self):
+    def connection_check(self):
         logger.debug (" Checking connection....")
         connected = False
         try:
@@ -38,4 +38,4 @@ class WiFi(object):
 if __name__ == '__main__':
     print ("Testcode for WiFi")
     wifi=WiFi()
-    print (wifi.ConnectionCheck())
+    print (wifi.connection_check())

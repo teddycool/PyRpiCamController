@@ -24,19 +24,22 @@ class CamBase(object):
     def update(self, context): #Update current image (and metadata) with latest frame from cam
         raise NotImplementedError 
 
-    def iResSupported(self, res): #Check if res (x,y) is supported by camera for images
+    def is_image_resolution_supported(self, res): #Check if res (x,y) is supported by camera for images
         return self._supportedImagesResolutions.count(res)==1
     
-    def vResSupported(self, res): #Check if res (x,y) is supported by camera for video
+    def is_video_resolution_supported(self, res): #Check if res (x,y) is supported by camera for video
         return self._supportedVideoResolutions.count(res)==1
 
-    def startStreaming(self):   #Start 'recording' to io-buffer
+    def start_stream(self, settings=None):   # Start streaming to io-buffer
         raise NotImplementedError
 
 
 
 
-def getCam(camtype):
+def get_cam(camtype):
+    if (camtype == "PiCam2"):
+        from Cam import PiCam2
+        return PiCam2.PiCam2()
     if (camtype == "PiCam3"):
         from Cam import  PiCam3
         cam = PiCam3.PiCam3()

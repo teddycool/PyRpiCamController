@@ -33,7 +33,7 @@ class PostState(BaseState.BaseState):
         logger.debug ("PostState initialize..")
          #Setup Cam
         self._lastsent = 0 #Force first image
-        self._cam = CamBase.getCam(settings["CamChip"])
+        self._cam = CamBase.get_cam(settings["CamChip"])
         logger.debug ("CamType: " + str(self._cam))
         self._cam.start(settings)
         

@@ -5,20 +5,18 @@
 __author__ = 'teddycool'
 
 from Cam import Picamera2CamBase
-import libcamera
 import logging
-logger = logging.getLogger("cam.PiCam3")
+logger = logging.getLogger("cam.PiCam2")
 
 
-class PiCam3(Picamera2CamBase.Picamera2CamBase):
+class PiCam2(Picamera2CamBase.Picamera2CamBase):
     def __init__(self):
-        super(PiCam3, self).__init__(
-            camera_name="PiCam3",
+        super(PiCam2, self).__init__(
+            camera_name="PiCam2",
             image_resolutions=[
-                (4608, 2592),
-                (2304, 1296),
+                (3280, 2464),
                 (1920, 1080),
-                (1536, 864),
+                (1640, 1232),
                 (1280, 720),
                 (640, 480),
             ],
@@ -29,9 +27,4 @@ class PiCam3(Picamera2CamBase.Picamera2CamBase):
             ],
         )
         self._logger = logger
-
-    def _get_camera_specific_controls(self, settings):
-        return {
-            "AfMode": libcamera.controls.AfModeEnum.Continuous,
-        }
     

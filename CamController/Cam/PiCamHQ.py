@@ -4,61 +4,46 @@
 
 __author__ = 'teddycool'
 
-from Cam import CamBase
-from picamera2 import Picamera2, Preview
-import libcamera
-import requests
-import time
+from Cam import Picamera2CamBase
 import logging
 logger = logging.getLogger("cam.PiCamHQ")
-import json
-import sys
 
-#How to handle different types/generations of cams? Like picam1 and picam2 with different capabilities
 
-class PiCamHQ(CamBase.CamBase):
+class PiCamHQ(Picamera2CamBase.Picamera2CamBase):
     def __init__(self):
-        super(PiCamHQ, self).__init__()
-        self._supportedImagesResolutions= [(4608,2592)]
-        return
-    
- #Cam mode   
-    def start(self, settings):
-        res = (settings["Cam"]["width"], settings["Cam"]["height"])
+        super(PiCamHQ, self).__init__(
+            camera_name="PiCamHQ",
+            image_resolutions=[
+                (4056, 3040),
+                (2028, 1520),
+                (1920, 1080),
+                (1332, 990),
+                (1280, 720),
+                (640, 480),
+            ],
+            video_resolutions=[
+                (1920, 1080),
+                (1280, 720),
+                (640, 480),
+            ],
+        )
+        self._logger = logger
 
-        if not self.iResSupported(res):
-            logger.warning("Cam resolution " + str(res) + " requested in config, but not supported!")            
-            logger.info("Setting first valid res from list " + str(self._supportedImagesResolutions) )
-            res = self._supportedImagesResolutions[0]
+    def _resolve_image_resolution(self, settings):
+        cam_settings = settings.get("Cam", {})
+        requested_res = cam_settings.get("resolution")
 
-        self._cam = Picamera2()
-        self._camconf =  self._cam.create_still_configuration({"format": "RGB888", "size": res})
-     #   logger.info("Cam-config: " +  self._camconf["main"])
-        self._cam.configure(self._camconf)
-        self._cam.start(show_preview=False)
-        self._cam.set_controls({"AwbMode": libcamera.controls.AwbModeEnum.Auto}) 
-        self._cam.set_controls({"AeEnable": True}) 
-        self._cam.set_controls({"AeExposureMode": libcamera.controls.AeExposureModeEnum.Short}) 
-    
-    def initialize(self, settings):
-        #Can't change cam settings on the fly, yet...
-        #self.update() 
-        pass
-        
-    def update(self):
-        try:
-            request = self._cam.capture_request()
-            self._currentimg = request.make_array("main")
-          #  self._currentimg = self._cam.capture_array("main")    #How to avoid lock-up here? 
-            self._currentMetaData = request.get_metadata()  
-            request.release()
-            logger.debug("Current image buffer updated")   
-            logger.debug("Current metadata: " + json.dumps(self._currentMetaData))
-        except:
-            logger.warning("Failed to update image buffer %s" % sys.exc_info())  
-        
-#Stream mode
+        if requested_res is None and "width" in cam_settings and "height" in cam_settings:
+            requested_res = (cam_settings["width"], cam_settings["height"])
 
-    def startStream(self, settings):
-         self._cam = Picamera2()
+        if requested_res is None:
+            requested_res = self._supportedImagesResolutions[0]
+
+        requested_res = tuple(requested_res)
+
+        if requested_res not in self._supportedImagesResolutions:
+            self._logger.warning("Cam resolution %s requested in config, but not supported by PiCamHQ", str(requested_res))
+            self._logger.info("Using fallback image resolution %s", str(self._supportedImagesResolutions[0]))
+            return self._supportedImagesResolutions[0]
+        return requested_res
     

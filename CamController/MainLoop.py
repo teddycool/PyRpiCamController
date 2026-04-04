@@ -90,10 +90,10 @@ class MainLoop(object):
         
         if mode == "Stream":
             logger.info("Starting in StreamState")
-            self.setState("StreamState")
+            self.set_state("StreamState")
         else:
             logger.info("Starting in InitState (camera mode)")
-            self.setState("InitState")
+            self.set_state("InitState")
         
     def update(self):
         # Settings changes are handled by webapp restart of camcontroller service
@@ -117,7 +117,7 @@ class MainLoop(object):
         self._currentstate.update(self)      
 
  
-    def setState(self, statename):
+    def set_state(self, statename):
         logger.info("State changed to: " + statename)
         #TODO: dispose resources from previous state
         self._currentstate = self.states[statename]

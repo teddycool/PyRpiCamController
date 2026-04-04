@@ -31,13 +31,13 @@ class InitState(BaseState.BaseState):
         logger.info ("InitState update..")
         if time.time() - self._lastconcheck > 1: 
             self._lastconcheck = time.time()
-            if (self._wifi.ConnectionCheck()):
+            if (self._wifi.connection_check()):
                 context._display.wifi_connected()
                 logger.info ("Connected")
                 if settings_manager.get("Mode") == "Cam":
-                    context.setState("PostState")
+                    context.set_state("PostState")
                 if settings_manager.get("Mode") == "Stream":
-                    context.setState("StreamState")
+                    context.set_state("StreamState")
                 #TODO: add ota state ?                
         else:
             logger.info ("Not connected yet...")
