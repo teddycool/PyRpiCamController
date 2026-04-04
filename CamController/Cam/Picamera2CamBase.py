@@ -5,6 +5,7 @@
 __author__ = 'teddycool'
 
 from Cam import CamBase
+from Cam import camera_settings
 from picamera2 import Picamera2
 import libcamera
 import logging
@@ -27,8 +28,8 @@ class Picamera2CamBase(CamBase.CamBase):
         self._logger = logging.getLogger(f"cam.{camera_name}")
 
     def _resolve_image_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
-        requested_res = settings.get("Cam", {}).get("resolution", self._supported_image_resolutions[0])
-        requested_res = tuple(requested_res)
+        camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
+        requested_res = camera_cfg.resolution
 
         if requested_res not in self._supported_image_resolutions:
             self._logger.warning(
@@ -42,8 +43,8 @@ class Picamera2CamBase(CamBase.CamBase):
         return requested_res
 
     def _resolve_stream_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
-        requested_res = settings.get("Stream", {}).get("resolution", self._supported_video_resolutions[0])
-        requested_res = tuple(requested_res)
+        stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
+        requested_res = stream_cfg.resolution
 
         if requested_res not in self._supported_video_resolutions:
             self._logger.warning(
@@ -57,14 +58,15 @@ class Picamera2CamBase(CamBase.CamBase):
         return requested_res
 
     def _get_common_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
+        camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
         controls = {
             "AwbMode": libcamera.controls.AwbModeEnum.Auto,
             "AeEnable": True,
             "AwbEnable": True,
         }
 
-        if "brightness" in settings.get("Cam", {}):
-            controls["Brightness"] = settings["Cam"]["brightness"]
+        if camera_cfg.brightness is not None:
+            controls["Brightness"] = camera_cfg.brightness
 
         return controls
 
@@ -72,8 +74,9 @@ class Picamera2CamBase(CamBase.CamBase):
         return {}
 
     def _get_stream_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
+        stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
         return {
-            "FrameRate": settings.get("Stream", {}).get("framerate", 20),
+            "FrameRate": stream_cfg.framerate,
         }
 
     def _apply_runtime_controls(self, settings: dict[str, Any]) -> None:

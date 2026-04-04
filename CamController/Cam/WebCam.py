@@ -5,6 +5,7 @@
 __author__ = 'teddycool'
 
 from Cam import CamBase
+from Cam import camera_settings
 import cv2
 import time
 import logging
@@ -24,7 +25,8 @@ class WebCam(CamBase.CamBase):
     
     #Cam mode   
     def start(self, settings: dict[str, Any]) -> None:
-        res = tuple(settings["Cam"]["resolution"])
+        camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
+        res = camera_cfg.resolution
 
         if not self.is_image_resolution_supported(res):
             logger.warning("Cam resolution %s requested in config, but not supported!", str(res))
@@ -44,9 +46,9 @@ class WebCam(CamBase.CamBase):
         self._cam.set(cv2.CAP_PROP_FPS, 30)
         
         # Set brightness if available
-        if "brightness" in settings["Cam"]:
+        if camera_cfg.brightness is not None:
             # OpenCV brightness is typically 0-100, convert if needed
-            brightness = settings["Cam"]["brightness"]
+            brightness = camera_cfg.brightness
             if brightness < 0:
                 brightness = 0
             elif brightness > 100:
@@ -66,8 +68,9 @@ class WebCam(CamBase.CamBase):
     def initialize(self, settings: dict[str, Any]) -> None:
         # Webcam settings can be changed on the fly
         if self._cam is not None and self._cam.isOpened():
-            if "brightness" in settings["Cam"]:
-                brightness = settings["Cam"]["brightness"]
+            camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
+            if camera_cfg.brightness is not None:
+                brightness = camera_cfg.brightness
                 if brightness < 0:
                     brightness = 0
                 elif brightness > 100:

@@ -8,6 +8,7 @@ import os
 import time
 from Connectivity import WiFi
 from CamStates import BaseState
+from CamStates.state_names import StateName
 # Add project root to path for settings manager
 import sys
 from Settings.settings_manager import settings_manager
@@ -34,10 +35,11 @@ class InitState(BaseState.BaseState):
             if (self._wifi.connection_check()):
                 context._display.wifi_connected()
                 logger.info ("Connected")
-                if settings_manager.get("Mode") == "Cam":
-                    context.set_state("PostState")
-                if settings_manager.get("Mode") == "Stream":
-                    context.set_state("StreamState")
+                settings_store = getattr(context, "_settings", settings_manager)
+                if settings_store.get("Mode") == "Cam":
+                    context.set_state(StateName.POST)
+                if settings_store.get("Mode") == "Stream":
+                    context.set_state(StateName.STREAM)
                 #TODO: add ota state ?                
         else:
             logger.info ("Not connected yet...")

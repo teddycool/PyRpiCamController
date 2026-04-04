@@ -9,12 +9,14 @@ from hwconfig import hwconfig1 as hwconfig
 
 import logging
 import time
+from typing import Any
 
 import RPi.GPIO as GPIO
 
 from CamStates import InitState
 from CamStates import PostState
 from CamStates import StreamState
+from CamStates.state_names import StateName
 from Connectivity import cpuserial
 from IO import Display
 from IO import Light
@@ -27,7 +29,9 @@ logger = logging.getLogger("cam.mainloop")
 
 class MainLoop:
 
-    def __init__(self):
+    def __init__(self, settings: Any = None, hardware_config: dict[str, Any] | None = None):
+        self._settings = settings or settings_manager
+        self._hardware_config = hardware_config or hwconfig
 
         #TODO: add and check settings for IO enabled
         try:
@@ -55,38 +59,43 @@ class MainLoop:
 
         
         #Setup IO, these settings are NOT configurable from backend but hardware dependent
-        self._display = Display.Display(hwconfig["Io"]["displaycontrolgpio"], hwconfig["Io"]["displaysize"])
+        self._display = Display.Display(
+            self._hardware_config["Io"]["displaycontrolgpio"],
+            self._hardware_config["Io"]["displaysize"],
+        )
         self._display.startup()
      
-        if (hwconfig["LightBox"]):
-            self._lightbox = Light.Light(GPIO, hwconfig["Io"]["lightcontrolgpio"])
+        if self._hardware_config["LightBox"]:
+            self._lightbox = Light.Light(GPIO, self._hardware_config["Io"]["lightcontrolgpio"])
         
         #Setup states
         self._initState = InitState.InitState()
         self._postState = PostState.PostState()
         self._streamState = StreamState.StreamState()
         
-        self.states = {"InitState": self._initState, 
-                       "StreamState": self._streamState,
-                       "PostState": self._postState}              
+        self.states = {
+            StateName.INIT: self._initState,
+            StateName.STREAM: self._streamState,
+            StateName.POST: self._postState,
+        }
 
     def initialize(self):
         logger.info("Mainloop initialize")
-        if (hwconfig["LightBox"]):
-            light = settings_manager.get("Light")
+        if self._hardware_config["LightBox"]:
+            light = self._settings.get("Light")
             self._lightbox.start(light)
             logger.info("Lightbox started with %s%%", light)
         
         # Check Mode setting to determine initial state
-        mode = settings_manager.get("Mode", "Cam")
+        mode = self._settings.get("Mode", "Cam")
         logger.info(f"Mode setting: {mode} - determining initial state")
         
         if mode == "Stream":
             logger.info("Starting in StreamState")
-            self.set_state("StreamState")
+            self.set_state(StateName.STREAM)
         else:
             logger.info("Starting in InitState (camera mode)")
-            self.set_state("InitState")
+            self.set_state(StateName.INIT)
         
     def update(self):
         # Settings changes are handled by webapp restart of camcontroller service
@@ -94,30 +103,33 @@ class MainLoop:
         
         #TODO: Check temperatures and other 'house-keeping'
 
-        if time.time() - self._lasttempcheck > settings_manager.get("CheckCpuTemp"):
+        if time.time() - self._lasttempcheck > self._settings.get("CheckCpuTemp"):
             self._cputemp = self._cputempmonitor.get_cpu_temperature()
             self._lasttempcheck = time.time()
             logger.debug("Current CPU-temperature: %s", str(self._cputemp))
-            if self._cputemp > settings_manager.get("Limits.maxcputemp"):
+            if self._cputemp > self._settings.get("Limits.maxcputemp"):
                 logger.error("Critical CPU-temperature: %s", str(self._cputemp))
                 logger.error("Will halt system for 5 minutes to cool off")
                 time.sleep(300)
                 logger.info("CPU-temperature after cool-off is now: %s", str(self._cputempmonitor.get_cpu_temperature()))
             else:   
-                if self._cputemp > settings_manager.get("Limits.wcputemp"):
+                if self._cputemp > self._settings.get("Limits.wcputemp"):
                     logger.warning("High CPU-temperature: %s", str(self._cputemp))
         #Finally, update the current state logic..                  
         self._currentstate.update(self)      
 
  
-    def set_state(self, statename):
-        logger.info("State changed to: %s", statename)
+    def set_state(self, state_name: StateName | str):
+        if isinstance(state_name, str):
+            state_name = StateName(state_name)
+
+        logger.info("State changed to: %s", state_name.value)
         #TODO: dispose resources from previous state
-        self._currentstate = self.states[statename]
+        self._currentstate = self.states[state_name]
         
         # Merge hardware config with settings manager data
-        settings_dict = dict(settings_manager.get_dict())  # Convert SettingsDict to regular dict
-        settings_dict.update(hwconfig)  # Add hardware configuration to settings
+        settings_dict = dict(self._settings.get_dict())  # Convert SettingsDict to regular dict
+        settings_dict.update(self._hardware_config)  # Add hardware configuration to settings
         
         self._currentstate.initialize(settings_dict)
 
@@ -125,7 +137,7 @@ class MainLoop:
     def stop(self):
         logger.info("Mainloop stopped")
         self._display.off()
-        if (hwconfig["LightBox"]):
+        if self._hardware_config["LightBox"]:
             logger.info("Lightbox stopped")
             self._lightbox.stop()
 
