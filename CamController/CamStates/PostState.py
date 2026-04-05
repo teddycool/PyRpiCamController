@@ -36,6 +36,14 @@ class PostState(BaseState.BaseState):
         self._cam = CamBase.get_cam(settings["CamChip"])
         logger.debug ("CamType: " + str(self._cam))
         self._cam.start(settings)
+        cam_settings = settings.get("Cam", {})
+        self._image_format = str(cam_settings.get("format", "jpg")).lower()
+        if self._image_format not in ["jpg", "png"]:
+            logger.warning(
+                "Unsupported Cam.format %s, falling back to jpg",
+                self._image_format,
+            )
+            self._image_format = "jpg"
         
         # Initialize vision pipeline
         self._image_processor = ImageProcessor()
@@ -124,20 +132,20 @@ class PostState(BaseState.BaseState):
                     
                     # Encode and publish the processed image
                     try:
-                        success, jpgimagedata = cv2.imencode(".jpg", currentImage)
-                        if success:        
-                            # Merge camera metadata with processing metadata
-                            final_metadata = self._cam._current_metadata.copy() if self._cam._current_metadata else {}
-                            if enriched_metadata:
-                                final_metadata.update(enriched_metadata)
-                            
-                            # Publish to all configured publishers
-                            for publisher in self._publishers:
-                                publisher.publish(jpgimagedata, final_metadata, self._save_metadata_json)
-                                logger.debug("Posted image-data to " + type(publisher).__name__)
+                        # Merge camera metadata with processing metadata
+                        final_metadata = self._cam._current_metadata.copy() if self._cam._current_metadata else {}
+                        if enriched_metadata:
+                            final_metadata.update(enriched_metadata)
 
-                        else:
-                            logger.error ("Open-cv imencode failed", exc_info=True)     
+                        encode_ext = f".{self._image_format}"
+                        ok, encoded_image = cv2.imencode(encode_ext, currentImage)
+                        if not ok:
+                            raise RuntimeError(f"Open-cv imencode failed for format {encode_ext}")
+
+                        # Publish one shared encoding to all publishers.
+                        for publisher in self._publishers:
+                            publisher.publish(encoded_image, final_metadata, self._save_metadata_json)
+                            logger.debug("Posted %s image-data to %s", encode_ext, type(publisher).__name__)
                     except Exception as e:
                         logger.error(f"Open-cv imencode failed. Cam will try to continue. Exception: {e}", exc_info=True)
                 else:

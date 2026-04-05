@@ -1,8 +1,8 @@
 # PyRpiCamController
 
-A modern Python camera control system for Raspberry Pi with web interface, designed for research, time-lapse photography, and automated image collection.
+A modern Python camera control system for Raspberry Pi with a web interface, designed for research, time-lapse photography, and automated image collection.
 
-> ℹ️ **Note:** Still a work in progress but all basic functions and web-gui is working. Motion detection and vision-pipeline is not yet fully implemented.
+**First Release**: This release delivers a stable and practical baseline for Raspberry Pi camera deployments, including capture, streaming, web-based configuration, and network file sharing. It is intended for real-world use while selected advanced vision features continue to mature.
 
 [![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://python.org)
 [![Raspberry Pi](https://img.shields.io/badge/platform-raspberry%20pi-red.svg)](https://raspberrypi.org)
@@ -10,16 +10,16 @@ A modern Python camera control system for Raspberry Pi with web interface, desig
 
 ## 🎯 What is PyRpiCamController?
 
-A comprehensive camera control software originally developed for bee-research and machine-learning data collection. The system provides:
+A comprehensive camera control system originally developed for bee research and machine-learning data collection. The system provides:
 
 - **Automated Photography**: Configurable time-lapse
 - **Live Streaming**: Real-time video streaming with web viewer
 - **Web Interface**: Modern browser-based configuration and control
-- **Motion Detection**: Trigger capture based on movement
+- **Motion-Aware Processing**: Detect and annotate movement in the vision pipeline
 - **Hardware Integration**: LED lighting control and status indicators
 - **Research Ready**: Metadata collection and backend data posting
 
-Perfect for wildlife monitoring, time-lapse projects, security applications, and any automated photography needs.
+It is well suited for wildlife monitoring, time-lapse projects, security applications, and other automated photography needs.
 
 If you like the project and want to support it, consider donating a small amount via [PayPal](https://www.paypal.com/donate/?business=6X9PRDMLYC4NN&no_recurring=1&currency_code=SEK)
 
@@ -36,11 +36,11 @@ If you like the project and want to support it, consider donating a small amount
 ## ✨ Features
 
 ### Core Functionality
-* **Multi-Camera Support**: Raspberry Pi Camera Module 3 and HQ Camera
+* **Multi-Camera Support**: Raspberry Pi Camera Module 2/3 and HQ Camera
 * **Unified Settings System**: JSON schema-based configuration with web interface
 * **Real-time Streaming**: Live video with configurable resolution and framerate
 * **Smart Scheduling**: Time-based capture with customizable intervals
-* **Motion Detection**: Configurable sensitivity and background modeling
+* **Vision Pipeline**: Pluggable image processing pipeline (base pipeline enabled)
 * **Temperature Monitoring**: CPU thermal management with automatic cooling
 * **Built-in Network Storage**: Automatic file sharing for images and logs
 
@@ -53,18 +53,27 @@ If you like the project and want to support it, consider donating a small amount
 * **Service Integration**: Systemd services for production deployment
 * **Research Features**: Metadata collection, backend posting, structured logging
 
+### Default-Enabled In This Release
+These features are enabled by default in `Settings/settings_schema.json`:
+
+* **File publishing enabled** (`Cam.publishers.file.publish = true`)
+* **Disk space management enabled** (`storage_management.enabled = true`)
+* **File logging enabled** (`LogToFile = true`)
+* **Vision framework enabled** (`Vision.enabled = true`)
+* **OTA update notifications enabled** (`OTA.notify_available = true`)
+
 ### Technical Highlights
-* **Modular Architecture**: Easy to add new camera types, publishing-targets and image processing steps  
+* **Modular Architecture**: Easy to add new camera types, publishing targets, and image processing steps  
 * **High Performance**: Concurrent streaming with efficient resource usage
 * **Production Ready**: Service deployment with monitoring and auto-restart 
-* **All Python**: Easy to follow and well documented code, all open-source
+* **All Python**: Easy-to-follow, well-documented, open-source code
 
 ### Auxiliary control hardware
 * PWM-controlled LED lighting (flicker-free 2500Hz)
 * Addressable RGB status indicators  
 * Temperature sensors for environmental monitoring
-* A circuit-diagram for the needed extra hardware used for some features can be found here: [Circuit-diagram](_doc/extra_hardware.pdf) and [the PCB can be ordered from Aisler](https://aisler.net/p/VECRZXIU)
-* Complete KiCAD project available in [this zip-file](_doc/RpiConnector_v2.1_kicad_9.0.7.zip).
+* A circuit diagram for optional auxiliary hardware is available here: [Circuit diagram](_doc/extra_hardware.pdf), and [the PCB can be ordered from Aisler](https://aisler.net/p/VECRZXIU)
+* Complete KiCAD project available in [this zip file](_doc/RpiConnector_v2.1_kicad_9.0.7.zip).
 
 ## 🚀 Quick Start
 
@@ -80,7 +89,7 @@ If you like the project and want to support it, consider donating a small amount
    ```bash
    scp -r PyRpiCamController pi@your-pi-ip:~/
    ssh pi@your-pi-ip
-   cd PyRpiCamController && python tools/install-all.py
+   cd PyRpiCamController && python3 tools/install-all-optimized.py
    ```
 
 3. **Configure**: Access the web interface at `http://your-pi-ip`
@@ -99,16 +108,17 @@ If you like the project and want to support it, consider donating a small amount
 
 ## 🔧 Hardware Support
 
-### Currrently Supported Cameras
+### Currently Supported Cameras
+- **Raspberry Pi Camera Module 2**: Supported via Picamera2
 - **Raspberry Pi Camera Module 3**: Full resolution (4608x2592), autofocus
 - **Raspberry Pi High Quality Camera**: Interchangeable lenses, high sensitivity
 
 ### Supported Boards  
-- **Raspberry Pi 3B+**: USB boot capable (recommended for start)
+- **Raspberry Pi 3B+**: USB boot capable (recommended starting point)
 - **Raspberry Pi 4B**: All variants with USB 3.0 boot support
 - **Raspberry Pi 5**: Full USB boot support
 
-**Note**: Raspberry Pi Zero models and 3B (non-+) are **not supported**  out of the box as they cannot boot directly from USB. 
+**Note**: Raspberry Pi Zero models and 3B (non-+) are **not supported** out of the box because they cannot boot directly from USB.
 
 ### Storage Requirements
 - **High-Performance USB Drive**: SanDisk Ultra Fit 32GB+ or similar is recommended
@@ -124,7 +134,7 @@ If you like the project and want to support it, consider donating a small amount
 
 ## 🤝 Contributing
 
-I encourage everyone to contribute! 
+Contributions are very welcome.
 
 **Ways to contribute:**
 - 🐛 **Report Issues**: Bug reports, feature requests, and feedback
@@ -144,10 +154,10 @@ I encourage everyone to contribute!
 
 Real-world applications of PyRpiCamController:
 
-### 🐝 Bee Hive Monitoring
+### 🐝 Beehive Monitoring
 
-**Inside Hive Camera**: Raspberry Pi 3B+ with PiCam3 wide-lens and autofocus. Integrated lightbox and status LED for minimal disturbance monitoring. USB storage for reliable 24/7 operation.
-[Buy a Pre-built beehive-cam](https://www.sensorwebben.se/kamera-bikupa/)
+**Inside Hive Camera**: Raspberry Pi 3B+ with PiCam3 wide lens and autofocus. Integrated light box and status LED for low-disturbance monitoring. USB storage for reliable 24/7 operation.
+[Buy a pre-built beehive camera](https://www.sensorwebben.se/kamera-bikupa/)
 
 **Entrance Monitoring**: Raspberry Pi 4B with PiCam3 in weatherproof enclosure. Status LED and SMB file sharing for remote access to entrance activity data.
 

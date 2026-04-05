@@ -34,7 +34,8 @@ class FilePublisher(PublisherBase):
         self.location = settings.get("Cam", {}).get("publishers", {}).get("file", {}).get("location", self.location)
         os.makedirs(self.location, exist_ok=True)
 
-        self.img_format = settings.get("Cam", {}).get("publishers", {}).get("file", {}).get("format", self.img_format)
+        cam_settings = settings.get("Cam", {})
+        self.img_format = str(cam_settings.get("format", self.img_format)).lower()
         
         # Initialize storage management settings
         storage_settings = settings.get("Cam", {}).get("storage_management", {})
@@ -43,8 +44,10 @@ class FilePublisher(PublisherBase):
         self.threshold_value = storage_settings.get("threshold_value", self.threshold_value)
         self.threshold_unit = storage_settings.get("threshold_unit", self.threshold_unit)
         
-        if self.img_format not in ["jpg"]:
-            raise ValueError(f"Unsupported image format: {self.img_format}. Supported formats: jpg.")
+        if self.img_format not in ["jpg", "png"]:
+            raise ValueError(
+                f"Unsupported image format: {self.img_format}. Supported formats: jpg, png."
+            )
         
         logger.info(f"FilePublisher initialized with location: {self.location}, format: {self.img_format}")
         logger.info(f"Storage management enabled: {self.storage_enabled}, mode: {self.storage_mode}, threshold: {self.threshold_value} {self.threshold_unit}")

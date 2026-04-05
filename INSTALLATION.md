@@ -6,18 +6,18 @@ Complete installation instructions for PyRpiCamController on Raspberry Pi with U
 
 **Hardware Requirements:**
 - **Raspberry Pi**: 3B+, 4B, or 5 (has WiFi and is USB boot capable)
-- **USB Drive**: SanDisk Ultra Fit 100GB+ recommended for system and image.storage (USB 3.0+ for best performance)
+- **USB Drive**: SanDisk Ultra Fit 100GB+ recommended for system and image storage (USB 3.0+ for best performance)
 - **Camera**: Raspberry Pi Camera Module 3 or HQ Camera
-- **Power**: Enogh power supply for your model
+- **Power**: Sufficient power supply for your model
 
-**Important**: Raspberry Pi Zero models, raspberry pi 2A/B and 3A and 3B are **not supported** as they cannot boot directly from USB. However, with an SD-card, extended swap and some fiddling you can use these as well but it is not explained here.
+**Important**: Raspberry Pi Zero models, Raspberry Pi 2A/B, and 3A/3B are **not supported** in this guide because they cannot boot directly from USB. They may still work with SD-card boot and additional setup, but that is outside the scope of this document.
 
-A circuit-diagram for the needed extra hardware used for some features can be found here: [Circuit-diagram](_doc/extra_hardware.pdf)
+A circuit diagram for optional auxiliary hardware used by some features can be found here: [Circuit diagram](_doc/extra_hardware.pdf)
 
 ## Step 1: Prepare USB Drive and Start the Pi
 
 **Create USB Boot Drive:**
-1. Use Raspberry Pi Imager to create a USB boot drive with latest Raspberry Pi OS Lite (64-bit recommended)
+1. Use Raspberry Pi Imager to create a USB boot drive with the latest Raspberry Pi OS Lite (64-bit recommended)
 2. Enable USB boot in Pi settings during imaging:
    - Set username/password
    - Configure WiFi credentials  
@@ -28,7 +28,7 @@ A circuit-diagram for the needed extra hardware used for some features can be fo
 - **Pi 4/5**: Boot directly from USB drive (no SD card needed)
 - **Pi 3B+**: May need one-time SD card setup to enable USB boot, then remove SD card
 
-When the Pi starts it will automatically connect to WiFi and get an IP address. If you set a hostname it will be available on the network with that name.
+When the Pi starts, it automatically connects to WiFi and gets an IP address. If you set a hostname, it will be available on the network under that name.
 
 **Performance Benefits of USB Boot:**
 - 3-5x faster I/O compared to SD cards
@@ -44,7 +44,7 @@ First clone this repository to your computer:
 git clone https://github.com/teddycool/PyRpiCamController.git
 ```
 
-Then copy these folders from the cloned repo to the home directory of the pi-user. Default is `/home/pi/..`
+Then copy these folders from the cloned repo to the Pi user's home directory (typically `/home/pi`).
 
 * `/PyRpiCamController/` - Complete project directory containing:
   * `/CamController/` - Main camera controller code
@@ -55,11 +55,17 @@ Then copy these folders from the cloned repo to the home directory of the pi-use
 
 ## Step 3: Install Software
 
-Now, run the `tools/install-all.py` script on your pi which will update the OS and install all needed packages and services. This will take a while. At the end the system will reboot with a new node-name (the pi cpu-serial) and the CamController will start as a service.
+Now run the `tools/install-all-optimized.py` script on your Pi. It updates the OS and installs all required packages and services. This can take a while. At the end, the installer prints a summary and sets a new hostname based on the CPU serial.
 
 ```bash
 cd /home/pi/PyRpiCamController
-python tools/install-all.py
+python3 tools/install-all-optimized.py
+```
+
+Then reboot once to ensure all services and hostname changes are active:
+
+```bash
+sudo reboot
 ```
 
 **Installation Features:**
@@ -103,6 +109,7 @@ After installation and reboot, configure the system on the running Raspberry Pi.
 
 **Essential Settings to Configure:**
 - Camera resolution and quality settings
+- Image format for all publishers (`Cam.format`: jpg/png)
 - Capture intervals and scheduling
 - Motion detection sensitivity
 - Network and logging preferences
@@ -113,7 +120,7 @@ After installation and reboot, configure the system on the running Raspberry Pi.
 
 ## Step 5: Verify Installation
 
-After reboot the system will be accessible via its new hostname (based on CPU serial number):
+After reboot, the system will be accessible via its new hostname (based on CPU serial number):
 
 ```bash
 # Check main camera service
@@ -156,14 +163,16 @@ hwconfig = {
 ```
 
 **Supported Camera Types:**
+- `"PiCam2"`: Raspberry Pi Camera Module 2
 - `"PiCam3"`: Raspberry Pi Camera Module 3 (default)
 - `"PiCamHQ"`: Raspberry Pi High Quality Camera
+- `"WebCam"`: USB webcam fallback
 
 **Note:** Hardware settings require restart to take effect, while dynamic settings (via web interface) are applied immediately.
 
 ## WiFi Management with Comitup
 
-The wifi is handled by the awesome software 'commitup' from Dave Steel. If the wifi doesn't find a known connection it starts an access-point and make it possible to define a new wifi-connection in a web-interface. 
+WiFi is handled by the Comitup software from Dave Steel. If no known network is found, the device starts an access point and allows you to configure a new WiFi connection through a web interface.
 
 **Key Features:**
 - Automatic fallback to access point mode if no known WiFi networks are found

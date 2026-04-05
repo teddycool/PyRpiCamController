@@ -52,11 +52,11 @@ echo "2️⃣  Network Connectivity:"
 LOCAL_IP=$(hostname -I | awk '{print $1}')
 HOSTNAME=$(hostname)
 
-echo -n "   • Web interface (port 8000): "
-if curl -s --connect-timeout 5 "http://localhost:8000" >/dev/null; then
+echo -n "   • Web interface (port 80): "
+if curl -s --connect-timeout 5 "http://localhost" >/dev/null; then
     echo "✅ Accessible"
-    echo "     URL: http://$HOSTNAME.local:8000"
-    echo "     URL: http://$LOCAL_IP:8000"
+    echo "     URL: http://$HOSTNAME.local"
+    echo "     URL: http://$LOCAL_IP"
 else
     echo "❌ Not accessible"
 fi
@@ -167,7 +167,7 @@ systemctl is-active camcontroller-web.service >/dev/null && ((services_ok++))
 systemctl is-active smbd >/dev/null && ((services_ok++))
 systemctl is-active nmbd >/dev/null && ((services_ok++))
 
-curl -s --connect-timeout 5 "http://localhost:8000" >/dev/null && ((network_ok++))
+curl -s --connect-timeout 5 "http://localhost" >/dev/null && ((network_ok++))
 command -v smbclient >/dev/null && timeout 10 smbclient //$LOCAL_IP/shared -U% -c "ls; quit" >/dev/null 2>&1 && ((network_ok++))
 
 for test in "${test_imports[@]}"; do
@@ -185,7 +185,7 @@ if [ $services_ok -ge 3 ] && [ $network_ok -ge 1 ] && [ $python_ok -ge 5 ]; then
     echo "PyRpiCamController appears to be working correctly."
     echo
     echo "Next steps:"
-    echo "• Access web interface: http://$HOSTNAME.local:8000"
+    echo "• Access web interface: http://$HOSTNAME.local"
     echo "• Configure camera settings via web interface"
     echo "• Test file sharing: smb://$HOSTNAME.local/shared"
     echo "• Configure WiFi with ComitUp if needed"

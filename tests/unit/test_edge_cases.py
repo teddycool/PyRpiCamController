@@ -25,10 +25,10 @@ class TestFilePublisherEdgeCases:
         
         self.test_settings = {
             "Cam": {
+                "format": "jpg",
                 "publishers": {
                     "file": {
-                        "location": self.temp_dir,
-                        "format": "jpg"
+                        "location": self.temp_dir
                     }
                 },
                 "storage_management": {
@@ -67,10 +67,10 @@ class TestFilePublisherEdgeCases:
         
         settings = {
             "Cam": {
+                "format": "jpg",
                 "publishers": {
                     "file": {
-                        "location": non_existent_dir,
-                        "format": "jpg"
+                        "location": non_existent_dir
                     }
                 },
                 "storage_management": {
@@ -213,7 +213,7 @@ class TestFilePublisherEdgeCases:
 
     def test_invalid_image_format_setting(self):
         """Test behavior with invalid image format in settings."""
-        self.test_settings["Cam"]["publishers"]["file"]["format"] = "invalid_format"
+        self.test_settings["Cam"]["format"] = "invalid_format"
         
         publisher = FilePublisher()
         

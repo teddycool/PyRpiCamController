@@ -318,7 +318,7 @@
             "web_editable": true
           },
           "location": {
-            "value": "http://www.biwebben.se/filedump2.php",
+            "value": "your_server/your_endpoint",
             "type": "text",
             "ui": {
               "name": "URL för publicering",
@@ -347,7 +347,7 @@
             "ui": {
               "name": "Spara till fil",
               "section": "Kamera",
-              "description": "Aktivera filpublicering",
+              "description": "Aktivera filpublicering till nätverksresurs",
               "level": "advanced"
             },
             "web_editable": true
@@ -363,24 +363,24 @@
             },
             "web_editable": true,
             "level": "advanced"
-          },
-          "format": {
-            "value": "jpg",
-            "type": "enum",
-            "options": [
-              "jpg",
-              "png"
-            ],
-            "ui": {
-              "name": "Bildformat",
-              "section": "Kamera",
-              "description": "Bildfilformat",
-              "level": "advanced"
-            },
-            "web_editable": true,
-            "level": "advanced"
           }
         }
+      },
+      "format": {
+        "value": "jpg",
+        "type": "enum",
+        "options": [
+          "jpg",
+          "png"
+        ],
+        "ui": {
+          "name": "Bildformat",
+          "section": "Kamera",
+          "description": "Bildfilformat för alla publishers",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
       },
       "brightness": {
         "value": 0,
@@ -408,7 +408,7 @@
           "description": "Aktiva timmar (start, stopp)",
           "level": "advanced"
         },
-        "web_editable": true,
+        "web_editable": false,
         "level": "advanced"
       },
       "MotionDetector": {
@@ -421,7 +421,7 @@
             "description": "Aktivera rörelsedetektering",
             "level": "advanced"
           },
-          "web_editable": true,
+          "web_editable": false,
           "level": "advanced"
         },
         "motioncount": {
@@ -435,7 +435,7 @@
             "description": "Tröskel för rörelsedetektering",
             "level": "advanced"
           },
-          "web_editable": true,
+          "web_editable": false,
           "level": "advanced"
         },
         "history": {
@@ -449,7 +449,7 @@
             "description": "Historik för rörelsedetektering",
             "level": "advanced"
           },
-          "web_editable": true,
+          "web_editable": false,
           "level": "advanced"
         }
       },
@@ -459,7 +459,7 @@
         "ui": {
           "name": "Beskär bild",
           "section": "Kamera",
-          "description": "Aktivera beskärning av bild",
+          "description": "Aktivera beskärning av bilden. Beskärning tillämpas efter att bilden tagits och påverkar inte streamen. Vänstra övre hörnet är position 0,0.",
           "level": "advanced"
         },
         "web_editable": true,
@@ -625,7 +625,7 @@
       "ui": {
         "name": "Loggnivå",
         "section": "System",
-        "description": "Loggnivå för detaljeringsgrad",
+        "description": "Detaljeringsgrad för loggning",
         "level": "advanced"
       },
       "web_editable": true,
@@ -647,7 +647,7 @@
       "value": "/home/pi/shared/logs/cam.log",
       "type": "text",
       "ui": {
-        "name": "Loggfilssökväg",
+        "name": "Lokal sökväg till loggfiler",
         "section": "System",
         "description": "Sökväg till loggfil",
         "level": "advanced"
@@ -677,7 +677,7 @@
       "ui": {
         "name": "Antal logg-backuper",
         "section": "System",
-        "description": "Antal backup-loggfiler att behålla",
+        "description": "Antal backup-loggfiler att behålla efter rotation",
         "level": "advanced"
       },
       "web_editable": true,
@@ -692,7 +692,7 @@
         "description": "Aktivera loggning till server",
         "level": "advanced"
       },
-      "web_editable": true,
+      "web_editable": false,
       "level": "advanced"
     },
     "LogHost": {
@@ -704,7 +704,7 @@
         "description": "Hostname för remote loggserver",
         "level": "advanced"
       },
-      "web_editable": true,
+      "web_editable": false,
       "level": "advanced"
     },
     "LogUrl": {
@@ -716,7 +716,7 @@
         "description": "URL för remote loggserver",
         "level": "advanced"
       },
-      "web_editable": true,
+      "web_editable": false,
       "level": "advanced"
     },
     "CheckNewSettings": {
@@ -768,7 +768,7 @@
           "description": "Aktivera bildanalys-pipeline",
           "level": "advanced"
         },
-        "web_editable": true,
+        "web_editable": false,
         "level": "advanced"
       },
       "processors": {
@@ -782,7 +782,7 @@
               "description": "Aktivera bildbeskärningsprocessor",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "validate_coordinates": {
@@ -794,7 +794,7 @@
               "description": "Validera beskärningskoordinater innan tillämpning",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           }
         },
@@ -808,7 +808,7 @@
               "description": "Aktivera rörelsedetekteringsprocessor",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "motion_threshold": {
@@ -822,7 +822,7 @@
               "description": "Minsta antal förändrade pixlar för rörelsedetektering",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "history": {
@@ -836,7 +836,7 @@
               "description": "Antal bakgrundsramar att behålla",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "detect_motion_areas": {
@@ -848,7 +848,7 @@
               "description": "Hitta och rapportera individuella rörelseområden",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "min_motion_area": {
@@ -862,7 +862,7 @@
               "description": "Minsta area i pixlar för att betraktas som rörelse",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "include_motion_mask": {
@@ -874,7 +874,7 @@
               "description": "Inkludera rörelsemask i metadata (för felsökning)",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           }
         }
@@ -890,7 +890,7 @@
               "description": "Aktivera ansiktsigenkänning (framtida funktion)",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           },
           "confidence_threshold": {
@@ -904,7 +904,7 @@
               "description": "Säkerhetströskel för ansiktsdetektering",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           }
         },
@@ -918,7 +918,7 @@
               "description": "Aktivera objektdetektering (framtida funktion)",
               "level": "advanced"
             },
-            "web_editable": true,
+            "web_editable": false,
             "level": "advanced"
           }
         }

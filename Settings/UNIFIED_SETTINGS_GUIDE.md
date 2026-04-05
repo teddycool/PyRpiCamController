@@ -7,12 +7,12 @@
 - [Configuration Sections](#configuration-sections)
 - [File Locations](#file-locations)
 
-This unified settings system solves the dual requirement:
+This unified settings system covers two core needs:
 
 - **Code Interface**: Easy programmatic access to settings from Python modules
 - **Web GUI**: Dynamic form generation for user-friendly configuration
 
-Both interfaces use the **same** underlying settings schema, ensuring consistency and eliminating duplication.
+Both interfaces use the **same** underlying settings schema, which keeps behavior consistent and avoids duplication.
 
 ## File Structure
 
@@ -33,8 +33,8 @@ PyRpiCamController/
 ```
 
 ## Quick Start
-After installing the PyRpiCamcontroller, you can quickly test the unified settings system:
-visit http://localhost:8000
+After installing PyRpiCamController, you can quickly test the unified settings system:
+Visit http://localhost
 
 **Web Interface Features:**
 - 🇸🇪 **Swedish language interface** for easy local use
@@ -48,7 +48,7 @@ visit http://localhost:8000
 
 - `settings_schema.json` defines ALL settings once
 - Includes default values, types, validation rules, and UI metadata
-- Both code and web GUI use this same schema
+- Both code and the web GUI use this same schema
 
 ### Web GUI Auto-Generation
 
@@ -56,7 +56,7 @@ visit http://localhost:8000
 - Organized by sections
 - Proper input types (text, number, checkbox, select)
 - Validation feedback
-- Read-only fields for system values
+- Read-only fields for system-managed values
 
 ### Validation
 
@@ -73,7 +73,7 @@ The settings are organized into logical sections:
 - **Camera**: Resolution, framerate, image settings
 - **Streaming**: Video streaming configuration
 - **Motion Detection**: Motion detection parameters
-- **Hardware**: Camera type, display, sensors
+- **Hardware**: Camera type, display, and sensors
 - **Publishing**: File and HTTP publishing options
 - **Network**: WiFi configuration
 - **System**: Timezone, startup options
@@ -94,7 +94,7 @@ The settings are organized into logical sections:
 
 ### Schema Files
 
-- `Settings/settings_schema.json`: Master schema (version controlled)
+- `Settings/settings_schema.json`: Master schema (version-controlled)
 - `Settings/user_settings.json`: User overrides (gitignored/user-specific)
 
 ### Hardware Configuration
@@ -104,7 +104,7 @@ The settings are organized into logical sections:
 - `CamController/hwconfig.py`: Hardware configuration (camera type, GPIO pins, board type)
   - These settings require physical access to modify
   - Changes require service restart
-  - Examples: Camera chip type (`"PiCam3"` or `"PiCamHQ"`), GPIO pin assignments
+  - Examples: Camera chip type (`"PiCam2"`, `"PiCam3"`, `"PiCamHQ"`, or `"WebCam"`), GPIO pin assignments
 
 **Why Separate?**
 - Hardware settings are deployment-specific and rarely change

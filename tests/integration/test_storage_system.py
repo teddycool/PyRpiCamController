@@ -46,11 +46,11 @@ class TestStorageManagementIntegration:
             "schema_version": "1.0",
             "settings": {
                 "Cam": {
+                    "format": {"value": "jpg", "type": "enum", "options": ["jpg"]},
                     "publishers": {
                         "file": {
                             "publish": {"value": True, "type": "bool"},
-                            "location": {"value": self.image_dir, "type": "text"},
-                            "format": {"value": "jpg", "type": "enum", "options": ["jpg"]}
+                            "location": {"value": self.image_dir, "type": "text"}
                         }
                     },
                     "storage_management": {
@@ -70,7 +70,7 @@ class TestStorageManagementIntegration:
         """Test complete workflow: settings -> FilePublisher -> storage management in delete mode."""
         
         # Step 1: Get settings from manager
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         
         # Step 2: Initialize FilePublisher with settings
         publisher = FilePublisher()
@@ -118,7 +118,7 @@ class TestStorageManagementIntegration:
         
         # Update settings to use stop_saving mode
         self.settings_manager.set("Cam.storage_management.mode", "stop_saving")
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         
         # Initialize FilePublisher
         publisher = FilePublisher()
@@ -143,7 +143,7 @@ class TestStorageManagementIntegration:
         """Test that changing settings affects FilePublisher behavior."""
         
         # Start with delete_old mode
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         publisher = FilePublisher()
         
         with patch('shutil.disk_usage') as mock_disk_usage:
@@ -162,7 +162,7 @@ class TestStorageManagementIntegration:
             
             # Now change to stop_saving mode
             self.settings_manager.set("Cam.storage_management.mode", "stop_saving")
-            updated_settings = {"Cam": self.settings_manager.get("Cam")}
+            updated_settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
             
             # Create new publisher with updated settings
             publisher2 = FilePublisher()
@@ -177,7 +177,7 @@ class TestStorageManagementIntegration:
         """Test that MB and percentage thresholds work correctly."""
         
         # Test MB threshold
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         publisher = FilePublisher()
         
         with patch('shutil.disk_usage') as mock_disk_usage:
@@ -195,7 +195,7 @@ class TestStorageManagementIntegration:
         self.settings_manager.set("Cam.storage_management.threshold_unit", "percent")
         self.settings_manager.set("Cam.storage_management.threshold_value", 10)  # 10%
         
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         publisher2 = FilePublisher()
         
         with patch('shutil.disk_usage') as mock_disk_usage:
@@ -214,7 +214,7 @@ class TestStorageManagementIntegration:
         
         # Disable storage management
         self.settings_manager.set("Cam.storage_management.enabled", False)
-        settings = {"Cam": self.settings_manager.get("Cam")}
+        settings = {"Cam": self.settings_manager.get_dict()["Cam"]}
         
         publisher = FilePublisher()
         
@@ -264,7 +264,7 @@ class TestStorageManagementIntegration:
         assert new_settings_manager.get("Cam.storage_management.threshold_unit") == "percent"
         
         # Create FilePublisher with persisted settings
-        settings = {"Cam": new_settings_manager.get("Cam")}
+        settings = {"Cam": new_settings_manager.get_dict()["Cam"]}
         publisher = FilePublisher()
         publisher.initialize(settings)
         

@@ -14,6 +14,18 @@
       "web_editable": false
     },
     "Cam": {
+      "format": {
+        "value": "jpg",
+        "type": "enum",
+        "options": ["jpg", "png"],
+        "ui": {
+          "name": "Image format",
+          "section": "Camera",
+          "description": "Image file format for all publishers",
+          "level": "basic"
+        },
+        "web_editable": true
+      },
       "publishers": {
         "file": {
           "publish": {
@@ -34,18 +46,6 @@
               "name": "Image path",
               "section": "Camera", 
               "description": "Local path for image storage",
-              "level": "basic"
-            },
-            "web_editable": true
-          },
-          "format": {
-            "value": "jpg",
-            "type": "enum",
-            "options": ["jpg", "png"],
-            "ui": {
-              "name": "Image format",
-              "section": "Camera",
-              "description": "Image file format",
               "level": "basic"
             },
             "web_editable": true

@@ -54,14 +54,14 @@ ls -la /home/pi/shared/
 
 ### Package Installation Failures
 
-For package manager locks during installation:
+If package manager locks appear during installation:
 - The install script automatically waits for locks to clear
 - Manually check: `sudo apt list --upgradable`
 - Clear locks if needed: `sudo rm /var/lib/dpkg/lock*`
 
 ### USB Boot Issues
 
-If Pi doesn't boot from USB:
+If the Pi does not boot from USB:
 - **Pi 4/5**: Check USB boot is enabled in Pi config
 - **Pi 3B+**: May require initial SD card setup to enable USB boot
 - Verify USB drive compatibility (some drives not supported)
@@ -121,7 +121,7 @@ sudo journalctl -u camcontroller-web.service -f
    sudo systemctl restart camcontroller-web.service
    ```
 
-2. **Port 80 access denied**: Web interface runs on port 80 (requires root):
+2. **Port 80 access denied**: The web interface runs on port 80 (requires root):
    ```bash
    # Check if port 80 is available
    sudo netstat -tulpn | grep :80
@@ -167,7 +167,7 @@ ls -la /home/pi/shared/
 
 ### WiFi Configuration Issues
 
-If WiFi setup fails, the device should create an access point named 'comitup-<number>'. Connect to this network and navigate to the captive portal to configure WiFi.
+If WiFi setup fails, the device should create an access point named `comitup-<number>`. Connect to that network and open the captive portal to configure WiFi.
 
 Check comitup status:
 ```bash
@@ -288,7 +288,7 @@ sudo systemctl stop camcontroller.service
 sudo systemctl stop camcontroller-web.service
 cd /home/pi/PyRpiCamController
 git pull  # Get latest changes
-python tools/install-all.py  # Reinstall
+python3 tools/install-all-optimized.py  # Reinstall
 ```
 
 ## Getting Help

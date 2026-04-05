@@ -28,6 +28,11 @@ class TestSettingsManager:
             "schema_version": "1.0",
             "settings": {
                 "Cam": {
+                    "format": {
+                        "value": "jpg",
+                        "type": "enum",
+                        "options": ["jpg", "png"]
+                    },
                     "publishers": {
                         "file": {
                             "publish": {
@@ -37,11 +42,6 @@ class TestSettingsManager:
                             "location": {
                                 "value": "/tmp/images",
                                 "type": "text"
-                            },
-                            "format": {
-                                "value": "jpg",
-                                "type": "enum",
-                                "options": ["jpg", "png"]
                             }
                         }
                     },
@@ -190,7 +190,7 @@ class TestSettingsManager:
         manager = SettingsManager(self.test_schema_path, self.test_user_path)
         
         # Get settings in the format FilePublisher expects
-        cam_settings = manager.get("Cam", {})
+        cam_settings = manager.get_dict()["Cam"]
         
         # Should have the nested structure
         assert "publishers" in cam_settings
@@ -201,7 +201,7 @@ class TestSettingsManager:
         file_settings = cam_settings["publishers"]["file"]
         assert file_settings["publish"] == True
         assert file_settings["location"] == "/tmp/images"
-        assert file_settings["format"] == "jpg"
+        assert cam_settings["format"] == "jpg"
         
         # Check storage management settings
         storage_settings = cam_settings["storage_management"]

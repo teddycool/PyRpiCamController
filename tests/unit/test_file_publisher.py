@@ -27,10 +27,10 @@ class TestFilePublisherDiskManagement:
         # Default test settings
         self.test_settings = {
             "Cam": {
+                "format": "jpg",
                 "publishers": {
                     "file": {
-                        "location": self.temp_dir,
-                        "format": "jpg"
+                        "location": self.temp_dir
                     }
                 },
                 "storage_management": {
@@ -60,10 +60,10 @@ class TestFilePublisherDiskManagement:
         """Test FilePublisher initialization with default storage settings."""
         minimal_settings = {
             "Cam": {
+                "format": "jpg",
                 "publishers": {
                     "file": {
-                        "location": self.temp_dir,
-                        "format": "jpg"
+                        "location": self.temp_dir
                     }
                 }
             }
