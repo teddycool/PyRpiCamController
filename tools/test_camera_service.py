@@ -33,7 +33,7 @@ def setup_camera_service():
         return False
     
     # Check if camera service file exists
-    service_file = f"{PROJECT_ROOT}/CamController/camcontroller.service"
+    service_file = f"{PROJECT_ROOT}/Services/camcontroller.service"
     if not os.path.exists(service_file):
         log(f"ERROR: Service file not found: {service_file}")
         return False

@@ -6,13 +6,13 @@ __author__ = 'teddycool'
 
 import os
 import time
-import json
 import logging
 import shutil
 import glob
 from typing import Tuple, List
 
 from .PublisherBase import PublisherBase
+from Settings.settings_manager import settings_manager
 
 logger = logging.getLogger("cam.publisher.file")
 
@@ -34,8 +34,7 @@ class FilePublisher(PublisherBase):
         self.location = settings.get("Cam", {}).get("publishers", {}).get("file", {}).get("location", self.location)
         os.makedirs(self.location, exist_ok=True)
 
-        cam_settings = settings.get("Cam", {})
-        self.img_format = str(cam_settings.get("format", self.img_format)).lower()
+        self.img_format = "jpg"
         
         # Initialize storage management settings
         storage_settings = settings.get("Cam", {}).get("storage_management", {})
@@ -43,11 +42,6 @@ class FilePublisher(PublisherBase):
         self.storage_mode = storage_settings.get("mode", self.storage_mode)
         self.threshold_value = storage_settings.get("threshold_value", self.threshold_value)
         self.threshold_unit = storage_settings.get("threshold_unit", self.threshold_unit)
-        
-        if self.img_format not in ["jpg", "png"]:
-            raise ValueError(
-                f"Unsupported image format: {self.img_format}. Supported formats: jpg, png."
-            )
         
         logger.info(f"FilePublisher initialized with location: {self.location}, format: {self.img_format}")
         logger.info(f"Storage management enabled: {self.storage_enabled}, mode: {self.storage_mode}, threshold: {self.threshold_value} {self.threshold_unit}")
@@ -175,8 +169,14 @@ class FilePublisher(PublisherBase):
         
         return False
 
-    def publish(self, jpgimagedata, metadata, save_metadata_json=False):
+    def publish(self, jpgimagedata, metadata):
         try:
+            # Keep runtime behavior in sync with latest persisted settings.
+            try:
+                settings_manager.load_user_settings()
+            except Exception as e:
+                logger.warning(f"Could not reload user settings before publish: {e}")
+
             # Check and manage storage space before saving
             if not self.manage_storage_space():
                 logger.error("Cannot save image: insufficient disk space and unable to free space.")
@@ -188,15 +188,7 @@ class FilePublisher(PublisherBase):
             # Write image data to file
             with open(img_filename, "wb") as img_file:
                 img_file.write(jpgimagedata.tobytes())
-
-            if save_metadata_json:
-                meta_filename = os.path.join(self.location, f"{timestamp}.json")
-                # Write metadata to JSON file
-                with open(meta_filename, "w") as meta_file:
-                    json.dump(metadata, meta_file, indent=2)
-                logger.debug(f"Saved image to {img_filename} and metadata to {meta_filename}")
-            else:
-                logger.debug(f"Saved image to {img_filename} (metadata json disabled)")
+            logger.debug(f"Saved image to {img_filename}")
             
             # Log current disk usage periodically (every 10th save)
             if timestamp % 10 == 0:

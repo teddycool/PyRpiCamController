@@ -170,7 +170,7 @@ def test_service_commands():
             print("✓ camcontroller-update.service file exists")
         else:
             print("! camcontroller-update.service not installed")
-            print("  Install with: sudo cp Updates/camcontroller-update.service /etc/systemd/system/")
+            print("  Install with: sudo cp Services/camcontroller-update.service /etc/systemd/system/")
             
     except Exception as e:
         print(f"! Could not test services (normal in containers): {e}")

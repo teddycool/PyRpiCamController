@@ -936,15 +936,25 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const response = await fetch('/api/service/apply-and-restart', {
                     method: 'POST'
                 });
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = null;
+                }
                 
                 if (response.ok) {
-                    statusText.textContent = 'Changes applied successfully - service is restarting...';
-                    // Wait for service restart
+                    statusText.textContent = (data && data.message)
+                        ? data.message
+                        : 'Changes applied successfully - settings reload requested...';
+                    // Wait briefly for running service to apply new settings
                     setTimeout(() => {
                         location.reload();
                     }, 3000);
                 } else {
-                    statusText.textContent = 'Failed to apply changes - please try again';
+                    statusText.textContent = (data && (data.error || data.message))
+                        ? (data.error || data.message)
+                        : 'Failed to apply changes - please try again';
                     resetApplyButton();
                 }
             } catch (error) {

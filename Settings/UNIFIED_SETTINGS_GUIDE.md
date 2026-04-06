@@ -25,9 +25,12 @@ PyRpiCamController/
 │   ├── settings_manager.py        # Python interface for code access
 │   ├── add_setting_levels.py      # Schema categorization tool
 │   └── UNIFIED_SETTINGS_GUIDE.md # This documentation
+├── Services/                      # Systemd service templates
+│   ├── camcontroller.service
+│   ├── camcontroller-web.service
+│   └── camcontroller-update.service
 └── WebGui/                        # Web interface
     ├── web_app.py                 # Flask web application
-    ├── camcontroller-web.service  # Systemd service file
     └── templates/
         └── settings_form.html     # Auto-generated web form
 ```
@@ -80,15 +83,9 @@ The settings are organized into logical sections:
 
 ### Notable Advanced Camera Setting
 
-- `Cam.save_metadata_json` (bool, default: `false`, level: `advanced`)
-  - Controls whether image metadata is saved/published as JSON.
-  - Applied globally to all publisher types.
-  - When `false`:
-    - File publisher saves image files only (no companion `.json` metadata file).
-    - HTTP publisher posts image data without metadata JSON payload.
-  - When `true`:
-    - File publisher saves both image and metadata `.json` file.
-    - HTTP publisher includes metadata JSON in the request payload.
+- `Cam.format` (enum, fixed: `jpg`, level: `advanced`)
+  - Image output is currently fixed to JPG for all publishers.
+  - The format setting is kept in schema for compatibility but hidden from web editing.
 
 ## File Locations
 

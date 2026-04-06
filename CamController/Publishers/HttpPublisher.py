@@ -5,7 +5,6 @@
 __author__ = 'teddycool'
 
 import requests
-import json
 import logging
 
 from Connectivity import cpuserial
@@ -24,7 +23,7 @@ class HttpPublisher(PublisherBase):
         # Update URL from unified settings schema
         self.url = settings.get("Cam", {}).get("publishers", {}).get("url", {}).get("location", self.url)
 
-    def publish(self, jpgimagedata, metadata, save_metadata_json=False):
+    def publish(self, jpgimagedata, metadata):
         try:        
             if not self.url:
                 logger.error("HttpPublisher URL is not configured")
@@ -33,8 +32,6 @@ class HttpPublisher(PublisherBase):
             data = jpgimagedata.tobytes()
             files = {'media': data}
             url = self.url + '?cpu=' + self.cpuid
-            if save_metadata_json:
-                url += '&meta=' + json.dumps(metadata)
             r = requests.post(url, files=files)
             logger.debug("Posted image-data to " + url)
             logger.debug("Received http-status: " + str(r.status_code))

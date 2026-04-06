@@ -42,7 +42,7 @@ def setup_web_service():
         return False
     
     # Check if web service file exists
-    service_file = f"{PROJECT_ROOT}/WebGui/camcontroller-web.service"
+    service_file = f"{PROJECT_ROOT}/Services/camcontroller-web.service"
     if not os.path.exists(service_file):
         log(f"ERROR: Web service file not found: {service_file}")
         return False

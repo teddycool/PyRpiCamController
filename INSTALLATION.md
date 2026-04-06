@@ -2,6 +2,12 @@
 
 Complete installation instructions for PyRpiCamController on Raspberry Pi with USB boot.
 
+## Current Scope
+
+This guide covers camera runtime, web UI, SMB sharing, and WiFi setup.
+
+OTA updates are **not supported yet** for production use. Some OTA-related files and services may exist in the repository, but they are not part of the supported installation flow.
+
 ## Prerequisites
 
 **Hardware Requirements:**
@@ -62,10 +68,25 @@ cd /home/pi/PyRpiCamController
 python3 tools/install-all-optimized.py
 ```
 
+Since OTA is not supported yet, disable the update daemon if it gets installed:
+
+```bash
+sudo systemctl disable --now camcontroller-update.service 2>/dev/null || true
+```
+
 Then reboot once to ensure all services and hostname changes are active:
 
 ```bash
 sudo reboot
+```
+
+If you update only service templates without a full reinstall, apply the web service template manually:
+
+```bash
+cd /home/pi/PyRpiCamController
+sudo cp Services/camcontroller-web.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart camcontroller-web.service
 ```
 
 **Installation Features:**
@@ -75,6 +96,8 @@ sudo reboot
 - Directory structure creation
 - Web interface deployment
 - Package manager lock handling
+- Web service binds to port 80 as user `pi` using systemd capability
+- OTA components are not enabled/supported in this workflow
 
 **SMB File Server Setup:**
 The installer automatically configures a Samba (SMB) server for easy network access to images and logs:
@@ -109,7 +132,7 @@ After installation and reboot, configure the system on the running Raspberry Pi.
 
 **Essential Settings to Configure:**
 - Camera resolution and quality settings
-- Image format for all publishers (`Cam.format`: jpg/png)
+- Image format for all publishers (currently fixed to `jpg`)
 - Capture intervals and scheduling
 - Motion detection sensitivity
 - Network and logging preferences
@@ -129,9 +152,17 @@ sudo systemctl status camcontroller.service
 # Check web interface service  
 sudo systemctl status camcontroller-web.service
 
+# Optional: confirm OTA daemon is disabled (current recommended state)
+sudo systemctl status camcontroller-update.service
+
 # View recent logs
 journalctl -u camcontroller.service -f
 ```
+
+Expected state:
+- `camcontroller.service`: active
+- `camcontroller-web.service`: active
+- `camcontroller-update.service`: inactive/disabled
 
 You can also check the log file via SMB share or locally:
 
@@ -190,6 +221,9 @@ For detailed troubleshooting information, see [TROUBLESHOOTING.md](TROUBLESHOOTI
 # Check both services are running
 sudo systemctl status camcontroller.service
 sudo systemctl status camcontroller-web.service
+
+# OTA daemon should be disabled until OTA support is released
+sudo systemctl is-enabled camcontroller-update.service
 
 # View live logs
 sudo journalctl -u camcontroller.service -f

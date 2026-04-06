@@ -7,19 +7,15 @@ __author__ = 'teddycool'
 import os
 import time
 from CamStates import BaseState
-import time
 from Cam import CamBase
-import requests
 import cv2
 #from Vision import MotionDetector
 import logging
 from hwconfig import hwconfig1 as hwconfig
-import json
 import sys
 from Settings.settings_manager import settings_manager
 # Import vision pipeline components
 from Vision.pipeline.ImageProcessor import ImageProcessor
-from Vision.pipeline.processors.CropProcessor import CropProcessor
 from Vision.pipeline.processors.MotionDetectionProcessor import MotionDetectionProcessor
 
 logger = logging.getLogger("cam.state.poststate")
@@ -36,30 +32,10 @@ class PostState(BaseState.BaseState):
         self._cam = CamBase.get_cam(settings["CamChip"])
         logger.debug ("CamType: " + str(self._cam))
         self._cam.start(settings)
-        cam_settings = settings.get("Cam", {})
-        self._image_format = str(cam_settings.get("format", "jpg")).lower()
-        if self._image_format not in ["jpg", "png"]:
-            logger.warning(
-                "Unsupported Cam.format %s, falling back to jpg",
-                self._image_format,
-            )
-            self._image_format = "jpg"
+        self._refresh_publish_settings()
         
         # Initialize vision pipeline
         self._image_processor = ImageProcessor()
-        
-        # Configure crop processor if enabled
-        if settings_manager.get("Cam.crop"):
-            crop_processor = CropProcessor()
-            crop_settings = {
-                'enabled': True,
-                'top_left': settings_manager.get("Cam.crop_topleft"),
-                'bottom_right': settings_manager.get("Cam.crop_bottomright"),
-                'validate_coordinates': True
-            }
-            crop_processor.initialize(crop_settings)
-            self._image_processor.add_processor(crop_processor)
-            logger.info("Crop processor added to pipeline")
         
         # Configure motion detection processor if enabled
         if settings_manager.get("Cam.MotionDetector.active"):
@@ -77,8 +53,6 @@ class PostState(BaseState.BaseState):
         
         #create the publishers using the settings from the config ["Cam"]["publishers"]
         self._publishers = []
-        self._save_metadata_json = bool(settings_manager.get("Cam.save_metadata_json"))
-        logger.info(f"Save metadata json enabled: {self._save_metadata_json}")
         for pub_type, pub_settings in settings["Cam"]["publishers"].items():
             if pub_type == "url" and pub_settings.get("publish", True):
                 from Publishers.HttpPublisher import HttpPublisher
@@ -96,10 +70,17 @@ class PostState(BaseState.BaseState):
         logger.info(f"Vision pipeline configured with {len(self._image_processor)} processors")
         return
 
+    def _refresh_publish_settings(self):
+        try:
+            settings_manager.load_user_settings()
+        except Exception as e:
+            logger.warning("Could not reload user settings before publish refresh: %s", e)
+
     def update(self, context):        
         #Don't care about motion detection right now...
         #TODO: add support for schedule
         if time.time() - self._lastsent > settings_manager.get("Cam.timeslot"):     
+            self._refresh_publish_settings()
             logger.debug ("PostState will try to update and send new image..")       
             currentImage = None
             camupdated = False
@@ -124,8 +105,6 @@ class PostState(BaseState.BaseState):
                     # Log processing results
                     if 'processors' in enriched_metadata:
                         for processor_name, processor_data in enriched_metadata['processors'].items():
-                            if 'crop_applied' in processor_data and processor_data['crop_applied']:
-                                logger.debug(f"Image cropped by {processor_name}")
                             if 'motion_analysis' in processor_data:
                                 motion_info = processor_data['motion_analysis']
                                 logger.debug(f"Motion detection: {motion_info['motion_detected']} ({motion_info['changed_pixels']} pixels)")
@@ -137,14 +116,14 @@ class PostState(BaseState.BaseState):
                         if enriched_metadata:
                             final_metadata.update(enriched_metadata)
 
-                        encode_ext = f".{self._image_format}"
+                        encode_ext = ".jpg"
                         ok, encoded_image = cv2.imencode(encode_ext, currentImage)
                         if not ok:
                             raise RuntimeError(f"Open-cv imencode failed for format {encode_ext}")
 
                         # Publish one shared encoding to all publishers.
                         for publisher in self._publishers:
-                            publisher.publish(encoded_image, final_metadata, self._save_metadata_json)
+                            publisher.publish(encoded_image, final_metadata)
                             logger.debug("Posted %s image-data to %s", encode_ext, type(publisher).__name__)
                     except Exception as e:
                         logger.error(f"Open-cv imencode failed. Cam will try to continue. Exception: {e}", exc_info=True)

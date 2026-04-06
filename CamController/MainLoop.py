@@ -9,6 +9,7 @@ from hwconfig import hwconfig1 as hwconfig
 
 import logging
 import time
+import os
 from typing import Any
 
 import RPi.GPIO as GPIO
@@ -98,8 +99,8 @@ class MainLoop:
             self.set_state(StateName.INIT)
         
     def update(self):
-        # Settings changes are handled by webapp restart of camcontroller service
-        # No runtime settings reload needed - service restart ensures clean initialization
+        # Check for settings reload requests from web interface.
+        self._check_settings_reload_request()
         
         #TODO: Check temperatures and other 'house-keeping'
 
@@ -118,13 +119,78 @@ class MainLoop:
         #Finally, update the current state logic..                  
         self._currentstate.update(self)      
 
+    def _check_settings_reload_request(self):
+        """Check for settings reload requests from web interface."""
+        try:
+            reload_file = "/tmp/cam_reload_settings.txt"
+            if not os.path.exists(reload_file):
+                return
+
+            with open(reload_file, 'r') as f:
+                reload_type = f.read().strip()
+
+            # Remove request file immediately to avoid repeated processing.
+            os.remove(reload_file)
+
+            logger.info("Settings reload requested: %s", reload_type)
+
+            if reload_type == "reload_settings":
+                self._settings.load_user_settings()
+                desired_mode = str(self._settings.get("Mode", "Cam")).strip().lower()
+                current_is_stream = (self._currentstate == self._streamState)
+
+                # Switch state if requested mode differs from current active state.
+                if desired_mode == "stream" and not current_is_stream:
+                    logger.info("Applying mode switch to StreamState")
+                    self.set_state(StateName.STREAM)
+                    return
+                if desired_mode != "stream" and current_is_stream:
+                    logger.info("Applying mode switch to PostState")
+                    # Skip init-state on live mode switch and go straight to photo posting state.
+                    self.set_state(StateName.POST)
+                    return
+
+                # Mode maps to current state: reinitialize current state with updated settings.
+                if hasattr(self._currentstate, 'cleanup'):
+                    try:
+                        self._currentstate.cleanup()
+                    except Exception as e:
+                        logger.warning("Cleanup failed for current state: %s", e)
+
+                settings_dict = dict(self._settings.get_dict())
+                settings_dict.update(self._hardware_config)
+                self._currentstate.initialize(settings_dict)
+                logger.info("Settings reloaded successfully in current state")
+
+            elif reload_type == "restart_service":
+                logger.info("Full service restart requested")
+                os.system("sudo systemctl restart camcontroller.service")
+            else:
+                logger.warning("Unknown reload type: %s", reload_type)
+        except Exception as e:
+            logger.error("Error processing settings reload request: %s", e)
+
  
     def set_state(self, state_name: StateName | str):
         if isinstance(state_name, str):
             state_name = StateName(state_name)
 
         logger.info("State changed to: %s", state_name.value)
-        #TODO: dispose resources from previous state
+        previous_state = getattr(self, "_currentstate", None)
+
+        # Stop/cleanup previous state resources before switching.
+        if previous_state is not None:
+            if hasattr(previous_state, 'stop_streaming'):
+                try:
+                    previous_state.stop_streaming()
+                except Exception as e:
+                    logger.warning("Failed to stop previous streaming state cleanly: %s", e)
+            elif hasattr(previous_state, 'cleanup'):
+                try:
+                    previous_state.cleanup()
+                except Exception as e:
+                    logger.warning("Failed to cleanup previous state cleanly: %s", e)
+
         self._currentstate = self.states[state_name]
         
         # Merge hardware config with settings manager data

@@ -323,26 +323,38 @@ def apply_and_restart():
                 'action': 'none'
             })
         
-        # Write restart request
+        # Re-apply pending changes from the shared pending file before restart.
+        # This prevents stale in-memory worker caches from missing the latest Mode value.
+        settings_manager.load_user_settings()
+        for field, value in changes['changes'].items():
+            settings_manager.set(field, value, save=False)
+        settings_manager.save_user_settings()
+
+        # Verify persisted Mode when it is part of pending changes.
+        if 'Mode' in changes['changes']:
+            settings_manager.load_user_settings()
+            persisted_mode = settings_manager.get('Mode', None)
+            expected_mode = changes['changes']['Mode']
+            if persisted_mode != expected_mode:
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f"Failed to persist Mode before restart. "
+                        f"Expected '{expected_mode}', got '{persisted_mode}'"
+                    ),
+                    'action': 'persist_failed',
+                    'changes_not_applied': changes['changes']
+                }), 500
+
+        # Ask running camera service to reload settings in-process.
+        # This avoids sudo/systemctl dependency from web process and makes mode toggles immediate.
         restart_file = "/tmp/cam_reload_settings.txt"
         with open(restart_file, 'w') as f:
-            f.write("restart_service\n")
+            f.write("reload_settings\n")
+
+        restart_message = f'Applied {changes["count"]} changes and requested live settings reload'
         
-        # Directly restart the camera service
-        import subprocess
-        try:
-            result = subprocess.run(['sudo', 'systemctl', 'restart', 'camcontroller.service'], 
-                                 capture_output=True, text=True, timeout=10)
-            if result.returncode != 0:
-                raise Exception(f"Service restart failed: {result.stderr}")
-            
-            restart_message = f'Applied {changes["count"]} changes and restarted camera service'
-        except subprocess.TimeoutExpired:
-            restart_message = f'Applied {changes["count"]} changes, service restart initiated'
-        except Exception as e:
-            restart_message = f'Applied {changes["count"]} changes, but service restart failed: {str(e)}'
-        
-        # Only clear pending changes after restart attempt
+        # Clear pending changes after successful persistence + reload request write.
         clear_pending_changes()
         
         return jsonify({

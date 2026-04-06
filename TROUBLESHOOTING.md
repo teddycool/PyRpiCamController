@@ -1,301 +1,303 @@
 # Troubleshooting Guide
 
-Common issues and solutions for PyRpiCamController installation and operation.
+Common issues and fixes for the current PyRpiCamController implementation.
 
-## Settings and Configuration
+## Quick Triage
 
-### Settings Not Applying
+Run these first to get a fast health snapshot:
 
-**Mode Changes (Cam ↔ Stream):**
-- Apply **immediately** - no restart needed
-- Camera controller monitors Mode setting in real-time
-- Stream should start/stop within seconds of Mode change
-
-**Other Settings:**
-- Require service restart to apply changes
-- Use "Apply Changes & Restart Service" button in web interface
-- Camera quality, resolution, timing settings all need restart
-
-**Restart from Web Interface:**
 ```bash
-# From web GUI: click "Apply Changes & Restart Service" button
-# Manual restart:
+cd /home/pi/PyRpiCamController
+
+# Core services
+sudo systemctl status camcontroller.service
+sudo systemctl status camcontroller-web.service
+sudo systemctl status camcontroller-update.service
+
+# Recent logs for all project services
+sudo journalctl -u camcontroller.service -u camcontroller-web.service -u camcontroller-update.service --since "30 minutes ago"
+
+# One-shot install validation helper
+bash tools/validate_installation.sh
+```
+
+## Service Architecture (Current)
+
+The runtime is split into three systemd services:
+
+- `camcontroller.service`: main camera loop (`CamController/Main.py`)
+- `camcontroller-web.service`: Flask app served by Gunicorn on port `80`
+- `camcontroller-update.service`: OTA daemon (`Updates/camcontroller_update_daemon.py --daemon`)
+
+If one service fails, check its dedicated logs first:
+
+```bash
+sudo journalctl -u camcontroller.service -f
+sudo journalctl -u camcontroller-web.service -f
+sudo journalctl -u camcontroller-update.service -f
+```
+
+## Settings Not Applying
+
+### How settings apply now
+
+Settings changed in the web UI are tracked as pending and written to:
+
+- `/tmp/webgui_pending_changes.json`
+
+When you click **Apply Changes & Restart Service** in the UI, the web app:
+
+1. Persists pending settings to `Settings/user_settings.json`
+2. Writes `/tmp/cam_reload_settings.txt` with `reload_settings`
+3. Lets `camcontroller.service` reload settings in-process
+
+This is a live settings reload path (not a forced full systemd restart).
+
+### If UI changes do not take effect
+
+```bash
+# Check pending changes file created by WebGui
+sudo cat /tmp/webgui_pending_changes.json
+
+# Check reload trigger file (should be consumed quickly by camcontroller)
+ls -l /tmp/cam_reload_settings.txt
+
+# Confirm settings actually persisted
+sudo cat /home/pi/PyRpiCamController/Settings/user_settings.json
+
+# Check for reload handling errors
+sudo journalctl -u camcontroller.service --since "10 minutes ago" | grep -Ei "reload|settings|mode"
+```
+
+If needed, force a full restart:
+
+```bash
 sudo systemctl restart camcontroller.service
 ```
 
-### SMB/Samba File Sharing Issues
+## CamController Service Won't Start
 
-**Connection Refused or Timeout:**
-```bash
-# Check SMB service status
-sudo systemctl status smbd nmbd
+### Primary checks
 
-# Restart SMB services
-sudo systemctl restart smbd nmbd
-
-# Check if SMB ports are listening
-sudo netstat -tlnp | grep :445
-sudo netstat -tlnp | grep :139
-
-# Test SMB configuration
-testparm /etc/samba/smb.conf
-
-# Check file permissions
-ls -la /home/pi/shared/
-```
-
-**SMB Share Access:**
-- Share name: `shared` (not `FileShare`)
-- Access: `\\pi-hostname.local\shared` or `\\pi-ip-address\shared`
-- Guest access enabled - no password required
-- If connection fails, try IP address instead of hostname
-
-## Installation Issues
-
-### Package Installation Failures
-
-If package manager locks appear during installation:
-- The install script automatically waits for locks to clear
-- Manually check: `sudo apt list --upgradable`
-- Clear locks if needed: `sudo rm /var/lib/dpkg/lock*`
-
-### USB Boot Issues
-
-If the Pi does not boot from USB:
-- **Pi 4/5**: Check USB boot is enabled in Pi config
-- **Pi 3B+**: May require initial SD card setup to enable USB boot
-- Verify USB drive compatibility (some drives not supported)
-- Try different USB ports (USB 3.0 preferred on Pi 4/5)
-
-## Service Issues
-
-### CamController Service Won't Start
-
-Check service logs:
-```bash
-sudo journalctl -u camcontroller.service -f
-```
-
-Check Python errors:
 ```bash
 sudo systemctl status camcontroller.service
+sudo journalctl -u camcontroller.service -n 200 --no-pager
 ```
 
-**Common Issues:**
+### Common root causes
 
-1. **KeyError: 'Cam'** - Settings structure mismatch
-   - Check that settings manager is working: `python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Cam.resolution'))"`
-   - Verify hwconfig.py exists and is readable
+1. Missing camera stack (`picamera2` / `libcamera`) on non-Pi environments
 
-2. **AttributeError: 'PiCam3' object has no attribute '_cam'** - Camera initialization failed
-   - Check camera connection: `libcamera-hello --list-cameras`
-   - Verify camera is enabled in raspi-config
-   - Check camera permissions
+```bash
+python3 -c "from picamera2 import Picamera2; print('ok')"
+libcamera-hello --list-cameras
+```
 
-3. **Camera update failed** - Camera capture issues
-   - Restart camera service: `sudo systemctl restart camcontroller.service`
-   - Check camera hardware: `vcgencmd get_camera`
+2. Broken settings JSON or invalid values
 
-### Web Interface Service Issues
+```bash
+python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Mode'))"
+python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Cam.resolution'))"
+```
 
-Check web service:
+3. Hardware config mismatch
+
+```bash
+python3 -c "from CamController.hwconfig import hwconfig1; print(hwconfig1['CamChip'])"
+```
+
+### Permission issues on settings file
+
+`camcontroller.service` already tries to fix ownership/permissions before startup. If it still fails:
+
+```bash
+sudo chown pi:pi /home/pi/PyRpiCamController/Settings/user_settings.json
+sudo chmod 664 /home/pi/PyRpiCamController/Settings/user_settings.json
+sudo systemctl restart camcontroller.service
+```
+
+## Web Interface Issues
+
+### Service fails to start
+
 ```bash
 sudo systemctl status camcontroller-web.service
+sudo journalctl -u camcontroller-web.service -n 200 --no-pager
 ```
 
-Check service logs for errors:
+`camcontroller-web.service` uses:
+
+- `ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 web_app:app`
+- `AmbientCapabilities=CAP_NET_BIND_SERVICE`
+- `CapabilityBoundingSet=CAP_NET_BIND_SERVICE`
+- `WorkingDirectory=/home/pi/PyRpiCamController/WebGui`
+- `Environment=PYTHONPATH=/home/pi/PyRpiCamController`
+
+If logs show repeated `Can't connect to ('0.0.0.0', 80)`, confirm the capability lines are present in the installed unit and then reload systemd:
+
 ```bash
-sudo journalctl -u camcontroller-web.service -f
+sudo systemctl cat camcontroller-web.service
+sudo cp /home/pi/PyRpiCamController/Services/camcontroller-web.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart camcontroller-web.service
 ```
 
-**Common Issues:**
+If Gunicorn binary is missing:
 
-1. **Gunicorn not found**: If you see "Failed to locate executable /usr/bin/gunicorn":
-   ```bash
-   # Check where gunicorn is installed
-   which gunicorn
-   
-   # If it's at /usr/local/bin/gunicorn, update service file:
-   sudo sed -i 's|/usr/bin/gunicorn|/usr/local/bin/gunicorn|' /etc/systemd/system/camcontroller-web.service
-   sudo systemctl daemon-reload
-   sudo systemctl restart camcontroller-web.service
-   ```
+```bash
+which gunicorn
+dpkg -l | grep -i gunicorn
+```
 
-2. **Port 80 access denied**: The web interface runs on port 80 (requires root):
-   ```bash
-   # Check if port 80 is available
-   sudo netstat -tulpn | grep :80
-   ```
+### Web UI unreachable
 
-3. **Python path issues**: Ensure PYTHONPATH is set correctly:
-   ```bash
-   # The service should have PYTHONPATH=/home/pi/PyRpiCamController
-   # Check service file: /etc/systemd/system/camcontroller-web.service
-   ```
+```bash
+# Check listener on port 80
+sudo ss -tulpn | grep :80
 
-**Manual Web Interface Startup**:
-If the service fails, you can start the web interface manually:
+# Local health check
+curl -sS http://localhost/api/test
+```
+
+### Manual foreground run for debugging
+
 ```bash
 cd /home/pi/PyRpiCamController/WebGui
 export PYTHONPATH=/home/pi/PyRpiCamController
 python3 web_app.py
 ```
 
-## Network Issues
+## OTA Update Issues
 
-### SMB Share Not Accessible
+### Update checks do not run
 
-Check Samba service:
 ```bash
-sudo systemctl status smbd.service
-sudo systemctl status nmbd.service
+sudo systemctl status camcontroller-update.service
+sudo journalctl -u camcontroller-update.service -f
+python3 -c "from Settings.settings_manager import settings_manager; print('OtaEnable=', settings_manager.get('OtaEnable')); print('interval=', settings_manager.get('OTA.check_interval'))"
 ```
 
-Test SMB connectivity:
-```bash
-# Test from Pi itself
-smbclient -L localhost -N
+### Manual trigger files
 
-# Check share permissions
+The OTA daemon processes these files:
+
+- `/tmp/ota_check_trigger`
+- `/tmp/ota_apply_trigger`
+
+Create triggers manually if needed:
+
+```bash
+echo "manual check" | sudo tee /tmp/ota_check_trigger
+echo "manual apply" | sudo tee /tmp/ota_apply_trigger
+sudo journalctl -u camcontroller-update.service -n 100 --no-pager
+```
+
+## SMB/Samba File Sharing Issues
+
+### Share names and behavior
+
+Current Samba config exposes:
+
+- `shared` (primary, browseable)
+- `FileShare` (legacy alias, not browseable)
+
+Both map to `/home/pi/shared` with guest access.
+
+### Connection refused or timeout
+
+```bash
+sudo systemctl status smbd nmbd
+sudo systemctl restart smbd nmbd
+sudo ss -tulpn | grep -E ':139|:445'
+testparm /etc/samba/smb.conf
 ls -la /home/pi/shared/
 ```
 
-**SMB Access Methods:**
-- **Windows**: Open File Explorer, navigate to `\\your-pi-ip\shared`
-- **Mac**: Finder > Go > Connect to Server > `smb://your-pi-ip/shared`
-- **Linux**: `smb://your-pi-ip/shared` in file manager
+### Access examples
 
-### WiFi Configuration Issues
+- Windows: `\\your-pi-ip\shared`
+- macOS: `smb://your-pi-ip/shared`
+- Linux file manager: `smb://your-pi-ip/shared`
 
-If WiFi setup fails, the device should create an access point named `comitup-<number>`. Connect to that network and open the captive portal to configure WiFi.
+If hostname resolution fails, use IP address directly.
 
-Check comitup status:
+## WiFi / Comitup Issues
+
+If no known network is available, the device should expose a `comitup-*` access point.
+
 ```bash
 sudo systemctl status comitup
 sudo journalctl -u comitup -f
 ```
 
-## Settings and Configuration Issues
+If installed, `comitup-cli` can also be used for diagnostics.
 
-### Settings Manager Not Working
-
-Test settings system:
-```bash
-cd /home/pi/PyRpiCamController
-python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.schema)"
-```
-
-### Hardware Configuration Issues
-
-Check hwconfig.py:
-```bash
-cd /home/pi/PyRpiCamController/CamController
-python3 -c "from hwconfig import hwconfig; print(hwconfig)"
-```
-
-### Web Interface Settings Not Saving
-
-Check file permissions:
-```bash
-ls -la /home/pi/PyRpiCamController/Settings/
-sudo chown -R pi:pi /home/pi/PyRpiCamController/Settings/
-```
-
-## Camera Issues
-
-### Camera Not Detected
+## Camera Detection and Capture Issues
 
 ```bash
-# Check camera detection
 libcamera-hello --list-cameras
+libcamera-still -o /tmp/test.jpg --width 1920 --height 1080
+```
 
-# Check camera in config
-sudo raspi-config
-# Navigate to Interface Options > Camera > Enable
+Also verify hardware and thermal state:
 
-# Check camera hardware
+```bash
 vcgencmd get_camera
-```
-
-### Image Capture Fails
-
-```bash
-# Test camera manually
-libcamera-still -o test.jpg --width 1920 --height 1080
-
-# Check permissions
-sudo usermod -a -G video pi
-```
-
-## Log Analysis
-
-### Main Service Logs
-
-```bash
-# Follow all camera controller logs
-sudo journalctl -u camcontroller.service -f
-
-# Get recent errors only
-sudo journalctl -u camcontroller.service --since "1 hour ago" -p err
-
-# Check specific component logs
-sudo journalctl -u camcontroller.service | grep "cam.PiCam3"
-```
-
-### SMB Share Logs
-
-```bash
-cat /home/pi/shared/logs/cam.log | tail -50
-```
-
-### System Resource Issues
-
-```bash
-# Check disk space
-df -h
-
-# Check memory usage
-free -h
-
-# Check CPU temperature
 vcgencmd measure_temp
 ```
 
-## Debugging Mode
+## Logs and Diagnostics
 
-Enable debug logging:
+### Most useful logs
+
 ```bash
-cd /home/pi/PyRpiCamController
-# Edit settings to enable debug logging via web interface
-# Or manually set logging level in settings
+# Main camera runtime
+sudo journalctl -u camcontroller.service --since "1 hour ago"
+
+# Web API/runtime
+sudo journalctl -u camcontroller-web.service --since "1 hour ago"
+
+# OTA daemon
+sudo journalctl -u camcontroller-update.service --since "1 hour ago"
+
+# Optional file log if LogToFile is enabled
+tail -n 100 /home/pi/shared/logs/cam.log
+```
+
+### System resources
+
+```bash
+df -h
+free -h
+uptime
 ```
 
 ## Reset and Recovery
 
-### Reset Settings to Default
+### Reset runtime settings
 
 ```bash
 cd /home/pi/PyRpiCamController/Settings
-cp settings_schema.json user_settings.json.backup
+cp -f user_settings.json user_settings.json.backup 2>/dev/null || true
 rm -f user_settings.json
 sudo systemctl restart camcontroller.service
 ```
 
-### Complete System Reset
+### Reinstall services and dependencies
 
 ```bash
-sudo systemctl stop camcontroller.service
-sudo systemctl stop camcontroller-web.service
 cd /home/pi/PyRpiCamController
-git pull  # Get latest changes
-python3 tools/install-all-optimized.py  # Reinstall
+python3 tools/install-all-optimized.py
+sudo systemctl daemon-reload
+sudo systemctl restart camcontroller.service camcontroller-web.service camcontroller-update.service
 ```
 
-## Getting Help
+## What to Include in a Bug Report
 
-When reporting issues, include:
-1. Output of: `sudo systemctl status camcontroller.service`
-2. Recent logs: `sudo journalctl -u camcontroller.service --since "1 hour ago"`
-3. Hardware info: `cat /proc/cpuinfo | grep Model`
-4. Camera status: `libcamera-hello --list-cameras`
-5. Service status: `systemctl list-units | grep camcontroller`
+Share these outputs:
+
+1. `sudo systemctl status camcontroller.service camcontroller-web.service camcontroller-update.service`
+2. `sudo journalctl -u camcontroller.service -u camcontroller-web.service -u camcontroller-update.service --since "1 hour ago"`
+3. `libcamera-hello --list-cameras`
+4. `cat /home/pi/PyRpiCamController/VERSION`
+5. `python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Mode'))"`

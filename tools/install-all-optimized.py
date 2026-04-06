@@ -45,6 +45,76 @@ def run_cmd(cmd, capture=False, check=True):
         log_step("ERROR", f"Error: {e}")
         return False
 
+def run_cmd_with_retry(cmd, capture=False, check=True, retries=3, retry_delay=5, timeout=None):
+    """Run command with retry support for flaky network or package-manager steps."""
+    for attempt in range(1, retries + 1):
+        try:
+            if capture:
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    check=check,
+                    timeout=timeout,
+                )
+                return result.stdout.strip()
+
+            result = subprocess.run(cmd, shell=True, check=check, timeout=timeout)
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            log_step("WARNING", f"Command timed out (attempt {attempt}/{retries}): {cmd}")
+        except subprocess.CalledProcessError as e:
+            log_step("WARNING", f"Command failed (attempt {attempt}/{retries}): {cmd}")
+            log_step("WARNING", f"Error: {e}")
+
+        if attempt < retries:
+            time.sleep(retry_delay)
+
+    return False
+
+def recover_package_manager():
+    """Try to recover apt/dpkg state after interrupted installs."""
+    log_step("PACKAGES", "Attempting package manager recovery...")
+    run_cmd("sudo dpkg --configure -a", check=False)
+    run_cmd(
+        "sudo env DEBIAN_FRONTEND=noninteractive apt-get -f install -y "
+        "-o Acquire::Retries=5 -o Dpkg::Use-Pty=0",
+        check=False,
+    )
+
+def run_apt_command(args, retries=3, timeout=None):
+    """Run apt-get with network-friendly defaults and recovery between attempts."""
+    apt_cmd = (
+        "sudo env DEBIAN_FRONTEND=noninteractive apt-get "
+        "-o Acquire::Retries=5 "
+        "-o Acquire::http::Timeout=30 "
+        "-o Acquire::https::Timeout=30 "
+        "-o Dpkg::Use-Pty=0 "
+        f"{args}"
+    )
+
+    for attempt in range(1, retries + 1):
+        if run_cmd_with_retry(apt_cmd, check=True, retries=1, timeout=timeout):
+            return True
+
+        recover_package_manager()
+        if attempt < retries:
+            log_step("PACKAGES", f"Retrying apt command ({attempt + 1}/{retries})...")
+            time.sleep(5)
+
+    return False
+
+def install_package_group(group_name, packages, retries=3, timeout=None):
+    """Install one logical package group with retries and clear progress logging."""
+    package_list = " ".join(packages)
+    log_step("PACKAGES", f"Installing {group_name} ({len(packages)} packages)...")
+    return run_apt_command(
+        f"install -y --no-install-recommends --fix-missing {package_list}",
+        retries=retries,
+        timeout=timeout,
+    )
+
 def get_serial():
     """Extract serial from cpuinfo file and return only the second half"""
     try:
@@ -149,28 +219,37 @@ def package_install(with_opencv=False):
     
     # Update package lists
     log_step("PACKAGES", "Updating package lists...")
-    if not run_cmd("sudo apt-get update -y"):
+    if not run_apt_command("update -y", retries=3, timeout=1800):
         log_step("ERROR", "Failed to update package lists")
         return False
-    
-    # Install all APT packages in one batch
-    apt_packages = [
+
+    # Install APT packages in staged groups so interrupted runs can resume more cleanly.
+    core_packages = [
         "python3-pip", "python3-picamera2", "libcamera-apps", "python3-libcamera",
         "python3-lgpio", "python3-rpi.gpio", "python3-numpy",
-        "python3-opencv", "opencv-data",
-        "ffmpeg", "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
+        "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
+    ]
+    media_packages = [
+        "ffmpeg",
+        "python3-opencv",
+        "opencv-data",
     ]
 
-    if with_opencv:
-        pass  # opencv now always installed above
-    
-    package_list = " ".join(apt_packages)
-    install_cmd = f"sudo apt-get install -y --no-install-recommends {package_list}"
-    
-    log_step("PACKAGES", f"Installing {len(apt_packages)} packages in batch...")
-    if not run_cmd(install_cmd):
-        log_step("ERROR", "Failed to install APT packages")
-        return False
+    install_plan = [("core runtime packages", core_packages)]
+
+    # The OpenCV/media stack pulls in most dependencies and is the most sensitive on Pi 3 + slow links.
+    if model_info['memory_gb'] <= 1 or model_info['is_pi3']:
+        install_plan.extend([
+            ("media support", ["ffmpeg"]),
+            ("opencv stack", ["python3-opencv", "opencv-data"]),
+        ])
+    else:
+        install_plan.append(("media stack", media_packages))
+
+    for group_name, package_group in install_plan:
+        if not install_package_group(group_name, package_group, retries=3, timeout=7200):
+            log_step("ERROR", f"Failed to install {group_name}")
+            return False
     
     # Install Python packages from requirements file
     requirements_file = Path(PROJECT_ROOT) / "tools" / "requirements.txt"
@@ -180,7 +259,7 @@ def package_install(with_opencv=False):
 
     log_step("PACKAGES", f"Installing Python packages from {requirements_file}...")
     pip_cmd = f"sudo pip3 install --break-system-packages -r {requirements_file}"
-    if not run_cmd(pip_cmd, check=False):
+    if not run_cmd_with_retry(pip_cmd, check=False, retries=3, timeout=3600):
         log_step("WARNING", "pip requirements installation reported errors")
 
     setup_led_dependency()
@@ -287,7 +366,7 @@ def setup_directories():
     
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
-        os.chmod(directory, 0o755)
+        os.chmod(directory, 0o777)
     
     run_cmd("sudo chown -R pi:pi /home/pi/shared")
 
@@ -325,9 +404,9 @@ def setup_services():
     log_step("SERVICES", "Setting up system services...")
     
     services = [
-        ("camcontroller.service", "CamController/camcontroller.service"),
-        ("camcontroller-web.service", "WebGui/camcontroller-web.service"),
-        ("camcontroller-update.service", "Updates/camcontroller-update.service")
+        ("camcontroller.service", "Services/camcontroller.service"),
+        ("camcontroller-web.service", "Services/camcontroller-web.service"),
+        ("camcontroller-update.service", "Services/camcontroller-update.service"),
     ]
     
     for service_name, service_path in services:

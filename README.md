@@ -60,7 +60,8 @@ These features are enabled by default in `Settings/settings_schema.json`:
 * **Disk space management enabled** (`storage_management.enabled = true`)
 * **File logging enabled** (`LogToFile = true`)
 * **Vision framework enabled** (`Vision.enabled = true`)
-* **OTA update notifications enabled** (`OTA.notify_available = true`)
+
+OTA update support is not enabled for production use in this release.
 
 ### Technical Highlights
 * **Modular Architecture**: Easy to add new camera types, publishing targets, and image processing steps  
@@ -147,7 +148,7 @@ Contributions are very welcome.
 - Additional camera support (Arducam, USB cameras)
 - Advanced computer vision features (YOLO integration)
 - Home Assistant sensor integration
-- OTA update system
+- OTA update system (planned)
 - Enhanced vision processing pipeline
 
 ## 🌟 Examples

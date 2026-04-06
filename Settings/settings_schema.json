@@ -302,7 +302,8 @@
           "description": "Spara/publicera bildmetadata i JSON-format för alla publishers",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false,
+        "readonly": true
       },
       "publishers": {
         "url": {
@@ -370,8 +371,7 @@
         "value": "jpg",
         "type": "enum",
         "options": [
-          "jpg",
-          "png"
+          "jpg"
         ],
         "ui": {
           "name": "Bildformat",
@@ -379,7 +379,8 @@
           "description": "Bildfilformat för alla publishers",
           "level": "advanced"
         },
-        "web_editable": true,
+        "web_editable": false,
+        "readonly": true,
         "level": "advanced"
       },
       "brightness": {
@@ -452,48 +453,6 @@
           "web_editable": false,
           "level": "advanced"
         }
-      },
-      "crop": {
-        "value": false,
-        "type": "bool",
-        "ui": {
-          "name": "Beskär bild",
-          "section": "Kamera",
-          "description": "Aktivera beskärning av bilden. Beskärning tillämpas efter att bilden tagits och påverkar inte streamen. Vänstra övre hörnet är position 0,0.",
-          "level": "advanced"
-        },
-        "web_editable": true,
-        "level": "advanced"
-      },
-      "crop_topleft": {
-        "value": [
-          300,
-          250
-        ],
-        "type": "tuple",
-        "ui": {
-          "name": "Beskärning övre vänster (x, y)",
-          "section": "Kamera",
-          "description": "Beskärning övre vänster koordinater",
-          "level": "advanced"
-        },
-        "web_editable": true,
-        "level": "advanced"
-      },
-      "crop_bottomright": {
-        "value": [
-          4301,
-          2351
-        ],
-        "type": "tuple",
-        "ui": {
-          "name": "Beskärning nedre höger (x, y)",
-          "section": "Kamera",
-          "description": "Beskärning nedre höger koordinater",
-          "level": "advanced"
-        },
-        "web_editable": true,
-        "level": "advanced"
       }
     },
     "Stream": {
@@ -772,32 +731,6 @@
         "level": "advanced"
       },
       "processors": {
-        "CropProcessor": {
-          "enabled": {
-            "value": false,
-            "type": "bool",
-            "ui": {
-              "name": "Beskärning aktiverad",
-              "section": "Vision",
-              "description": "Aktivera bildbeskärningsprocessor",
-              "level": "advanced"
-            },
-            "web_editable": false,
-            "level": "advanced"
-          },
-          "validate_coordinates": {
-            "value": true,
-            "type": "bool",
-            "ui": {
-              "name": "Validera beskärningskoordinater",
-              "section": "Vision",
-              "description": "Validera beskärningskoordinater innan tillämpning",
-              "level": "advanced"
-            },
-            "web_editable": false,
-            "level": "advanced"
-          }
-        },
         "MotionDetectionProcessor": {
           "enabled": {
             "value": false,

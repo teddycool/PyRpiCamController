@@ -91,7 +91,6 @@ def getCam(camtype):
 - Configurable resolution (up to 4608x2592 for PiCam3)
 - Brightness control (-1 to 1 range)
 - Auto-focus support
-- Image cropping capabilities
 
 ### 3. Streaming Server Architecture
 
@@ -150,8 +149,7 @@ SMB Share Structure:
 │ /home/pi/shared/                        │
 │ ├── images/                             │
 │ │   ├── YYYY-MM-DD/                     │
-│ │   │   ├── HHMMSS_metadata.jpg        │
-│ │   │   └── HHMMSS_metadata.json       │
+│ │   │   └── HHMMSS_metadata.jpg        │
 │ │   └── thumbnails/ (future)            │
 │ └── logs/                               │
 │     ├── cam.log (rotating)              │
@@ -172,31 +170,7 @@ SMB Share Structure:
 Image Naming Convention:
 ├── 20240323/                    # Date-based folders
 │   ├── 143022_cam_001.jpg      # HHMMSS_source_sequence.jpg
-│   ├── 143022_cam_001.json     # Matching metadata file
 │   └── 143055_motion_002.jpg   # Motion-triggered capture
-```
-
-**Metadata Structure:**
-```json
-{
-    "timestamp": "2024-03-23T14:30:22Z",
-    "camera": "PiCam3",
-    "resolution": [4608, 2592],
-    "settings": {
-        "brightness": 0.1,
-        "focus": "auto",
-        "exposure": "auto"
-    },
-    "environment": {
-        "cpu_temp": 45.2,
-        "light_level": 80
-    },
-    "motion": {
-        "detected": true,
-        "confidence": 0.85,
-        "regions": [[100, 150, 200, 300]]
-    }
-}
 ```
 
 **Access Control:**
@@ -218,7 +192,7 @@ Image Naming Convention:
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │   Camera    │───▶│   Capture   │───▶│   Process   │───▶│   Publish   │
-│   Hardware  │    │   (Memory)  │    │ (Crop/Filter│    │  (Processed) │
+│   Hardware  │    │   (Memory)  │    │  (Vision)   │    │  (Processed) │
 └─────────────┘    └─────────────┘    └─────────────┘    └──────┬──────┘
                                                                   │
                                                ┌──────────────────┼──────────────────┐
@@ -251,14 +225,14 @@ Image Naming Convention:
 
 **Key Principles:**
 **Key Features:**
-- **Unified Processing**: All images processed once through same pipeline (crop, filter, metadata)
+- **Unified Processing**: All images processed once through the same pipeline
 - **Dual Publishing Options**: Same processed image can be published to both destinations:
   - **Local Storage**: High-speed USB drive with SMB network access (`file.publish = true`)
   - **Remote Backend**: HTTP posting to external server/NAS (`posturl` configuration)
 - **Independent Configuration**: Enable/disable local and remote publishing separately
 - **High-Speed USB Storage**: 3-5x faster writes compared to SD cards for improved performance
 - **Network Accessibility**: SMB file sharing provides network access to locally stored images
-- **Remote Integration**: HTTP posting with metadata to any network-accessible backend
+- **Remote Integration**: HTTP posting to any network-accessible backend
 - **Performance Optimized**: Single processing pipeline feeds multiple output channels
 
 ### Motion Detection Pipeline
