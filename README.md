@@ -106,6 +106,7 @@ OTA update support is not enabled for production use in this release.
 | [INSTALLATION.md](INSTALLATION.md) | Complete installation guide with WiFi setup |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture and design details |
 | [UNIFIED_SETTINGS_GUIDE.md](Settings/UNIFIED_SETTINGS_GUIDE.md) | Unified settings system documentation |
+| [SMB_FILE_SHARING.md](SMB_FILE_SHARING.md) | SMB file sharing setup and troubleshooting guide |
 
 ## 🔧 Hardware Support
 
@@ -131,6 +132,9 @@ OTA update support is not enabled for production use in this release.
 - **Guest Access**: No authentication required for easy access
 - **Cross-Platform**: Access from Windows, Mac or Linux via network share
 - **Auto-Configuration**: Setup handled by installation script
+- **Network Discovery**: Automatic appearance in file explorers
+
+📖 **Detailed SMB Guide**: [SMB_FILE_SHARING.md](SMB_FILE_SHARING.md) - Complete setup and troubleshooting
 
 
 ## 🤝 Contributing

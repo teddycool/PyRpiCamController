@@ -76,8 +76,16 @@ def test_smb_service():
     log(f"Hostname: {socket.gethostname()}")
     
     try:
-        ip_address = socket.gethostbyname(socket.gethostname())
-        log(f"IP Address: {ip_address}")
+        # Get the actual network IP address, not localhost
+        import subprocess
+        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+        if result.returncode == 0:
+            ip_address = result.stdout.strip().split()[0]  # Get first IP
+            log(f"IP Address: {ip_address}")
+        else:
+            # Fallback to socket method
+            ip_address = socket.gethostbyname(socket.gethostname())
+            log(f"IP Address: {ip_address}")
     except:
         ip_address = "127.0.0.1"
         log("IP Address: Unable to determine")
@@ -219,6 +227,13 @@ def test_smb_service():
         log("⚠ nmbd service is not running (NetBIOS name service)")
         run_cmd("sudo systemctl status nmbd", check=False)
     
+    # Check wsdd service for Windows discovery
+    if service_is_active("wsdd"):
+        log("✓ wsdd service is running (Windows Service Discovery)")
+    else:
+        log("⚠ wsdd service is not running (Windows discovery may not work)")
+        run_cmd("sudo systemctl status wsdd", check=False)
+    
     # Test file operations
     log("Testing file operations...")
     
@@ -254,6 +269,17 @@ def test_smb_service():
         log(f"✓ NetBIOS name {hostname} resolves correctly")
     else:
         log(f"⚠ NetBIOS name {hostname} resolution failed")
+    
+    # Test avahi service advertising
+    log("Checking SMB service advertising...")
+    if command_exists('avahi-browse'):
+        success, stdout, _ = run_cmd("timeout 5 avahi-browse -t _smb._tcp --terminate", check=False)
+        if success and "smb" in stdout.lower():
+            log("✓ SMB services are being advertised via mDNS")
+        else:
+            log("⚠ SMB service advertising may not be working")
+    else:
+        log("⚠ avahi-browse not available - install with: sudo apt-get install avahi-utils")
     
     if command_exists('smbclient'):
         log("Testing SMB share accessibility...")

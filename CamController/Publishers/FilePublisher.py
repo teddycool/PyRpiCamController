@@ -9,6 +9,7 @@ import time
 import logging
 import shutil
 import glob
+from datetime import datetime
 from typing import Tuple, List
 
 from .PublisherBase import PublisherBase
@@ -86,20 +87,25 @@ class FilePublisher(PublisherBase):
         """
         files = []
         
-        # Get all image files
-        image_pattern = os.path.join(self.location, f"*.{self.img_format}")
-        for img_file in glob.glob(image_pattern):
-            try:
-                mtime = os.path.getmtime(img_file)
-                files.append((img_file, mtime))
-                
-                # Also add corresponding metadata file if exists
-                base_name = os.path.splitext(img_file)[0]
-                meta_file = f"{base_name}.json"
-                if os.path.exists(meta_file):
-                    files.append((meta_file, mtime))
-            except OSError:
+        # Get all image files from all date subdirectories
+        for date_dir in os.listdir(self.location):
+            date_path = os.path.join(self.location, date_dir)
+            if not os.path.isdir(date_path):
                 continue
+                
+            image_pattern = os.path.join(date_path, f"*.{self.img_format}")
+            for img_file in glob.glob(image_pattern):
+                try:
+                    mtime = os.path.getmtime(img_file)
+                    files.append((img_file, mtime))
+                    
+                    # Also add corresponding metadata file if exists
+                    base_name = os.path.splitext(img_file)[0]
+                    meta_file = f"{base_name}.json"
+                    if os.path.exists(meta_file):
+                        files.append((meta_file, mtime))
+                except OSError:
+                    continue
         
         # Sort by modification time (oldest first)
         files.sort(key=lambda x: x[1])
@@ -183,7 +189,13 @@ class FilePublisher(PublisherBase):
                 return
             
             timestamp = int(time.time())
-            img_filename = os.path.join(self.location, f"{timestamp}.{self.img_format}")
+            
+            # Create date-based subdirectory
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            date_dir = os.path.join(self.location, current_date)
+            os.makedirs(date_dir, exist_ok=True)
+            
+            img_filename = os.path.join(date_dir, f"{timestamp}.{self.img_format}")
 
             # Write image data to file
             with open(img_filename, "wb") as img_file:

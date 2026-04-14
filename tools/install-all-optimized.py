@@ -375,7 +375,7 @@ def setup_samba():
     log_step("SAMBA", "Setting up Samba file sharing...")
     
     # Install Samba packages only when this feature is enabled.
-    if not run_cmd("sudo apt-get install -y --no-install-recommends samba samba-common-bin smbclient avahi-daemon libnss-mdns", check=False):
+    if not run_cmd("sudo apt-get install -y --no-install-recommends samba samba-common-bin smbclient avahi-daemon libnss-mdns avahi-utils", check=False):
         log_step("WARNING", "Samba packages failed to install")
         return False
 
@@ -390,6 +390,15 @@ def setup_samba():
     else:
         log_step("WARNING", "Samba config not found - using default configuration")
         return False
+    
+    # Install SMB service advertisement for better network discovery
+    avahi_smb_source = f"{PROJECT_ROOT}/Services/avahi-smb.service"
+    if os.path.exists(avahi_smb_source):
+        run_cmd("sudo mkdir -p /etc/avahi/services")
+        run_cmd(f"sudo cp {avahi_smb_source} /etc/avahi/services/smb.service")
+        log_step("SAMBA", "SMB service advertisement installed")
+    else:
+        log_step("WARNING", "Avahi SMB service file not found")
     
     # Enable and start Samba services
     run_cmd("sudo systemctl enable smbd nmbd avahi-daemon", check=False)
