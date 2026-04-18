@@ -1,0 +1,32 @@
+[
+  {
+    "cpu_id": "10000000a1b2c3d4",
+    "device_name": "Kitchen Camera",
+    "location": "Kitchen Counter",
+    "update_group": "production"
+  },
+  {
+    "cpu_id": "20000000e5f6g7h8", 
+    "device_name": "Living Room Camera",
+    "location": "Living Room TV Stand",
+    "update_group": "beta"
+  },
+  {
+    "cpu_id": "30000000i9j0k1l2",
+    "device_name": "Outdoor Camera",
+    "location": "Garden Entrance",
+    "update_group": "production"
+  },
+  {
+    "cpu_id": "40000000m3n4o5p6",
+    "device_name": "Workshop Camera",
+    "location": "Workshop Bench",
+    "update_group": "development"
+  },
+  {
+    "cpu_id": "50000000q7r8s9t0",
+    "device_name": "Garage Camera",
+    "location": "Garage Door",
+    "update_group": "production"
+  }
+]

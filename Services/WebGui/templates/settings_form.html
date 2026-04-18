@@ -1,0 +1,1259 @@
+<!--
+This software-file was created by Pär Sundbäck and is part of the PyRpiCamController project
+The complete project is available at: https://github.com/teddycool/PyRpiCamController
+The project is licensed under GNU GPLv3, check the LICENSE file for details.
+-->
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamerainställningar</title>
+    <style>
+        /* Sensorwebben Brand Colors and Typography */
+        :root {
+            --primary-color: #2c5aa0;        /* Deep blue - tech/trust */
+            --secondary-color: #4a90c2;      /* Lighter blue - accents */
+            --accent-color: #27ae60;         /* Green - sensors/nature */
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-text: #2c3e50;
+            --light-text: #7f8c8d;
+            --background-light: #f8f9fa;
+            --background-white: #ffffff;
+            --border-light: #e3e6ea;
+            --shadow-light: rgba(44, 90, 160, 0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--dark-text);
+            line-height: 1.6;
+        }
+        .container {
+            background: var(--background-white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px var(--shadow-light);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(44, 90, 160, 0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--background-white);
+            box-shadow: 0 2px 8px rgba(44, 90, 160, 0.08);
+        }
+        .section-title {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 15px 25px;
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: none;
+        }
+        .section-content {
+            padding: 25px;
+            background: var(--background-white);
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 0.95rem;
+        }
+        .form-group .description {
+            font-size: 0.85rem;
+            color: var(--light-text);
+            margin-bottom: 10px;
+            font-style: italic;
+            line-height: 1.4;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            font-family: inherit;
+            background: var(--background-white);
+            transition: all 0.3s ease;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--primary-color);
+        }
+        .form-group input[readonly] {
+            background: var(--background-light);
+            color: var(--light-text);
+            border-color: var(--border-light);
+        }
+        .settings-status {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+        }
+        .settings-status.pending {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        .settings-status.saving {
+            border-left-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+        .settings-status.error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .validation-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .readonly-field {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-light);
+            background: var(--background-white);
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        .tab {
+            padding: 15px 28px;
+            background: var(--background-light);
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--dark-text);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            transform: translateY(-2px);
+        }
+        .tab:hover:not(.active) {
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        /* Streaming Control Styles */
+        .streaming-controls {
+            background: linear-gradient(135deg, rgba(74, 144, 194, 0.1) 0%, rgba(44, 90, 160, 0.1) 100%) !important;
+            border: 2px solid var(--secondary-color) !important;
+        }
+        .streaming-controls .section-title {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%) !important;
+            color: white !important;
+        }
+        .stream-status {
+            margin-bottom: 20px;
+            padding: 18px;
+            border-radius: 8px;
+            background: var(--background-white);
+            border: 1px solid var(--border-light);
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+        .status-light {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 12px;
+            background-color: var(--light-text);
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 8px rgba(0,0,0,0.2);
+        }
+        .status-light.running {
+            background-color: var(--success-color);
+            box-shadow: 0 0 12px rgba(39, 174, 96, 0.4);
+        }
+        .status-light.stopped {
+            background-color: var(--danger-color);
+            box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .status-note {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .view-stream {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(74, 144, 194, 0.3);
+        }
+        .view-stream:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 144, 194, 0.4);
+        }
+        .view-stream:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .stream-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .info-item label {
+            font-weight: 500;
+            color: #555;
+        }
+        .fps-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .fps-good {
+            color: #28a745 !important;
+        }
+        .fps-warning {
+            color: #ffc107 !important;
+        }
+        .fps-poor {
+            color: #dc3545 !important;
+        }
+        
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-message {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .flash-success {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        .flash-error {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .flash-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0.7;
+            margin-left: 10px;
+        }
+        .flash-close:hover {
+            opacity: 1;
+        }
+        
+        /* Apply Changes Styles */
+        .apply-changes {
+            background: linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(230, 126, 34, 0.1) 100%) !important;
+            border: 2px solid var(--warning-color) !important;
+            margin-top: 20px;
+        }
+        .apply-changes .section-title {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e67e22 100%) !important;
+            color: white !important;
+        }
+        .changes-status {
+            margin-bottom: 18px;
+            padding: 15px;
+            background: var(--background-white);
+            border-radius: 8px;
+            border-left: 4px solid var(--success-color);
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.1);
+        }
+        .changes-status.pending {
+            background: rgba(243, 156, 18, 0.1);
+            border-left-color: var(--warning-color);
+            box-shadow: 0 2px 8px rgba(243, 156, 18, 0.2);
+        }
+        .changes-status.applying {
+            background: rgba(74, 144, 194, 0.1);
+            border-left-color: var(--secondary-color);
+            box-shadow: 0 2px 8px rgba(74, 144, 194, 0.2);
+        }
+        .pending-changes {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #fff3cd;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+        .changes-header {
+            margin: 0 0 8px 0;
+            font-weight: bold;
+            color: #856404;
+        }
+        #changesList {
+            margin: 0;
+            padding-left: 20px;
+            color: #856404;
+        }
+        #changesList li {
+            margin-bottom: 4px;
+        }
+        .apply-button {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 16px rgba(44, 90, 160, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .apply-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(44, 90, 160, 0.4);
+        }
+        .apply-button:disabled {
+            background: linear-gradient(135deg, var(--light-text) 0%, #95a5a6 100%);
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(127, 140, 141, 0.2);
+        }
+        .apply-button.applying {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 100%);
+            animation: pulse 1.5s infinite;
+        }
+        .apply-info {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+
+        /* Update Management Styles */
+        .updates {
+            border-color: #17a2b8;
+        }
+        .updates .section-title {
+            background-color: #e7f3ff;
+            color: #0c5460;
+        }
+        .update-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .version-info {
+            flex: 1;
+            min-width: 200px;
+        }
+        .version-info div {
+            margin-bottom: 8px;
+        }
+        .update-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .check-button, .changelog-button, .update-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .check-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .check-button:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+        .check-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .changelog-button {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .changelog-button:hover {
+            background-color: #138496;
+        }
+        .update-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .update-button:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        .update-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .update-notification {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .notification-icon {
+            font-size: 18px;
+        }
+        .notification-text {
+            font-weight: 500;
+            color: #0c5460;
+        }
+        .update-progress {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .progress-text {
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+        .changelog {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .changelog h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .changelog-content {
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .backup-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .backup-note {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kamerakontroller Inställningar</h1>
+        
+        <!-- Basic/Advanced Tabs -->
+        <div class="tabs">
+            <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Grundinställningar</a>
+            <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Avancerade inställningar</a>
+        </div>
+        
+        <div style="background-color: {% if current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
+                    color: {% if current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
+                    padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <strong>{% if current_level == 'basic' %}Grundinställningar{% else %}Avancerade inställningar{% endif %}:</strong> 
+            {% if current_level == 'basic' %}
+                Viktiga kamerainställningar för normal drift. 
+                <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Behöver du fler alternativ?</a>
+            {% else %}
+                Avancerade konfigurationsalternativ för erfarna användare.
+                <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Tillbaka till grundinställningar</a>
+            {% endif %}
+        </div>
+        
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            <span class="flash-text">{{ message }}</span>
+                            <button type="button" class="flash-close" onclick="this.parentElement.style.display='none'">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="settings-form">
+            {% for section_name, section_fields in grouped_schema.items() %}
+            <div class="section">
+                <h2 class="section-title">{{ section_name }}</h2>
+                <div class="section-content">
+                    {% for field_path, field_info in section_fields %}
+                    <div class="form-group">
+                        <label for="{{ field_path }}">{{ field_info.name }}</label>
+                        
+                        {% if field_info.description %}
+                        <div class="description">{{ field_info.description }}</div>
+                        {% endif %}
+                        
+                        {% set current_value = current_values[field_path] %}
+                        {% set is_readonly = field_info.get('readonly', false) %}
+                        
+                        {% if field_info.type == 'bool' %}
+                            <input type="checkbox" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="true"
+                                   {% if current_value %}checked{% endif %}
+                                   {% if is_readonly %}disabled class="readonly-field"{% endif %}>
+                        
+                        {% elif field_info.get('options') %}
+                            <select id="{{ field_path }}" 
+                                    name="{{ field_path }}"
+                                    {% if is_readonly %}disabled class="readonly-field"{% endif %}>
+                                {% for option in field_info.options %}
+                                {% set option_value = option|tojson if option is sequence and option is not string else option %}
+                                {% set display_text = (option[0] ~ " × " ~ option[1]) if (option is sequence and option is not string and option|length == 2) else option %}
+                                {% set current_value_json = current_value|tojson if current_value is sequence and current_value is not string else current_value %}
+                                <option value="{{ option_value }}" 
+                                        {% if current_value_json == option_value %}selected{% endif %}>
+                                    {{ display_text }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        
+                        {% elif field_info.type == 'tuple' %}
+                            <input type="text" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="{{ current_value|join(', ') if current_value else '' }}"
+                                   {% if is_readonly %}readonly class="readonly-field"{% endif %}
+                                   placeholder="Ange kommaseparerade värden">
+                            <div class="validation-info">Ange värden separerade med kommatecken (t.ex. 640, 480)</div>
+                        
+                        {% else %}
+                            <input type="{% if field_info.type == 'password' %}password{% elif field_info.type == 'int' or field_info.type == 'float' %}number{% else %}text{% endif %}" 
+                                   id="{{ field_path }}" 
+                                   name="{{ field_path }}" 
+                                   value="{{ current_value if current_value is not none else '' }}"
+                                   {% if is_readonly %}readonly class="readonly-field"{% endif %}
+                                   {% if field_info.type == 'float' %}step="any"{% endif %}
+                                   {% if field_info.get('min') is not none %}min="{{ field_info.min }}"{% endif %}
+                                   {% if field_info.get('max') is not none %}max="{{ field_info.max }}"{% endif %}>
+                        {% endif %}
+                        
+                        {% if field_info.get('min') is not none or field_info.get('max') is not none %}
+                        <div class="validation-info">
+                            {% if field_info.get('min') is not none and field_info.get('max') is not none %}
+                                Intervall: {{ field_info.min }} - {{ field_info.max }}
+                            {% elif field_info.get('min') is not none %}
+                                Minimum: {{ field_info.min }}
+                            {% elif field_info.get('max') is not none %}
+                                Maximum: {{ field_info.max }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Streaming Status Panel -->
+            <div class="section streaming-controls">
+                <h3 class="section-title">📹 Stream Status</h3>
+                <div class="section-content">
+                    <div class="stream-status" id="streamStatus">
+                        <div class="status-indicator">
+                            <span class="status-light" id="statusLight"></span>
+                            <span id="statusText">Checking status...</span>
+                        </div>
+                    </div>
+                    
+                    <p class="status-note">Streaming is controlled by the Mode setting above. Set Mode to "Stream" and restart the service to enable streaming.</p>
+                    
+                    <div class="stream-info" id="streamInfo" style="display: none;">
+                        <div class="info-item">
+                            <label>Stream URL:</label>
+                            <span id="streamUrl">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Resolution:</label>
+                            <span id="streamResolution">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Frame Rate:</label>
+                            <span id="streamFramerate">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Actual FPS:</label>
+                            <span id="actualFps" class="fps-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>View Stream:</label>
+                            <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
+                                👁️ Open Stream
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Software Updates Panel -->
+            <div class="section updates">
+                <h3 class="section-title">📦 Software Updates</h3>
+                <div class="section-content">
+                    <div class="update-status" id="updateStatus">
+                        <div class="version-info">
+                            <div class="current-version">
+                                <strong>Current Version:</strong> <span id="currentVersion">Loading...</span>
+                            </div>
+                            <div class="available-version" id="availableVersionDiv" style="display: none;">
+                                <strong>Available Version:</strong> <span id="availableVersion">-</span>
+                            </div>
+                            <div class="last-check">
+                                <strong>Last Check:</strong> <span id="lastCheck">Never</span>
+                            </div>
+                        </div>
+                        
+                        <div class="update-actions">
+                            <button type="button" id="checkUpdatesBtn" class="check-button">
+                                🔍 Check for Updates
+                            </button>
+                            <button type="button" id="viewChangelogBtn" class="changelog-button" style="display: none;">
+                                📄 View Changelog
+                            </button>
+                            <button type="button" id="applyUpdateBtn" class="update-button" style="display: none;">
+                                ⬆️ Apply Update
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="update-notification" id="updateNotification" style="display: none;">
+                        <div class="notification-content">
+                            <span class="notification-icon">🎉</span>
+                            <span class="notification-text" id="updateNotificationText">Update available!</span>
+                        </div>
+                    </div>
+                    
+                    <div class="update-progress" id="updateProgress" style="display: none;">
+                        <div class="progress-text" id="progressText">Checking for updates...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="changelog" id="changelogContainer" style="display: none;">
+                        <h4>📋 Changelog</h4>
+                        <div class="changelog-content" id="changelogContent">
+                            Loading changelog...
+                        </div>
+                    </div>
+                    
+                    <div class="backup-info" id="backupInfo" style="display: none;">
+                        <p class="backup-note">
+                            <strong>ℹ️ Backup:</strong> A backup will be created automatically before applying the update.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apply Changes Panel -->
+            <div class="section apply-changes">
+                <h3 class="section-title">⚙️ Apply Changes</h3>
+                <div class="section-content">
+                    <div class="changes-status" id="changesStatus">
+                        <div class="status-indicator">
+                            <span class="status-light" id="changesStatusLight"></span>
+                            <span id="changesStatusText">All settings are active - no restart needed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pending-changes" id="pendingChangesList" style="display: none;">
+                        <p class="changes-header">⚠️ Settings changed - restart needed to apply:</p>
+                        <ul id="changesList"></ul>
+                    </div>
+                    
+                    <div class="apply-actions" id="applyActions">
+                        <button type="button" class="apply-button" id="applyRestartBtn" disabled>
+                            🔄 Apply Changes & Restart Service
+                        </button>
+                        <p class="apply-info">
+                            <small>
+                                <strong>ℹ️ Service restart:</strong> Applies all settings changes.<br>
+                                Camera functions will be briefly interrupted during restart.
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Streaming control functionality
+        let streamStatus = {
+            running: false,
+            url: '',
+            port: 8000,
+            resolution: [800, 600],
+            framerate: 15
+        };
+
+        // Initialize streaming controls when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupAutoSave();
+            initStreamingControls();
+            initApplyControls();
+            initUpdateControls();
+            updateStreamStatus();
+            updatePendingChanges();
+            updateUpdateStatus();
+            
+            // Update statuses every 10 seconds
+            setInterval(updateStreamStatus, 10000);
+            setInterval(updatePendingChanges, 10000);
+            setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
+        });
+
+        // Auto-save functionality with change tracking
+        
+        function setupAutoSave() {
+            const inputs = document.querySelectorAll('input:not([readonly]), select:not([disabled])');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    autoSave(this);
+                });
+            });
+        }
+        
+        function autoSave(field) {
+            const value = getInputValue(field);
+            console.log('Auto-saving field:', field.name, 'value:', value, 'type:', typeof value);
+            
+            fetch('/api/settings/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    field: field.name,
+                    value: value
+                })
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (response.ok) {
+                    // Visual feedback - flash green
+                    field.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        field.style.backgroundColor = '';
+                    }, 1000);
+                    
+                    console.log('Settings saved successfully:', field.name, value);
+                    
+                    // Update pending changes
+                    updatePendingChanges();
+                } else {
+                    console.error('Auto-save failed for', field.name, 'Status:', response.status);
+                    response.text().then(text => console.error('Error details:', text));
+                }
+            })
+            .catch(error => {
+                console.error('Auto-save error:', error);
+            });
+        }
+
+        function getInputValue(field) {
+            if (field.type === 'checkbox') {
+                return field.checked;
+            } else if (field.type === 'number') {
+                return parseFloat(field.value) || 0;
+            } else if (field.tagName === 'SELECT') {
+                // For select fields, check if the value looks like a JSON array
+                const value = field.value || '';
+                if (value.startsWith('[') && value.endsWith(']')) {
+                    // This is likely an array enum (like resolution), return as-is for JSON parsing
+                    return value;
+                } else {
+                    return value;
+                }
+            } else {
+                return field.value || '';
+            }
+        }
+        // Update pending changes display
+        async function updatePendingChanges() {
+            try {
+                const response = await fetch('/api/settings/pending');
+                const data = await response.json();
+                const changes = Object.keys(data.changes);
+                
+                const statusDiv = document.querySelector('.changes-status');
+                const statusLight = document.getElementById('changesStatusLight');
+                const statusText = document.getElementById('changesStatusText');
+                const pendingDiv = document.getElementById('pendingChangesList');
+                const applyButton = document.getElementById('applyRestartBtn');
+                
+                if (changes.length > 0) {
+                    // Show pending changes
+                    statusLight.className = 'status-light stopped';
+                    statusText.textContent = `${changes.length} setting(s) changed - restart needed to apply`;
+                    
+                    // Update changes list
+                    const changesList = document.getElementById('changesList');
+                    changesList.innerHTML = '';
+                    changes.forEach(change => {
+                        const li = document.createElement('li');
+                        li.textContent = `${change} = ${data.changes[change]}`;
+                        changesList.appendChild(li);
+                    });
+                    
+                    pendingDiv.style.display = 'block';
+                    applyButton.disabled = false;
+                } else {
+                    // No pending changes
+                    statusLight.className = 'status-light running';
+                    statusText.textContent = 'All settings are active - no restart needed';
+                    pendingDiv.style.display = 'none';
+                    applyButton.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error updating pending changes:', error);
+            }
+        }
+
+        // Apply changes and restart service
+        async function applyAndRestart() {
+            const button = document.getElementById('applyRestartBtn');
+            const statusLight = document.getElementById('changesStatusLight');
+            const statusText = document.getElementById('changesStatusText');
+            
+            button.disabled = true;
+            button.className = 'apply-button applying';
+            button.textContent = 'Applying Changes...';
+            
+            statusLight.className = 'status-light';
+            statusText.textContent = 'Applying changes and restarting service...';
+            
+            try {
+                const response = await fetch('/api/service/apply-and-restart', {
+                    method: 'POST'
+                });
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = null;
+                }
+                
+                if (response.ok) {
+                    statusText.textContent = (data && data.message)
+                        ? data.message
+                        : 'Changes applied successfully - settings reload requested...';
+                    // Wait briefly for running service to apply new settings
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    statusText.textContent = (data && (data.error || data.message))
+                        ? (data.error || data.message)
+                        : 'Failed to apply changes - please try again';
+                    resetApplyButton();
+                }
+            } catch (error) {
+                statusText.textContent = 'Error applying changes - please try again';
+                console.error('Apply and restart error:', error);
+                resetApplyButton();
+            }
+        }
+
+        function resetApplyButton() {
+            const button = document.getElementById('applyRestartBtn');
+            button.className = 'apply-button';
+            button.textContent = '🔄 Apply Changes & Restart Service';
+            updatePendingChanges(); // Refresh status
+        }
+
+        function initStreamingControls() {
+            // Set up event listeners for streaming buttons
+            document.getElementById('viewStreamBtn').addEventListener('click', viewStream);
+        }
+
+        function initApplyControls() {
+            // Set up event listener for apply and restart button
+            document.getElementById('applyRestartBtn').addEventListener('click', applyAndRestart);
+        }
+
+        function updateStreamStatus() {
+            fetch('/api/stream/status')
+                .then(response => response.json())
+                .then(data => {
+                    streamStatus = data;
+                    updateUI();
+                })
+                .catch(error => {
+                    console.error('Error checking stream status:', error);
+                    updateUI(false);
+                });
+        }
+
+        function updateUI(hasError = false) {
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const viewBtn = document.getElementById('viewStreamBtn');
+            const streamInfo = document.getElementById('streamInfo');
+
+            if (hasError) {
+                statusLight.className = 'status-light';
+                statusText.textContent = 'Status check failed';
+                viewBtn.disabled = true;
+                streamInfo.style.display = 'none';
+                return;
+            }
+
+            // Update status indicator
+            if (streamStatus.running) {
+                statusLight.className = 'status-light running';
+                statusText.textContent = 'Streaming Active';
+                viewBtn.disabled = false;
+                
+                // Show stream info
+                streamInfo.style.display = 'block';
+                document.getElementById('streamUrl').textContent = streamStatus.url;
+                document.getElementById('streamResolution').textContent = 
+                    `${streamStatus.resolution[0]} × ${streamStatus.resolution[1]}`;
+                document.getElementById('streamFramerate').textContent = `${streamStatus.framerate} FPS (target)`;
+                
+                // Update actual FPS with color coding
+                const actualFps = streamStatus.actual_fps || 0;
+                const actualFpsElement = document.getElementById('actualFps');
+                actualFpsElement.textContent = `${actualFps} FPS`;
+                
+                // Color code based on performance vs target
+                const targetFps = streamStatus.framerate;
+                actualFpsElement.className = 'fps-value';
+                if (actualFps >= targetFps * 0.9) {
+                    actualFpsElement.classList.add('fps-good');
+                } else if (actualFps >= targetFps * 0.7) {
+                    actualFpsElement.classList.add('fps-warning');
+                } else {
+                    actualFpsElement.classList.add('fps-poor');
+                }
+            } else {
+                statusLight.className = 'status-light stopped';
+                statusText.textContent = 'Streaming Stopped';
+                viewBtn.disabled = true;
+                streamInfo.style.display = 'none';
+            }
+        }
+
+        // Streaming control moved to Mode setting - no manual start/stop needed
+
+        function viewStream() {
+            if (streamStatus.running && streamStatus.url) {
+                window.open(streamStatus.url, '_blank');
+            }
+        }
+
+        // Update Management Functions
+        function initUpdateControls() {
+            // Set up event listeners for update buttons
+            document.getElementById('checkUpdatesBtn').addEventListener('click', checkForUpdates);
+            document.getElementById('viewChangelogBtn').addEventListener('click', toggleChangelog);
+            document.getElementById('applyUpdateBtn').addEventListener('click', applyUpdate);
+        }
+
+        function updateUpdateStatus() {
+            fetch('/api/updates/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateUpdateUI(data);
+                })
+                .catch(error => {
+                    console.error('Error checking update status:', error);
+                });
+        }
+
+        function updateUpdateUI(updateInfo) {
+            const currentVersionSpan = document.getElementById('currentVersion');
+            const availableVersionSpan = document.getElementById('availableVersion');
+            const availableVersionDiv = document.getElementById('availableVersionDiv');
+            const lastCheckSpan = document.getElementById('lastCheck');
+            const updateNotification = document.getElementById('updateNotification');
+            const updateNotificationText = document.getElementById('updateNotificationText');
+            const checkBtn = document.getElementById('checkUpdatesBtn');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            const applyBtn = document.getElementById('applyUpdateBtn');
+            const backupInfo = document.getElementById('backupInfo');
+
+            // Update version info
+            currentVersionSpan.textContent = updateInfo.current_version || 'Unknown';
+            lastCheckSpan.textContent = updateInfo.last_check || 'Never';
+
+            // Handle update availability
+            if (updateInfo.has_update) {
+                availableVersionSpan.textContent = updateInfo.available_version;
+                availableVersionDiv.style.display = 'block';
+                updateNotification.style.display = 'block';
+                updateNotificationText.textContent = `New version ${updateInfo.available_version} is available!`;
+                changelogBtn.style.display = 'inline-block';
+                applyBtn.style.display = 'inline-block';
+                backupInfo.style.display = 'block';
+            } else {
+                availableVersionDiv.style.display = 'none';
+                updateNotification.style.display = 'none';
+                changelogBtn.style.display = 'none';
+                applyBtn.style.display = 'none';
+                backupInfo.style.display = 'none';
+            }
+
+            // Handle status-specific UI updates
+            switch (updateInfo.update_status) {
+                case 'checking':
+                    showUpdateProgress('Checking for updates...', 30);
+                    checkBtn.disabled = true;
+                    checkBtn.textContent = '🔄 Checking...';
+                    break;
+                case 'downloading':
+                    showUpdateProgress('Downloading update...', 70);
+                    checkBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    break;
+                case 'applying':
+                    showUpdateProgress('Applying update...', 90);
+                    checkBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    applyBtn.textContent = '🔄 Applying...';
+                    break;
+                case 'error':
+                    hideUpdateProgress();
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔍 Check for Updates';
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = '⬆️ Apply Update';
+                    break;
+                default: // idle
+                    hideUpdateProgress();
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔍 Check for Updates';
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = '⬆️ Apply Update';
+            }
+        }
+
+        function checkForUpdates() {
+            showUpdateProgress('Initiating update check...', 10);
+            
+            fetch('/api/updates/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Update check started', 'info');
+                    // Status will be updated by periodic refresh
+                } else {
+                    showMessage(data.error || 'Failed to start update check', 'error');
+                    hideUpdateProgress();
+                }
+            })
+            .catch(error => {
+                console.error('Error starting update check:', error);
+                showMessage('Failed to start update check', 'error');
+                hideUpdateProgress();
+            });
+        }
+
+        function applyUpdate() {
+            if (!confirm('Are you sure you want to apply this update? The service will be restarted and may be unavailable for a few minutes.')) {
+                return;
+            }
+
+            showUpdateProgress('Creating backup and applying update...', 50);
+            
+            fetch('/api/updates/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(`Update application started. Backup ID: ${data.backup_id}`, 'success');
+                    showUpdateProgress('Update applying - system will restart...', 95);
+                } else {
+                    showMessage(data.error || 'Failed to apply update', 'error');
+                    hideUpdateProgress();
+                }
+            })
+            .catch(error => {
+                console.error('Error applying update:', error);
+                showMessage('Failed to apply update', 'error');
+                hideUpdateProgress();
+            });
+        }
+
+        function toggleChangelog() {
+            const changelogContainer = document.getElementById('changelogContainer');
+            const changelogContent = document.getElementById('changelogContent');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            
+            if (changelogContainer.style.display === 'none') {
+                changelogBtn.textContent = '📄 Hide Changelog';
+                changelogContainer.style.display = 'block';
+                
+                // Load changelog if not already loaded
+                fetch('/api/updates/changelog')
+                    .then(response => response.json())
+                    .then(data => {
+                        changelogContent.textContent = data.changelog || 'No changelog available';
+                    })
+                    .catch(error => {
+                        changelogContent.textContent = 'Failed to load changelog';
+                    });
+            } else {
+                changelogBtn.textContent = '📄 View Changelog';
+                changelogContainer.style.display = 'none';
+            }
+        }
+
+        function showUpdateProgress(text, percentage) {
+            const progressContainer = document.getElementById('updateProgress');
+            const progressText = document.getElementById('progressText');
+            const progressFill = document.getElementById('progressFill');
+            
+            progressText.textContent = text;
+            progressFill.style.width = percentage + '%';
+            progressContainer.style.display = 'block';
+        }
+
+        function hideUpdateProgress() {
+            const progressContainer = document.getElementById('updateProgress');
+            progressContainer.style.display = 'none';
+        }
+
+        function showMessage(message, type = 'success') {
+            // Create or update flash message
+            let flashContainer = document.querySelector('.flash-messages');
+            if (!flashContainer) {
+                flashContainer = document.createElement('div');
+                flashContainer.className = 'flash-messages';
+                document.querySelector('h1').after(flashContainer);
+            }
+
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash-message flash-${type}`;
+            flashDiv.innerHTML = `
+                <span class="flash-text">${message}</span>
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            
+            flashContainer.appendChild(flashDiv);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (flashDiv.parentNode) {
+                    flashDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

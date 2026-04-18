@@ -367,92 +367,26 @@ def package_install(with_opencv=False):
     return True
 
 def setup_comitup():
-    """Setup ComitUp WiFi management - simple version with proper repository"""
+    """Setup ComitUp WiFi management - super simple version"""
     log_step("COMITUP", "Setting up ComitUp WiFi management...")
     
-    # First, configure WiFi country and unblock WiFi
-    log_step("COMITUP", "Configuring WiFi country and unblocking WiFi...")
-    run_cmd("sudo rfkill unblock wifi")
-    
-    # Set WiFi country to Sweden (SE) - adjust as needed
-    # This can also be set via raspi-config non-interactively
-    run_cmd('sudo raspi-config nonint do_wifi_country SE')
-    
-    # Alternative method if raspi-config doesn't work
-    run_cmd('echo "country=SE" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf', check=False)
-    
-    # Add ComitUp repository
-    log_step("COMITUP", "Adding ComitUp repository...")
-    comitup_deb = "davesteele-comitup-apt-source_1.3_all.deb"
-    if not run_cmd(f"wget -O /tmp/{comitup_deb} https://davesteele.github.io/comitup/deb/{comitup_deb}", check=False):
-        log_step("WARNING", "Failed to download ComitUp repository - skipping WiFi management setup")
-        return False
-    
-    if not run_cmd(f"sudo dpkg -i /tmp/{comitup_deb}", check=False):
-        log_step("WARNING", "Failed to install ComitUp repository")
-        return False
-    
-    # Update package lists and install ComitUp
+    # Install ComitUp
     log_step("COMITUP", "Installing ComitUp...")
-    run_cmd("sudo apt-get update")
     if not run_cmd("sudo apt-get install -y comitup"):
         log_step("WARNING", "Failed to install ComitUp - skipping WiFi management setup")
         return False
     
-    # Generate dynamic configuration with hostname-based AP name
-    log_step("COMITUP", "Creating ComitUp configuration...")
-    hostname = get_serial()
-    
-    comitup_config = f"""#
-# Comitup configuration
-#
-
-# ap_name - Using hostname for easy identification
-#
-# This defines the name used for the AP hotspot, and for the ZeroConf
-# host name.
-#
-ap_name: {hostname}-comitup
-
-# ap_password
-#
-# If an ap_password is defined, then the AP hotspot is configured with 
-# "infrastructure WPA-psk" authentication, requiring this password
-# to connect. The password must be between 8 and 63 characters. You
-# should reboot after changing this value.
-#
-# ap_password: supersecretpassword
-
-# primary_wifi_device
-#
-# By default, the first wifi device returned by NetworkManager is used as
-# the primary wifi device. This allows you to override this choice.
-# The primary device is used to spawn the access point.
-#
-primary_wifi_device: wlan0
-
-# Enable GPIO nuke button functionality
-# DISABLED to prevent GPIO conflicts with camera controller
-# This prevents "Failed to add edge detection" errors
-enable_nuke: 0
-"""
-    
-    # Write the dynamic configuration
-    with open('/tmp/comitup.conf', 'w') as f:
-        f.write(comitup_config)
-    run_cmd("sudo mv /tmp/comitup.conf /etc/comitup.conf")
-    run_cmd("sudo chown root:root /etc/comitup.conf")
-    run_cmd("sudo chmod 644 /etc/comitup.conf")
+    # Copy configuration if available
+    comitup_conf_source = f"{PROJECT_ROOT}/Services/comitup.conf"
+    if os.path.exists(comitup_conf_source):
+        log_step("COMITUP", "Installing ComitUp configuration...")
+        run_cmd(f"sudo cp {comitup_conf_source} /etc/comitup.conf")
     
     # Enable the service (don't force start - let it start when needed)
     log_step("COMITUP", "Enabling ComitUp service...")
     run_cmd("sudo systemctl enable comitup")
     
-    # Ensure network-online.target works properly for camera services
-    log_step("COMITUP", "Configuring network wait services...")
-    run_cmd("sudo systemctl enable systemd-networkd-wait-online.service", check=False)
-    
-    log_step("COMITUP", "ComitUp setup completed - WiFi unblocked and will start when no network is available")
+    log_step("COMITUP", "ComitUp setup completed - will start when no network is available")
     return True
 
 def setup_directories():
@@ -511,11 +445,6 @@ def setup_samba():
     run_cmd("sudo systemctl enable wsdd", check=False)
     run_cmd("sudo systemctl restart wsdd", check=False)
     
-    # Ensure proper permissions on shared directory for full guest access
-    log_step("SAMBA", "Setting permissions for full guest access...")
-    run_cmd("sudo chmod -R 777 /home/pi/shared", check=False)
-    run_cmd("sudo chown -R pi:pi /home/pi/shared", check=False)
-    
     return True
 
 def setup_services():
@@ -525,6 +454,7 @@ def setup_services():
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),
         ("camcontroller-web.service", "Services/camcontroller-web.service"),
+        ("camcontroller-update.service", "Services/camcontroller-update.service"),
     ]
     
     for service_name, service_path in services:
@@ -538,9 +468,6 @@ def setup_services():
     
     # Reload systemd daemon
     run_cmd("sudo systemctl daemon-reload")
-    
-    # Restart web service to apply new configuration
-    run_cmd("sudo systemctl restart camcontroller-web.service", check=False)
 
 def sync_hostname_in_hosts(hostname):
     """Ensure /etc/hosts contains a local mapping for the configured hostname."""
@@ -652,11 +579,10 @@ def main():
         print(f"Hostname: {hostname}.local")
         print(f"Web interface: http://{hostname}.local")
         print(f"Samba share: \\\\{hostname}.local\\shared")
-        print(f"ComitUp portal: http://10.41.0.1 (when connected to {hostname}-comitup WiFi)")
         print(f"Install log: /home/pi/shared/logs/install_{install_logger.start_time.strftime('%Y%m%d_%H%M%S')}.log")
         print("\\nNext steps:")
         print("1. Reboot to activate all services")
-        print(f"2. Configure WiFi via ComitUp portal (connect to {hostname}-comitup network)")
+        print("2. Configure WiFi via ComitUp portal")
         print("3. Access web interface for camera settings")
         print("=" * 60)
             

@@ -1,7 +1,9 @@
 [Unit]
 Description=CamController service
-After=multi-user.target
-Requires=network.target
+After=network-online.target
+Wants=network-online.target
+# Ensure ComitUp has had chance to provide network connectivity
+After=comitup.service
 
 [Service]
 Type=simple

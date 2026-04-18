@@ -133,7 +133,7 @@ hwconfig = {
 ```
 
 **Hardware Capabilities:**
-- **Light Control**: PWM-based lighting with 2500Hz frequency (flicker-free)
+- **Light Control**: PWM-based lighting with configurable frequency (default 2500Hz for flicker-free operation)
 - **Status Indicators**: Addressable RGB LEDs for system status
 - **Temperature Monitoring**: CPU temperature with automated cooling actions
 
