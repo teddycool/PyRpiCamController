@@ -73,8 +73,7 @@ OTA update support is not enabled for production use in this release.
 * PWM-controlled LED lighting (flicker-free 2500Hz)
 * Addressable RGB status indicators  
 * Temperature sensors for environmental monitoring
-* A circuit diagram for optional auxiliary hardware is available here: [Circuit diagram](_doc/extra_hardware.pdf), and [the PCB can be ordered from Aisler](https://aisler.net/p/VECRZXIU)
-* Complete KiCAD project available in [this zip file](_doc/RpiConnector_v2.1_kicad_9.0.7.zip).
+* Fixed KiCAD drawings will be available soon. 
 
 ## 🚀 Quick Start
 
