@@ -10,15 +10,16 @@ __author__ = 'teddycool'
 
 
 hwconfig1 = {
-    "Description": "RPi3B+ with PiCam3 and lightbox",
+    "Description": "RPi4 with PiCam3 and lightbox",
     "Version": 1, # version of the settings structure      
-    "RpiBoard": "Rpi3B+", 
+    "RpiBoard": "Rpi4", 
     "CamChip": "PiCam3",  # PiCam2, PiCamHQ, PiCam3, WebCam
     "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin
         "displaycontrolgpio": 18, #only works with a PWM0 pin
         "displaysize": 1,  # number of leds
+        "ds18b20pin": 22,  # GPIO pin for 18b20 sensor, None if not used
     },
 }
 

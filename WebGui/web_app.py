@@ -138,14 +138,51 @@ def stream_status():
                 # Fallback if streaming server API is not available
                 actual_fps = 0.0
         
-        return jsonify({
+        # Read current temperature data from runtime status file
+        temperature_data = {
+            'cpu_temperature': None,
+            'ds18b20_temperature': None,
+            'ds18b20_available': False,
+            'temperature_timestamp': None
+        }
+        
+        try:
+            runtime_status_file = "/tmp/cam_runtime_status.json"
+            if os.path.exists(runtime_status_file):
+                # Try multiple times in case file is being written
+                for attempt in range(3):
+                    try:
+                        with open(runtime_status_file, 'r') as f:
+                            status_data = json_module.load(f)
+                            temperature_data['cpu_temperature'] = status_data.get('cpu_temperature')
+                            temperature_data['ds18b20_temperature'] = status_data.get('ds18b20_temperature')
+                            temperature_data['ds18b20_available'] = status_data.get('ds18b20_available', False)
+                            temperature_data['temperature_timestamp'] = status_data.get('timestamp')
+                        break  # Success, exit retry loop
+                    except (json_module.JSONDecodeError, IOError) as e:
+                        if attempt < 2:  # Retry on first two attempts
+                            time.sleep(0.1)
+                            continue
+                        else:
+                            # Give up after 3 attempts
+                            pass
+        except Exception as e:
+            # Temperature data not available, keep None values
+            pass
+        
+        response_data = {
             'running': is_running,
             'port': port,
             'url': f"http://{hostname}.local:{port}",
             'resolution': settings_manager.get('Stream.resolution'),
             'framerate': settings_manager.get('Stream.framerate'),
             'actual_fps': actual_fps
-        })
+        }
+        
+        # Add temperature data to response
+        response_data.update(temperature_data)
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

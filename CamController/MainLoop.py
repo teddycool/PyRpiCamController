@@ -21,8 +21,11 @@ from CamStates.state_names import StateName
 from Connectivity import cpuserial
 from IO import Display
 from IO import Light
-from IO import Tempmonitor
+from IO import CpuTempMonitor
+from IO import DS18B20TempMonitor
 from Settings.settings_manager import settings_manager
+import json
+import os
 
 logger = logging.getLogger("cam.mainloop")
 
@@ -53,10 +56,33 @@ class MainLoop:
         logger.info("My serial is: %s", self.mycpuserial)
 
         self._lastconfigcheck = 0
-        self._lasttempcheck = 0      
+        self._lasttempcheck = 0
+        self._lastds18b20tempcheck = 0
+        
+        logger.info("Starting temperature monitor initialization...")
               
-        self._cputempmonitor = Tempmonitor.TempMonitor()
+        self._cputempmonitor = CpuTempMonitor.CpuTempMonitor()
         self._cputemp = self._cputempmonitor.get_cpu_temperature()
+        logger.info("CPU temperature monitor initialized: %s°C", self._cputemp)
+        
+        # Initialize DS18B20 temperature sensor if configured
+        logger.info("Checking DS18B20 configuration...")
+        ds18b20_pin = self._hardware_config["Io"].get("ds18b20pin")
+        logger.info("DS18B20 pin from config: %s", ds18b20_pin)
+        if ds18b20_pin is not None:
+            try:
+                logger.info("Attempting to initialize DS18B20 on pin %s...", ds18b20_pin)
+                self._ds18b20tempmonitor = DS18B20TempMonitor.DS18B20TempMonitor(ds18b20_pin)
+                self._ds18b20temp = self._ds18b20tempmonitor.get_temperature()
+                logger.info("DS18B20 sensor initialized on pin %s, initial reading: %s", ds18b20_pin, self._ds18b20temp)
+            except Exception as e:
+                logger.error("Failed to initialize DS18B20 sensor: %s", str(e))
+                self._ds18b20tempmonitor = None
+                self._ds18b20temp = None
+        else:
+            logger.info("DS18B20 sensor not configured (pin is None)")
+            self._ds18b20tempmonitor = None
+            self._ds18b20temp = None
 
         
         #Setup IO, these settings are NOT configurable from backend but hardware dependent
@@ -109,20 +135,56 @@ class MainLoop:
         
         #TODO: Check temperatures and other 'house-keeping'
 
+        # Check CPU temperature
         if time.time() - self._lasttempcheck > self._settings.get("CheckCpuTemp"):
-            self._cputemp = self._cputempmonitor.get_cpu_temperature()
+            temp_reading = self._cputempmonitor.get_cpu_temperature()
+            if temp_reading is not None:
+                self._cputemp = temp_reading
+                logger.debug("Current CPU-temperature: %s", str(self._cputemp))
+                if self._cputemp > self._settings.get("Limits.maxcputemp"):
+                    logger.error("Critical CPU-temperature: %s", str(self._cputemp))
+                    logger.error("Will halt system for 5 minutes to cool off")
+                    time.sleep(300)
+                    logger.info("CPU-temperature after cool-off is now: %s", str(self._cputempmonitor.get_cpu_temperature()))
+            else:
+                logger.warning("Failed to read CPU temperature")
             self._lasttempcheck = time.time()
-            logger.debug("Current CPU-temperature: %s", str(self._cputemp))
-            if self._cputemp > self._settings.get("Limits.maxcputemp"):
-                logger.error("Critical CPU-temperature: %s", str(self._cputemp))
-                logger.error("Will halt system for 5 minutes to cool off")
-                time.sleep(300)
-                logger.info("CPU-temperature after cool-off is now: %s", str(self._cputempmonitor.get_cpu_temperature()))
-            else:   
-                if self._cputemp > self._settings.get("Limits.wcputemp"):
-                    logger.warning("High CPU-temperature: %s", str(self._cputemp))
+        
+        # Check DS18B20 temperature every 60 seconds
+        if self._ds18b20tempmonitor is not None and time.time() - self._lastds18b20tempcheck > 60:
+            temp = self._ds18b20tempmonitor.get_temperature()
+            if temp is not None:
+                self._ds18b20temp = temp
+                logger.info("DS18B20 temperature: %.1f°C", temp)
+            else:
+                logger.warning("Failed to read DS18B20 temperature")
+            self._lastds18b20tempcheck = time.time()
+            
+        # Write runtime status for web interface (every update cycle for timely GUI updates)
+        self._update_runtime_status()
+        
         #Finally, update the current state logic..                  
         self._currentstate.update(self)      
+
+    def _update_runtime_status(self):
+        """Write current runtime status to file for web interface"""
+        try:
+            status_data = {
+                'timestamp': time.time(),
+                'cpu_temperature': self._cputemp if self._cputemp is not None else None,
+                'ds18b20_temperature': self._ds18b20temp,
+                'ds18b20_available': self._ds18b20tempmonitor is not None
+            }
+            
+            status_file = "/tmp/cam_runtime_status.json"
+            # Write to temporary file first, then rename for atomic operation
+            temp_file = status_file + ".tmp"
+            with open(temp_file, 'w') as f:
+                json.dump(status_data, f)
+            os.rename(temp_file, status_file)
+                
+        except Exception as e:
+            logger.debug("Failed to write runtime status: %s", str(e))      
 
     def _check_settings_reload_request(self):
         """Check for settings reload requests from web interface."""

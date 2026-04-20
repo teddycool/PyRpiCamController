@@ -280,6 +280,108 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             color: #dc3545 !important;
         }
         
+        /* Temperature Monitoring */
+        .temperature-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+        }
+        .temperature-widget {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Header Temperature Display */
+        .temperature-header {
+            background: linear-gradient(135deg, var(--background-white) 0%, #f8f9fa 100%);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(44, 90, 160, 0.08);
+        }
+        .temperature-header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .temp-header-widget {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background: var(--background-white);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            justify-content: center;
+        }
+        .temp-header-widget .temp-label {
+            font-weight: 600;
+            margin-right: 10px;
+            color: var(--dark-text);
+            font-size: 0.9rem;
+        }
+        .temp-header-widget .temp-value {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+        }
+        .temp-label {
+            font-weight: 500;
+            color: #555;
+        }
+        .temp-value {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .temp-normal {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .temp-warm {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+        .temp-hot {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .temp-unknown {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+        
+        /* Header temperature color classes */
+        .temp-header-widget.temp-normal {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda, #e8f5e8);
+        }
+        .temp-header-widget.temp-warm {
+            border-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd, #fcf4dd);
+        }
+        .temp-header-widget.temp-hot {
+            border-color: #dc3545;
+            background: linear-gradient(135deg, #f8d7da, #fae2e4);
+        }
+        .temp-header-widget.temp-unknown {
+            border-color: #6c757d;
+            background: linear-gradient(135deg, #e9ecef, #f1f3f4);
+            color: #6c757d;
+        }
+        
         /* Flash Messages */
         .flash-messages {
             margin-bottom: 20px;
@@ -546,6 +648,20 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
     <div class="container">
         <h1>Kamerakontroller Inställningar</h1>
         
+        <!-- Temperature Status Header -->
+        <div class="temperature-header">
+            <div class="temperature-header-content">
+                <div class="temp-header-widget temp-unknown" id="cpuTempHeaderWidget">
+                    <span class="temp-label">🖥️ CPU:</span>
+                    <span class="temp-value" id="cpuTempHeaderValue">Loading...</span>
+                </div>
+                <div class="temp-header-widget temp-unknown" id="ds18b20TempHeaderWidget">
+                    <span class="temp-label">🌡️ Environment:</span>
+                    <span class="temp-value" id="ds18b20TempHeaderValue">Not available</span>
+                </div>
+            </div>
+        </div>
+        
         <!-- Basic/Advanced Tabs -->
         <div class="tabs">
             <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Grundinställningar</a>
@@ -695,6 +811,23 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 </div>
             </div>
             
+            <!-- Temperature Monitoring Panel -->
+            <div class="section temperature-monitoring">
+                <h3 class="section-title">🌡️ Temperature Monitoring</h3>
+                <div class="section-content">
+                    <div class="temperature-info" id="temperatureInfo">
+                        <div class="temperature-widget" id="cpuTempWidget">
+                            <span class="temp-label">CPU Temperature:</span>
+                            <span class="temp-value" id="cpuTempValue">Loading...</span>
+                        </div>
+                        <div class="temperature-widget" id="ds18b20TempWidget">
+                            <span class="temp-label">DS18B20 Temperature:</span>
+                            <span class="temp-value" id="ds18b20TempValue">Not available</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Software Updates Panel -->
             <div class="section updates">
                 <h3 class="section-title">📦 Software Updates</h3>
@@ -803,11 +936,13 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             initApplyControls();
             initUpdateControls();
             updateStreamStatus();
+            updateTemperatureStatus();
             updatePendingChanges();
             updateUpdateStatus();
             
             // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
+            setInterval(updateTemperatureStatus, 10000);
             setInterval(updatePendingChanges, 10000);
             setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
         });
@@ -992,6 +1127,107 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     console.error('Error checking stream status:', error);
                     updateUI(false);
                 });
+        }
+        
+        function updateTemperatureStatus() {
+            fetch('/api/stream/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateTemperatureUI(data);
+                })
+                .catch(error => {
+                    console.error('Error checking temperature status:', error);
+                    updateTemperatureUI(null);
+                });
+        }
+        
+        function updateTemperatureUI(data) {
+            // Get regular temperature widgets (in settings section)
+            const cpuTempWidget = document.getElementById('cpuTempWidget');
+            const cpuTempValue = document.getElementById('cpuTempValue');
+            const ds18b20TempWidget = document.getElementById('ds18b20TempWidget');
+            const ds18b20TempValue = document.getElementById('ds18b20TempValue');
+            
+            // Get header temperature widgets
+            const cpuTempHeaderWidget = document.getElementById('cpuTempHeaderWidget');
+            const cpuTempHeaderValue = document.getElementById('cpuTempHeaderValue');
+            const ds18b20TempHeaderWidget = document.getElementById('ds18b20TempHeaderWidget');
+            const ds18b20TempHeaderValue = document.getElementById('ds18b20TempHeaderValue');
+            
+            if (!data) {
+                // Update regular widgets
+                if (cpuTempValue) cpuTempValue.textContent = 'Error';
+                if (ds18b20TempValue) ds18b20TempValue.textContent = 'Error';
+                if (cpuTempWidget) cpuTempWidget.className = 'temperature-widget temp-unknown';
+                if (ds18b20TempWidget) ds18b20TempWidget.className = 'temperature-widget temp-unknown';
+                
+                // Update header widgets
+                if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = 'Error';
+                if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = 'Error';
+                if (cpuTempHeaderWidget) cpuTempHeaderWidget.className = 'temp-header-widget temp-unknown';
+                if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
+                return;
+            }
+            
+            // Update CPU temperature
+            if (data.cpu_temperature !== null && data.cpu_temperature !== undefined) {
+                const tempText = `${data.cpu_temperature.toFixed(1)}°C`;
+                const tempClass = getTemperatureClass(data.cpu_temperature, 'cpu');
+                
+                // Update regular widgets
+                if (cpuTempValue) cpuTempValue.textContent = tempText;
+                if (cpuTempWidget) cpuTempWidget.className = `temperature-widget ${tempClass}`;
+                
+                // Update header widgets
+                if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = tempText;
+                if (cpuTempHeaderWidget) cpuTempHeaderWidget.className = `temp-header-widget ${tempClass}`;
+            } else {
+                // Update regular widgets
+                if (cpuTempValue) cpuTempValue.textContent = 'Not available';
+                if (cpuTempWidget) cpuTempWidget.className = 'temperature-widget temp-unknown';
+                
+                // Update header widgets
+                if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = 'Not available';
+                if (cpuTempHeaderWidget) cpuTempHeaderWidget.className = 'temp-header-widget temp-unknown';
+            }
+            
+            // Update DS18B20 temperature
+            if (data.ds18b20_available && data.ds18b20_temperature !== null && data.ds18b20_temperature !== undefined) {
+                const tempText = `${data.ds18b20_temperature.toFixed(1)}°C`;
+                const tempClass = getTemperatureClass(data.ds18b20_temperature, 'ambient');
+                
+                // Update regular widgets
+                if (ds18b20TempValue) ds18b20TempValue.textContent = tempText;
+                if (ds18b20TempWidget) ds18b20TempWidget.className = `temperature-widget ${tempClass}`;
+                
+                // Update header widgets
+                if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = tempText;
+                if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = `temp-header-widget ${tempClass}`;
+            } else {
+                const statusText = data.ds18b20_available ? 'Reading...' : 'Not available';
+                
+                // Update regular widgets
+                if (ds18b20TempValue) ds18b20TempValue.textContent = statusText;
+                if (ds18b20TempWidget) ds18b20TempWidget.className = 'temperature-widget temp-unknown';
+                
+                // Update header widgets
+                if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = statusText;
+                if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
+            }
+        }
+        
+        function getTemperatureClass(temp, type) {
+            if (type === 'cpu') {
+                // CPU temperature thresholds
+                if (temp < 60) return 'temp-normal';
+                if (temp < 75) return 'temp-warm';
+                return 'temp-hot';
+            } else {
+                // Environment temperature thresholds (inside cam-box)
+                if (temp < 50) return 'temp-normal';
+                if (temp < 65) return 'temp-warm';
+                return 'temp-hot';
+            }
         }
 
         function updateUI(hasError = false) {

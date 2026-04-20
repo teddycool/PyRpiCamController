@@ -518,6 +518,58 @@ def setup_samba():
     
     return True
 
+def setup_ds18b20_hardware():
+    """Configure DS18B20 1-wire temperature sensor hardware support"""
+    log_step("DS18B20", "Configuring DS18B20 temperature sensor hardware...")
+    
+    # Determine config file path (Bookworm vs older versions)
+    config_paths = ["/boot/firmware/config.txt", "/boot/config.txt"]
+    config_path = None
+    
+    for path in config_paths:
+        if os.path.exists(path):
+            config_path = path
+            break
+    
+    if not config_path:
+        log_step("WARNING", "Boot config file not found - DS18B20 configuration skipped")
+        return False
+    
+    log_step("DS18B20", f"Using config file: {config_path}")
+    
+    # Check if DS18B20 overlay is already configured
+    existing_w1_config = run_cmd(f"grep -i 'dtoverlay=w1-gpio' {config_path} || true", capture=True, check=False)
+    
+    if existing_w1_config:
+        log_step("DS18B20", "1-wire overlay already configured")
+    else:
+        log_step("DS18B20", "Adding 1-wire overlay to boot configuration...")
+        # Add DS18B20 configuration to boot config
+        overlay_config = "\\n# DS18B20 Temperature Sensor (GPIO 22)\\ndtoverlay=w1-gpio,gpiopin=22\\n"
+        run_cmd(f"echo '{overlay_config}' | sudo tee -a {config_path} >/dev/null")
+        log_step("DS18B20", "1-wire overlay added to boot configuration")
+    
+    # Configure required kernel modules
+    modules_file = "/etc/modules"
+    required_modules = ["w1-gpio", "w1-therm"]
+    
+    log_step("DS18B20", "Configuring kernel modules...")
+    
+    for module in required_modules:
+        # Check if module is already configured
+        existing_module = run_cmd(f"grep -E '^{module}\\\\s*$' {modules_file} || true", capture=True, check=False)
+        
+        if existing_module:
+            log_step("DS18B20", f"Module {module} already configured")
+        else:
+            log_step("DS18B20", f"Adding {module} to {modules_file}")
+            run_cmd(f"echo '{module}' | sudo tee -a {modules_file} >/dev/null")
+    
+    log_step("DS18B20", "DS18B20 hardware configuration complete")
+    log_step("DS18B20", "Note: Reboot required to activate 1-wire interface")
+    
+    return True
+
 def setup_services():
     """Setup all systemd services"""
     log_step("SERVICES", "Setting up system services...")
@@ -629,6 +681,9 @@ def main():
         # Samba setup
         setup_samba()
         
+        # DS18B20 temperature sensor hardware setup
+        setup_ds18b20_hardware()
+        
         # Services setup
         setup_services()
         
@@ -654,10 +709,14 @@ def main():
         print(f"Samba share: \\\\{hostname}.local\\shared")
         print(f"ComitUp portal: http://10.41.0.1 (when connected to {hostname}-comitup WiFi)")
         print(f"Install log: /home/pi/shared/logs/install_{install_logger.start_time.strftime('%Y%m%d_%H%M%S')}.log")
+        print("\\nHardware Configuration:")
+        print("• DS18B20 temperature sensor: 1-wire interface configured (GPIO 22)")
+        print("• Temperature monitoring: Available in web interface after reboot")
         print("\\nNext steps:")
-        print("1. Reboot to activate all services")
+        print("1. Reboot to activate all services and hardware interfaces")
         print(f"2. Configure WiFi via ComitUp portal (connect to {hostname}-comitup network)")
-        print("3. Access web interface for camera settings")
+        print("3. Access web interface for camera and temperature monitoring")
+        print("4. Connect DS18B20 temperature sensor to GPIO 22 if desired")
         print("=" * 60)
             
     except KeyboardInterrupt:
