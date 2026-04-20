@@ -189,7 +189,7 @@ Real-world applications of PyRpiCamController:
 !["Rpi3 with a HQ camera"](_doc/rpi3-hq-cam.jpg)
 
 ### Inside beehive cam
-!["Beehive cam"](_doc/bikupekamera_j.png)
+!["Beehive cam"](_doc/bikupekamera_ln.png)
 
 ### Deployed Beehive Camera Systems
 !["Beehive cams"](_doc/bee-hive-cams.jpg)
