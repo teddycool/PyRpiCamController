@@ -42,7 +42,7 @@ Once WiFi is configured, your camera system provides two ways to access files an
 - **Windows**: Open File Explorer → `\\[device-name].local\shared`
 - **Mac**: Finder → Go → Connect to Server → `smb://[device-name].local/shared`
 - **What you'll find**: 
-  - `images/` - All captured photos/videos organized by date
+  - `images/` - All captured photos organized by date
   - `logs/` - System logs and installation records
 
 > **Note**: `[device-name]` is your device's unique ID (usually starts with your Pi's serial number)

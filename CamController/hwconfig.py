@@ -6,7 +6,8 @@ __author__ = 'teddycool'
 
 # Purpose of this file:
 # Fixed configurations for the different types of hardware sold by sensorwebben.se 
-# This file should not be changed by the user, unless you know what you know what you are doing.
+# This file should not be changed by the user, unless you create your own camera system or 
+# know what you know what you are doing.
 
 
 hwconfig1 = {
