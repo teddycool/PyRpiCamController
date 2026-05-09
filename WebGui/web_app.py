@@ -11,6 +11,7 @@ import json as json_module  # Use different name to avoid conflicts
 import socket
 import time
 import datetime
+import shutil
 # Add parent directory to path to access Settings module
 from Settings.settings_manager import settings_manager
 
@@ -169,6 +170,29 @@ def stream_status():
         except Exception as e:
             # Temperature data not available, keep None values
             pass
+
+        # Read disk usage for image storage location
+        disk_data = {
+            'disk_total_bytes': None,
+            'disk_free_bytes': None,
+            'disk_path': None
+        }
+
+        try:
+            disk_path = settings_manager.get('Cam.publishers.file.location')
+            if not disk_path:
+                disk_path = '/'
+
+            # Use directory itself when possible; otherwise inspect parent directory
+            usage_path = disk_path if os.path.isdir(disk_path) else os.path.dirname(disk_path) or '/'
+            usage = shutil.disk_usage(usage_path)
+
+            disk_data['disk_total_bytes'] = usage.total
+            disk_data['disk_free_bytes'] = usage.free
+            disk_data['disk_path'] = usage_path
+        except Exception:
+            # Disk data not available, keep None values
+            pass
         
         response_data = {
             'running': is_running,
@@ -181,6 +205,7 @@ def stream_status():
         
         # Add temperature data to response
         response_data.update(temperature_data)
+        response_data.update(disk_data)
         
         return jsonify(response_data)
     except Exception as e:

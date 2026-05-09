@@ -27,16 +27,27 @@ If you like the project and want to support it, consider donating a small amount
 
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Release Readiness Checklist](#-release-readiness-checklist)
+- [Release Notes](#-release-notes)
 - [Documentation](#documentation)
+- [API](#api)
 - [Hardware Support](#hardware-support)
 - [Contributing](#contributing)
 - [Examples](#examples)
 - [Hardware Gallery](#hardware-gallery)
 
+## 🗺️ Setup & Operation Flow
+
+Click the image to open full size:
+
+<a href="_doc/Setup-and-operation-flow.png">
+   <img src="_doc/Setup-and-operation-flow.png" alt="PyRpiCamController setup and operation flow" width="560">
+</a>
+
 ## ✨ Features
 
 ### Core Functionality
-* **Multi-Camera Support**: Raspberry Pi Camera Module 2/3 and HQ Camera
+* **Multi-Camera Support**: Raspberry Pi Camera Module 2/3, HQ Camera, and USB webcam fallback
 * **Unified Settings System**: JSON schema-based configuration with web interface
 * **Real-time Streaming**: Live video with configurable resolution and framerate
 * **Smart Scheduling**: Time-based capture with customizable intervals
@@ -61,7 +72,7 @@ These features are enabled by default in `Settings/settings_schema.json`:
 * **File logging enabled** (`LogToFile = true`)
 * **Vision framework enabled** (`Vision.enabled = true`)
 
-OTA update support is not enabled for production use in this release.
+OTA-related configuration, service files, and web endpoints are present for development and future rollout, but OTA updates are not supported for production use in this release.
 
 ### Technical Highlights
 * **Modular Architecture**: Easy to add new camera types, publishing targets, and image processing steps  
@@ -98,6 +109,33 @@ OTA update support is not enabled for production use in this release.
 
 📖 **Need detailed setup instructions?** → [INSTALLATION.md](INSTALLATION.md)
 
+## ✅ Release Readiness Checklist
+
+Use this checklist before tagging the first public release:
+
+- Verify installation flow on Raspberry Pi 3B+, 4B, and 5 from a clean USB boot image.
+- Verify first-boot WiFi onboarding via Comitup (`comitup-<nnn>` SSID and `http://10.41.0.1`).
+- Verify Web UI workflow: setting changes, pending-change indicator, apply-and-restart.
+- Verify camera mode behavior: photo mode saves files, stream mode starts and serves video.
+- Verify SMB access from Windows/macOS/Linux using the `shared` share name.
+- Verify image and log paths are writable and disk free space is visible in the Web UI.
+- Verify required services are active (`camcontroller.service`, `camcontroller-web.service`, SMB/Avahi as applicable).
+- Confirm OTA is treated as unsupported for production in this release.
+- Confirm documentation links and examples match shipped configuration.
+
+Recommended smoke test commands:
+
+```bash
+sudo systemctl status camcontroller.service camcontroller-web.service
+hostname -I
+ls -lah /home/pi/shared/
+journalctl -u camcontroller.service -n 100 --no-pager
+```
+
+## 📝 Release Notes
+
+- Draft release notes: [RELEASE_NOTES.md](RELEASE_NOTES.md)
+
 ## 📚 Documentation
 
 | Document | Description |
@@ -107,12 +145,30 @@ OTA update support is not enabled for production use in this release.
 | [UNIFIED_SETTINGS_GUIDE.md](Settings/UNIFIED_SETTINGS_GUIDE.md) | Unified settings system documentation |
 | [SMB_FILE_SHARING.md](SMB_FILE_SHARING.md) | SMB file sharing setup and troubleshooting guide |
 
+## API
+
+The web interface uses an internal HTTP API on the same host. Main endpoints currently exposed by the backend include:
+
+- `GET /api/stream/status`
+- `POST /api/settings`
+- `POST /api/settings/update`
+- `GET /api/settings/pending`
+- `POST /api/service/apply-and-restart`
+- `GET /api/updates/status`
+- `POST /api/updates/check`
+- `POST /api/updates/apply`
+- `GET /api/updates/changelog`
+- `POST /api/updates/backup`
+
+These endpoints are primarily intended for the bundled Web UI. Treat them as internal interfaces unless you control both client and deployment.
+
 ## 🔧 Hardware Support
 
 ### Currently Supported Cameras
 - **Raspberry Pi Camera Module 2**: Supported via Picamera2
 - **Raspberry Pi Camera Module 3**: Full resolution (4608x2592), autofocus
 - **Raspberry Pi High Quality Camera**: Interchangeable lenses, high sensitivity
+- **USB WebCam**: Fallback option for compatible USB cameras
 
 ### Supported Boards  
 - **Raspberry Pi 3B+**: USB boot capable (recommended starting point)

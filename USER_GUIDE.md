@@ -4,6 +4,14 @@
 
 This guide explains how to set up and use your camera system.
 
+## 🗺️ Setup & Operation Flow Diagram
+
+Click the image to open full size:
+
+<a href="_doc/Setup-and-operation-flow.png">
+  <img src="_doc/Setup-and-operation-flow.png" alt="PyRpiCamController setup and operation flow" width="560">
+</a>
+
 ## 🚀 First Setup (WiFi Configuration)
 
 When you first power on your camera device, it needs to connect to your WiFi network.
@@ -12,10 +20,10 @@ When you first power on your camera device, it needs to connect to your WiFi net
 1. **Power on** your camera device
 2. **Wait 2-3 minutes** for the system to boot
 3. On your phone/computer, **scan for WiFi networks**
-4. Look for a network named **`[device-name]-comitup`** (where device-name is your Pi's unique ID)
+4. Look for a network named **`comitup-<nnn>`** (where `<nnn>` is the unique number shown by Comitup)
 
 ### Step 2: Connect and Configure
-1. **Connect** to the `[device-name]-comitup` network
+1. **Connect** to the `comitup-<nnn>` network
 2. Your device should automatically open a web page
    - If not, open a browser and go to: **`http://10.41.0.1`**
 3. **Select your home WiFi** network from the list
@@ -24,7 +32,7 @@ When you first power on your camera device, it needs to connect to your WiFi net
 
 ### Step 3: System Restart
 1. The device will **automatically restart**
-2. The `[device-name]-comitup` network will **disappear**
+2. The `comitup-<nnn>` network will **disappear**
 3. Your camera will now be **connected to your home WiFi**
 
 ---
@@ -63,7 +71,7 @@ Your camera system intelligently handles network connectivity:
 - ComitUp portal **starts automatically**
 - Camera web interface is **OFF**
 - File sharing is **unavailable** 
-- Look for `[device-name]-comitup` network to reconfigure WiFi
+- Look for the `comitup-<nnn>` network to reconfigure WiFi
 
 ---
 
@@ -88,7 +96,7 @@ shared/
 
 ## 🔧 Troubleshooting
 
-### Problem: Can't find `[device-name]-comitup` network
+### Problem: Can't find `comitup-<nnn>` network
 **Solution**: 
 - Wait 5 minutes after power-on
 - Check if device is already connected to WiFi
@@ -110,7 +118,7 @@ shared/
 **Solutions**:
 1. **Method 1**: Disconnect device from current WiFi (via router settings)
 2. **Method 2**: Power off device, move to location without WiFi coverage
-3. Wait for `[device-name]-comitup` network to appear and reconfigure
+3. Wait for the `comitup-<nnn>` network to appear and reconfigure
 
 ---
 
@@ -123,7 +131,7 @@ shared/
 | **WiFi lost** | ✅ Auto-starts | ❌ Not available | ❌ Not available |
 
 ### Important URLs:
-- **WiFi Setup**: `http://10.41.0.1` (when connected to `[device-name]-comitup`)
+- **WiFi Setup**: `http://10.41.0.1` (when connected to `comitup-<nnn>`)
 - **Camera Interface**: `http://[device-name].local` (when on WiFi)
 - **File Access**: `\\[device-name].local\shared` (Windows) or `smb://[device-name].local/shared` (Mac)
 

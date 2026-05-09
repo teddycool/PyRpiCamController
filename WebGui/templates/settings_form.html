@@ -659,6 +659,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     <span class="temp-label">🌡️ Environment:</span>
                     <span class="temp-value" id="ds18b20TempHeaderValue">Not available</span>
                 </div>
+                <div class="temp-header-widget temp-unknown" id="diskSpaceHeaderWidget">
+                    <span class="temp-label">💾 Disk:</span>
+                    <span class="temp-value" id="diskSpaceHeaderValue">Loading...</span>
+                </div>
             </div>
         </div>
         
@@ -1153,6 +1157,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const cpuTempHeaderValue = document.getElementById('cpuTempHeaderValue');
             const ds18b20TempHeaderWidget = document.getElementById('ds18b20TempHeaderWidget');
             const ds18b20TempHeaderValue = document.getElementById('ds18b20TempHeaderValue');
+            const diskSpaceHeaderWidget = document.getElementById('diskSpaceHeaderWidget');
+            const diskSpaceHeaderValue = document.getElementById('diskSpaceHeaderValue');
             
             if (!data) {
                 // Update regular widgets
@@ -1166,6 +1172,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = 'Error';
                 if (cpuTempHeaderWidget) cpuTempHeaderWidget.className = 'temp-header-widget temp-unknown';
                 if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
+                if (diskSpaceHeaderValue) diskSpaceHeaderValue.textContent = 'Error';
+                if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = 'temp-header-widget temp-unknown';
                 return;
             }
             
@@ -1214,6 +1222,22 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = statusText;
                 if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
             }
+
+            // Update disk space header status
+            if (data.disk_total_bytes !== null && data.disk_total_bytes !== undefined &&
+                data.disk_free_bytes !== null && data.disk_free_bytes !== undefined &&
+                data.disk_total_bytes > 0) {
+                const freePercent = (data.disk_free_bytes / data.disk_total_bytes) * 100;
+                const diskClass = getDiskSpaceClass(freePercent);
+                const freeText = formatBytes(data.disk_free_bytes);
+                const totalText = formatBytes(data.disk_total_bytes);
+
+                if (diskSpaceHeaderValue) diskSpaceHeaderValue.textContent = `${freeText} / ${totalText}`;
+                if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = `temp-header-widget ${diskClass}`;
+            } else {
+                if (diskSpaceHeaderValue) diskSpaceHeaderValue.textContent = 'Not available';
+                if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = 'temp-header-widget temp-unknown';
+            }
         }
         
         function getTemperatureClass(temp, type) {
@@ -1228,6 +1252,27 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (temp < 65) return 'temp-warm';
                 return 'temp-hot';
             }
+        }
+
+        function getDiskSpaceClass(freePercent) {
+            if (freePercent < 5) return 'temp-hot';
+            if (freePercent < 25) return 'temp-warm';
+            return 'temp-normal';
+        }
+
+        function formatBytes(bytes) {
+            if (!Number.isFinite(bytes) || bytes < 0) return 'N/A';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let value = bytes;
+            let unitIndex = 0;
+
+            while (value >= 1024 && unitIndex < units.length - 1) {
+                value /= 1024;
+                unitIndex += 1;
+            }
+
+            const decimals = unitIndex === 0 ? 0 : 1;
+            return `${value.toFixed(decimals)} ${units[unitIndex]}`;
         }
 
         function updateUI(hasError = false) {

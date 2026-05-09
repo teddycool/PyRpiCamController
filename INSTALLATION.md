@@ -8,12 +8,14 @@ This guide covers camera runtime, web UI, SMB sharing, and WiFi setup.
 
 OTA updates are **not supported yet** for production use. Some OTA-related files and services may exist in the repository, but they are not part of the supported installation flow.
 
+The Web UI may still show update-related status/actions in this release, but those are considered development/experimental paths rather than supported production workflow.
+
 ## Prerequisites
 
 **Hardware Requirements:**
 - **Raspberry Pi**: 3B+, 4B, or 5 (has WiFi and is USB boot capable)
 - **USB Drive**: SanDisk Ultra Fit 100GB+ recommended for system and image storage (USB 3.0+ for best performance)
-- **Camera**: Raspberry Pi Camera Module 3 or HQ Camera
+- **Camera**: Raspberry Pi Camera Module 2, Raspberry Pi Camera Module 3, or HQ Camera
 - **Power**: Sufficient power supply for your model
 
 **Important**: Raspberry Pi Zero models, Raspberry Pi 2A/B, and 3A/3B are **not supported** in this guide because they cannot boot directly from USB. They may still work with SD-card boot and additional setup, but that is outside the scope of this document.

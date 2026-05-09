@@ -42,18 +42,18 @@ The SMB share provides access to:
 1. Open File Explorer
 2. Click "Network" in the left sidebar
 3. Look for your Pi (hostname like `b1ce8695`)
-4. Double-click to access the `FileShare` folder
+4. Double-click to access the `shared` folder
 
 **Method 2: Direct Connection**
 1. Press `Win + R` to open Run dialog
-2. Type: `\\[hostname]\FileShare` or `\\[ip-address]\FileShare`
-   - Example: `\\b1ce8695\FileShare` or `\\192.168.1.112\FileShare`
+2. Type: `\\[hostname]\shared` or `\\[ip-address]\shared`
+   - Example: `\\b1ce8695\shared` or `\\192.168.1.112\shared`
 3. Press Enter
 
 **Method 3: Address Bar**
 1. Open File Explorer
 2. Click in the address bar
-3. Type: `\\[hostname]\FileShare` and press Enter
+3. Type: `\\[hostname]\shared` and press Enter
 
 ### macOS (Finder)
 
@@ -61,18 +61,18 @@ The SMB share provides access to:
 1. Open Finder
 2. Look in the sidebar under "Shared"
 3. Click on your Pi hostname
-4. Select the `FileShare` volume
+4. Select the `shared` volume
 
 **Method 2: Direct Connection**
 1. Open Finder
 2. Press `Cmd + K` (Connect to Server)
-3. Type: `smb://[hostname].local/FileShare` or `smb://[ip-address]/FileShare`
-   - Example: `smb://b1ce8695.local/FileShare` or `smb://192.168.1.112/FileShare`
+3. Type: `smb://[hostname].local/shared` or `smb://[ip-address]/shared`
+   - Example: `smb://b1ce8695.local/shared` or `smb://192.168.1.112/shared`
 4. Click "Connect"
 
 **Method 3: Address Bar**
 1. In Finder, press `Cmd + Shift + G` (Go to Folder)
-2. Type: `smb://[hostname].local/FileShare`
+2. Type: `smb://[hostname].local/shared`
 3. Click "Go"
 
 ### Linux (File Manager)
@@ -86,8 +86,8 @@ The SMB share provides access to:
 **Method 2: Direct Connection**
 1. Open file manager
 2. Press `Ctrl + L` or click address bar
-3. Type: `smb://[hostname].local/FileShare` or `smb://[ip-address]/FileShare`
-   - Example: `smb://b1ce8695.local/FileShare` or `smb://192.168.1.112/FileShare`
+3. Type: `smb://[hostname].local/shared` or `smb://[ip-address]/shared`
+   - Example: `smb://b1ce8695.local/shared` or `smb://192.168.1.112/shared`
 4. Press Enter
 
 **Method 3: Command Line (smbclient)**
@@ -96,11 +96,11 @@ The SMB share provides access to:
 smbclient -L //[ip-address] -U%
 
 # Connect to specific share
-smbclient //[ip-address]/FileShare -U%
+smbclient //[ip-address]/shared -U%
 
 # Mount the share
 sudo mkdir /mnt/camera-share
-sudo mount -t cifs //[ip-address]/FileShare /mnt/camera-share -o guest,uid=1000,gid=1000
+sudo mount -t cifs //[ip-address]/shared /mnt/camera-share -o guest,uid=1000,gid=1000
 ```
 
 ## 🔍 Finding Your Pi's Details
@@ -174,11 +174,11 @@ nmap -p 445 [pi-ip-address]
 
 **Use .local suffix for mDNS:**
 - Instead of: `\\b1ce8695\FileShare`
-- Try: `\\b1ce8695.local\FileShare` or `smb://b1ce8695.local/FileShare`
+- Try: `\\b1ce8695\shared` or `\\b1ce8695.local\shared` or `smb://b1ce8695.local/shared`
 
 **Use IP address directly:**
 - Find IP: `hostname -I` on your Pi
-- Access: `\\192.168.1.112\FileShare` (replace with your actual IP)
+- Access: `\\192.168.1.112\shared` (replace with your actual IP)
 
 ### Permission Issues
 
