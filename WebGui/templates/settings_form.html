@@ -1244,7 +1244,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             if (type === 'cpu') {
                 // CPU temperature thresholds
                 if (temp < 60) return 'temp-normal';
-                if (temp < 75) return 'temp-warm';
+                if (temp < 80) return 'temp-warm';
                 return 'temp-hot';
             } else {
                 // Environment temperature thresholds (inside cam-box)
