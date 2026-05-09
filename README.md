@@ -142,6 +142,8 @@ journalctl -u camcontroller.service -n 100 --no-pager
 | Document | Description |
 |----------|-------------|
 | [INSTALLATION.md](INSTALLATION.md) | Complete installation guide with WiFi setup |
+| [USER_GUIDE.md](USER_GUIDE.md) | End-user guide (English) |
+| [USER_GUIDE_SWE.md](USER_GUIDE_SWE.md) | Användarguide (Svenska) |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture and design details |
 | [UNIFIED_SETTINGS_GUIDE.md](Settings/UNIFIED_SETTINGS_GUIDE.md) | Unified settings system documentation |
 | [SMB_FILE_SHARING.md](SMB_FILE_SHARING.md) | SMB file sharing setup and troubleshooting guide |
