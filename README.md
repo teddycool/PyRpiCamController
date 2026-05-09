@@ -197,21 +197,42 @@ These endpoints are primarily intended for the bundled Web UI. Treat them as int
 
 ## 🤝 Contributing
 
-Contributions are very welcome.
+Contributions are very welcome. **Before starting development work, please read [CONTRIBUTING.md](CONTRIBUTING.md)** for guidelines on code patterns, documentation, testing, and commit messages.
 
-**Ways to contribute:**
+### 📖 Developer Resources
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Development guidelines for all contributors (human and AI)
+- **[.dev-guidelines/](.dev-guidelines/)** — Detailed technical guidelines:
+  - [DESIGN_PATTERNS.md](.dev-guidelines/DESIGN_PATTERNS.md) — Code patterns used in this project
+  - [DOCUMENTATION_SYNC.md](.dev-guidelines/DOCUMENTATION_SYNC.md) — When and how to update docs
+  - [INSTALLER_UPDATES.md](.dev-guidelines/INSTALLER_UPDATES.md) — Keeping installer current
+  - Plus guides on testing, Swedish translations, file permissions, and git workflow
+
+### Ways to contribute
+
 - 🐛 **Report Issues**: Bug reports, feature requests, and feedback
 - 💡 **Feature Requests**: New camera types, processing features, hardware integrations
-- 🔧 **Pull Requests**: Code contributions (one feature per PR for easier review)
+- 🔧 **Pull Requests**: Code contributions (one feature per PR for easier review; follow [CONTRIBUTING.md](CONTRIBUTING.md))
 - 📚 **Documentation**: Improvements to guides and technical documentation
 - 🧪 **Testing**: Hardware compatibility testing across Pi models
 
-**Development Focus Areas:**
+### Development Focus Areas
+
 - Additional camera support (Arducam, USB cameras)
 - Advanced computer vision features (YOLO integration)
 - Home Assistant sensor integration
 - OTA update system (planned)
 - Enhanced vision processing pipeline
+
+### For AI Coding Assistants
+
+If you're an AI tool (GitHub Copilot, Claude, etc.), **read [.dev-guidelines/AI_INSTRUCTIONS.md](.dev-guidelines/AI_INSTRUCTIONS.md)** before making any changes. Key rules summary:
+1. Use existing code patterns (state machine, publishers, factory, pipeline)
+2. Update documentation when code changes
+3. Keep installer script (`tools/install-all-optimized.py`) current
+4. Test before commit
+5. Use atomic writes for file persistence
+6. Clean breaks (no backwards compatibility unless requested)
 
 ## 🌟 Examples
 

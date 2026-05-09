@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyRpiCamController"
+version = "1.0.0"
+description = "Modern Python camera control system for Raspberry Pi with web interface"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "GPL-3.0-only"}
+authors = [{name = "Pär Sundbäck", email = "par@example.com"}]
+
+[tool.black]
+line-length = 100
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --tb=short"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "hardware: Hardware-required tests",
+    "slow: Slow running tests"
+]
+
+[tool.pylint.options]
+max-line-length = 100
+disable = [
+    "missing-docstring",
+    "too-many-instance-attributes",
+    "too-many-arguments",
+    "fixme"
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+
+# ⚠️ DEVELOPMENT GUIDELINES
+# 
+# Before writing code or documentation for this project, please read:
+#
+#  1. CONTRIBUTING.md                          — Main development guide
+#  2. .dev-guidelines/AI_INSTRUCTIONS.md       — For AI coding assistants
+#  3. .dev-guidelines/DESIGN_PATTERNS.md       — Code patterns & style
+#  4. .dev-guidelines/INSTALLER_UPDATES.md    — When to update installer
+#  5. .dev-guidelines/DOCUMENTATION_SYNC.md   — Keeping docs current
+#
+# Quick summary:
+# - Use existing patterns (State Machine, Publisher, Factory, Pipeline)
+# - Update docs when code changes
+# - Update tools/install-all-optimized.py if affecting new installations
+# - Use atomic writes for file persistence
+# - No backwards compatibility unless explicitly requested
+# - Test before commit
+#
+# See .dev-guidelines/ for complete detailed guidelines.

@@ -3,6 +3,8 @@
 ## 🎥 Välkommen till din Raspberry Pi-kamerakontroller!
 
 Den här guiden förklarar hur du installerar och använder ditt kamerasystem.
+All kod och en massa övrig dokumentation finns på github: https://github.com/teddycool/PyRpiCamController/
+
 
 ## 🗺️ Flödesschema för installation och drift
 
