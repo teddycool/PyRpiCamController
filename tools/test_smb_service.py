@@ -290,11 +290,11 @@ def test_smb_service():
             log("✓ SMB shares are accessible")
             
             # Test specific share access
-            success, _, _ = run_cmd(f"timeout 10 smbclient //{ip_address}/FileShare -U% -c 'ls; quit'", check=False)
+            success, _, _ = run_cmd(f"timeout 10 smbclient //{ip_address}/shared -U% -c 'ls; quit'", check=False)
             if success:
-                log("✓ FileShare is accessible")
+                log("✓ shared is accessible")
             else:
-                log("⚠ FileShare access test failed")
+                log("⚠ shared access test failed")
         else:
             log("⚠ SMB share listing failed (but shares may still work)")
             
@@ -323,17 +323,17 @@ def test_smb_service():
     print()
     log("=== SMB Test Summary ===")
     log("✓ SMB services are configured and running")
-    log("Share name: FileShare")
+    log("Share name: shared")
     log(f"Share path: {SHARED_DIR}")
     log("Network access:")
-    log(f"  • SMB: smb://{hostname}.local/FileShare")
-    log(f"  • IP:  smb://{ip_address}/FileShare")
-    log("  • Guest access enabled (using 'nobody' account)")
+    log(f"  • SMB: smb://{hostname}.local/shared")
+    log(f"  • IP:  smb://{ip_address}/shared")
+    log("  • Guest access enabled (mapped to 'pi' account)")
     
     print()
-    log(f"Access from Windows: \\\\{hostname}\\FileShare or \\\\{ip_address}\\FileShare")
-    log(f"Access from macOS: smb://{hostname}.local/FileShare")
-    log("Access from Linux: smb://{ip_address}/FileShare or smb://{hostname}.local/FileShare")
+    log(f"Access from Windows: \\\\{hostname}\\shared or \\\\{ip_address}\\shared")
+    log(f"Access from macOS: smb://{hostname}.local/shared")
+    log("Access from Linux: smb://{ip_address}/shared or smb://{hostname}.local/shared")
     
     # Service logs check
     print()

@@ -173,7 +173,7 @@ nmap -p 445 [pi-ip-address]
 ### Hostname Resolution Issues
 
 **Use .local suffix for mDNS:**
-- Instead of: `\\b1ce8695\FileShare`
+- Instead of: `\\b1ce8695\shared`
 - Try: `\\b1ce8695\shared` or `\\b1ce8695.local\shared` or `smb://b1ce8695.local/shared`
 
 **Use IP address directly:**
@@ -205,11 +205,10 @@ This will check all services, configurations, and provide specific guidance for 
 
 ### Share Names
 
-The system provides two share names for compatibility:
+The system exposes one SMB share:
 - **`shared`** - Primary share name (browseable)
-- **`FileShare`** - Legacy alias (hidden from browse lists but still accessible)
 
-Both point to the same location: `/home/pi/shared`
+It points to: `/home/pi/shared`
 
 ### Adding Custom Folders
 

@@ -9,6 +9,8 @@ import time
 import logging
 import shutil
 import glob
+import pwd
+import grp
 from datetime import datetime
 from typing import Tuple, List
 
@@ -30,10 +32,51 @@ class FilePublisher(PublisherBase):
         
         logger.debug("Init FilePublisher")
 
+    def _ensure_smb_permissions(self, path: str, is_directory: bool) -> None:
+        """Ensure path remains writable/deletable through SMB guest access.
+
+        SMB is configured with guest mapping to user/group 'pi'. When the
+        controller runs as root, newly created files/dirs may otherwise get
+        restrictive ownership/mode from process umask.
+        """
+        try:
+            pi_uid = pwd.getpwnam("pi").pw_uid
+            pi_gid = grp.getgrnam("pi").gr_gid
+            try:
+                os.chown(path, pi_uid, pi_gid)
+            except (PermissionError, OSError):
+                pass
+
+            if is_directory:
+                os.chmod(path, 0o777)
+            else:
+                os.chmod(path, 0o666)
+        except KeyError:
+            # Fallback for systems without a 'pi' account
+            try:
+                if is_directory:
+                    os.chmod(path, 0o777)
+                else:
+                    os.chmod(path, 0o666)
+            except (PermissionError, OSError):
+                pass
+        except (PermissionError, OSError):
+            pass
+
     def initialize(self, settings):
         # Update location from settings if available
         self.location = settings.get("Cam", {}).get("publishers", {}).get("file", {}).get("location", self.location)
         os.makedirs(self.location, exist_ok=True)
+        self._ensure_smb_permissions(self.location, is_directory=True)
+
+        # Keep existing date directories SMB-writable as well
+        try:
+            for entry in os.listdir(self.location):
+                entry_path = os.path.join(self.location, entry)
+                if os.path.isdir(entry_path):
+                    self._ensure_smb_permissions(entry_path, is_directory=True)
+        except OSError:
+            pass
 
         self.img_format = "jpg"
         
@@ -194,12 +237,14 @@ class FilePublisher(PublisherBase):
             current_date = datetime.now().strftime("%Y-%m-%d")
             date_dir = os.path.join(self.location, current_date)
             os.makedirs(date_dir, exist_ok=True)
+            self._ensure_smb_permissions(date_dir, is_directory=True)
             
             img_filename = os.path.join(date_dir, f"{timestamp}.{self.img_format}")
 
             # Write image data to file
             with open(img_filename, "wb") as img_file:
                 img_file.write(jpgimagedata.tobytes())
+            self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
             
             # Log current disk usage periodically (every 10th save)

@@ -199,9 +199,8 @@ sudo journalctl -u camcontroller-update.service -n 100 --no-pager
 Current Samba config exposes:
 
 - `shared` (primary, browseable)
-- `FileShare` (legacy alias, not browseable)
 
-Both map to `/home/pi/shared` with guest access.
+This maps to `/home/pi/shared` with guest access.
 
 ### Connection refused or timeout
 

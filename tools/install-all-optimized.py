@@ -513,8 +513,9 @@ def setup_samba():
     
     # Ensure proper permissions on shared directory for full guest access
     log_step("SAMBA", "Setting permissions for full guest access...")
-    run_cmd("sudo chmod -R 777 /home/pi/shared", check=False)
     run_cmd("sudo chown -R pi:pi /home/pi/shared", check=False)
+    run_cmd("sudo find /home/pi/shared -type d -exec chmod 777 {} +", check=False)
+    run_cmd("sudo find /home/pi/shared -type f -exec chmod 666 {} +", check=False)
     
     return True
 
