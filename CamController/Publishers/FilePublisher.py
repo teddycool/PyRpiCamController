@@ -219,6 +219,7 @@ class FilePublisher(PublisherBase):
         return False
 
     def publish(self, jpgimagedata, metadata):
+        temp_img_filename = None
         try:
             # Keep runtime behavior in sync with latest persisted settings.
             try:
@@ -240,10 +241,15 @@ class FilePublisher(PublisherBase):
             self._ensure_smb_permissions(date_dir, is_directory=True)
             
             img_filename = os.path.join(date_dir, f"{timestamp}.{self.img_format}")
+            temp_img_filename = img_filename + ".tmp"
 
-            # Write image data to file
-            with open(img_filename, "wb") as img_file:
+            # Write image data atomically: tmp write + fsync + replace
+            with open(temp_img_filename, "wb") as img_file:
                 img_file.write(jpgimagedata.tobytes())
+                img_file.flush()
+                os.fsync(img_file.fileno())
+
+            os.replace(temp_img_filename, img_filename)
             self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
             
@@ -255,4 +261,9 @@ class FilePublisher(PublisherBase):
                 logger.info(f"Disk usage: {used_percent:.1f}% used, {free_mb:.1f} MB free")
                 
         except Exception as e:
+            if temp_img_filename and os.path.exists(temp_img_filename):
+                try:
+                    os.remove(temp_img_filename)
+                except OSError:
+                    pass
             logger.error(f"FilePublisher failed to save image or metadata: {e}", exc_info=True)

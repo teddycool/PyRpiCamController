@@ -7,6 +7,7 @@ After=comitup.service
 
 [Service]
 Type=simple
+ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/self_heal_shared.sh
 ExecStartPre=/bin/bash -c 'chown pi:pi /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'chmod 664 /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
 ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/CamController/Main.py

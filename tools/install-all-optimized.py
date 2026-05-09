@@ -574,6 +574,12 @@ def setup_ds18b20_hardware():
 def setup_services():
     """Setup all systemd services"""
     log_step("SERVICES", "Setting up system services...")
+
+    self_heal_script = f"{PROJECT_ROOT}/Services/self_heal_shared.sh"
+    if os.path.exists(self_heal_script):
+        run_cmd(f"sudo chmod +x {self_heal_script}", check=False)
+    else:
+        log_step("WARNING", f"Self-heal script not found: {self_heal_script}")
     
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),

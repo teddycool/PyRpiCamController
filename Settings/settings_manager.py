@@ -51,8 +51,33 @@ class SettingsManager:
     
     def save_user_settings(self):
         """Save user settings to file."""
-        with open(self.user_file, 'w') as f:
-            json.dump(self._user_settings, f, indent=2)
+        user_dir = os.path.dirname(self.user_file) or "."
+        os.makedirs(user_dir, exist_ok=True)
+        temp_file = self.user_file + ".tmp"
+
+        try:
+            with open(temp_file, 'w') as f:
+                json.dump(self._user_settings, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(temp_file, self.user_file)
+
+            # Best-effort directory sync to reduce metadata loss after abrupt power loss
+            try:
+                dir_fd = os.open(user_dir, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                pass
+        finally:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except OSError:
+                    pass
     
     def _get_nested_value(self, data: Dict, path: str) -> Any:
         """Get a nested value using dot notation path."""

@@ -118,8 +118,9 @@ Use this checklist before tagging the first public release:
 - Verify Web UI workflow: setting changes, pending-change indicator, apply-and-restart.
 - Verify camera mode behavior: photo mode saves files, stream mode starts and serves video.
 - Verify SMB access from Windows/macOS/Linux using the `shared` share name.
-- Verify image and log paths are writable and disk free space is visible in the Web UI.
+- Verify image and log paths are writable/deletable and disk free space is visible in the Web UI.
 - Verify required services are active (`camcontroller.service`, `camcontroller-web.service`, SMB/Avahi as applicable).
+- Verify startup self-heal runs (shared folder ownership/permissions restored after unclean power loss).
 - Confirm OTA is treated as unsupported for production in this release.
 - Confirm documentation links and examples match shipped configuration.
 

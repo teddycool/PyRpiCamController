@@ -220,6 +220,18 @@ ls -la /home/pi/shared/
 
 If hostname resolution fails, use IP address directly.
 
+### Permission recovery after unclean shutdown
+
+On startup, `camcontroller.service` runs `Services/self_heal_shared.sh` to restore SMB-friendly ownership and permissions on `/home/pi/shared`.
+
+If delete/write still fails, run:
+
+```bash
+sudo /bin/bash /home/pi/PyRpiCamController/Services/self_heal_shared.sh
+sudo systemctl restart camcontroller.service smbd nmbd
+ls -la /home/pi/shared
+```
+
 ## WiFi / Comitup Issues
 
 If no known network is available, the device should expose a `comitup-*` access point.

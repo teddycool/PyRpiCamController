@@ -82,6 +82,8 @@ Then reboot once to ensure all services and hostname changes are active:
 sudo reboot
 ```
 
+After installation, the camera service runs a startup self-heal step that restores `/home/pi/shared` ownership and permissions (`pi:pi`, directories `777`, files `666`) before launching the controller. This helps recover SMB write/delete behavior after unclean power loss.
+
 If you update only service templates without a full reinstall, apply the web service template manually:
 
 ```bash
