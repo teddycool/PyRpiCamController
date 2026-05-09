@@ -38,10 +38,17 @@ try:
     from picamera2 import Picamera2
     from picamera2.encoders import JpegEncoder, MJPEGEncoder
     from picamera2.outputs import FileOutput
+    try:
+        import libcamera
+        LIBCAMERA_AVAILABLE = True
+    except ImportError:
+        LIBCAMERA_AVAILABLE = False
+        logger.warning("libcamera not available, autofocus controls disabled")
     PICAMERA2_AVAILABLE = True
     logger.info("Picamera2 available")
 except ImportError:
     PICAMERA2_AVAILABLE = False
+    LIBCAMERA_AVAILABLE = False
     logger.warning("Picamera2 not available, will use OpenCV fallback")
 
 try:
@@ -633,6 +640,9 @@ class CameraStreamer:
                 encoder = MJPEGEncoder(bitrate=10000000)
                 self.camera.start_recording(encoder, FileOutput(self.output))
                 logger.info("Recording started")
+
+                # Apply autofocus where supported (e.g. PiCam3)
+                self._apply_picamera2_autofocus()
                 
                 # Mark as running
                 self.running = True
@@ -646,6 +656,26 @@ class CameraStreamer:
         except Exception as e:
             logger.error(f"Picamera2 initialization failed: {e}", exc_info=True)
             return False
+
+    def _apply_picamera2_autofocus(self) -> None:
+        """Enable continuous autofocus if camera supports it."""
+        if not self.camera:
+            return
+
+        if not LIBCAMERA_AVAILABLE:
+            logger.debug("Skipping autofocus setup: libcamera unavailable")
+            return
+
+        camera_controls = getattr(self.camera, "camera_controls", {}) or {}
+        if "AfMode" not in camera_controls:
+            logger.info("Autofocus control not available on this camera")
+            return
+
+        try:
+            self.camera.set_controls({"AfMode": libcamera.controls.AfModeEnum.Continuous})
+            logger.info("Continuous autofocus enabled for streaming")
+        except Exception as e:
+            logger.warning(f"Failed to enable autofocus controls: {e}")
     
     def _init_opencv(self, resolution, framerate) -> bool:
         """Initialize OpenCV for USB webcams"""
