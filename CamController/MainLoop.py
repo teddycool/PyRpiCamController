@@ -155,7 +155,7 @@ class MainLoop:
             temp = self._ds18b20tempmonitor.get_temperature()
             if temp is not None:
                 self._ds18b20temp = temp
-                logger.info("DS18B20 temperature: %.1f°C", temp)
+                logger.debug("DS18B20 temperature: %.1f°C", temp)
             else:
                 logger.warning("Failed to read DS18B20 temperature")
             self._lastds18b20tempcheck = time.time()
