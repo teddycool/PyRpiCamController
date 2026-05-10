@@ -352,7 +352,7 @@ def package_install(with_opencv=False):
             return False
     
     # Install Python packages from requirements file
-    requirements_file = Path(PROJECT_ROOT) / "tools" / "requirements.txt"
+    requirements_file = Path(PROJECT_ROOT) / "requirements.txt"
     if not requirements_file.exists():
         log_step("ERROR", f"Requirements file not found: {requirements_file}")
         return False

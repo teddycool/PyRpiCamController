@@ -77,7 +77,7 @@ def check_requirements():
     except ImportError as e:
         print(f"Missing test dependencies: {e}")
         print("Please install test requirements:")
-        print("  pip install -r tests/requirements.txt")
+        print("  pip install -r requirements.txt")
         return False
 
 def main():

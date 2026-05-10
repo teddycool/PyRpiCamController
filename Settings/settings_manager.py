@@ -78,6 +78,10 @@ class SettingsManager:
                     os.remove(temp_file)
                 except OSError:
                     pass
+
+    def save_settings(self):
+        """Backwards-compatible alias for saving user settings."""
+        self.save_user_settings()
     
     def _get_nested_value(self, data: Dict, path: str) -> Any:
         """Get a nested value using dot notation path."""

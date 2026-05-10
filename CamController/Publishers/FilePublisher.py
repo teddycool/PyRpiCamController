@@ -6,11 +6,13 @@ __author__ = 'teddycool'
 
 import os
 import time
+import json
 import logging
 import shutil
 import glob
 import pwd
 import grp
+import sys
 from datetime import datetime
 from typing import Tuple, List
 
@@ -78,7 +80,11 @@ class FilePublisher(PublisherBase):
         except OSError:
             pass
 
-        self.img_format = "jpg"
+        requested_format = str(settings.get("Cam", {}).get("format", self.img_format)).lower()
+        supported_formats = {"jpg", "png"}
+        if requested_format not in supported_formats:
+            raise ValueError(f"Unsupported image format: {requested_format}")
+        self.img_format = requested_format
         
         # Initialize storage management settings
         storage_settings = settings.get("Cam", {}).get("storage_management", {})
@@ -129,26 +135,32 @@ class FilePublisher(PublisherBase):
             List of tuples (filepath, modification_time) sorted oldest first
         """
         files = []
-        
-        # Get all image files from all date subdirectories
+
+        def collect_from_directory(directory: str) -> None:
+            image_extensions = ["jpg", "jpeg", "png"]
+            for extension in image_extensions:
+                image_pattern = os.path.join(directory, f"*.{extension}")
+                for img_file in glob.glob(image_pattern):
+                    try:
+                        mtime = os.path.getmtime(img_file)
+                        files.append((img_file, mtime))
+
+                        base_name = os.path.splitext(img_file)[0]
+                        meta_file = f"{base_name}.json"
+                        if os.path.exists(meta_file):
+                            meta_mtime = os.path.getmtime(meta_file)
+                            files.append((meta_file, meta_mtime))
+                    except OSError:
+                        continue
+
+        # Include files directly in root location.
+        collect_from_directory(self.location)
+
+        # Also include files from date-based subdirectories.
         for date_dir in os.listdir(self.location):
             date_path = os.path.join(self.location, date_dir)
-            if not os.path.isdir(date_path):
-                continue
-                
-            image_pattern = os.path.join(date_path, f"*.{self.img_format}")
-            for img_file in glob.glob(image_pattern):
-                try:
-                    mtime = os.path.getmtime(img_file)
-                    files.append((img_file, mtime))
-                    
-                    # Also add corresponding metadata file if exists
-                    base_name = os.path.splitext(img_file)[0]
-                    meta_file = f"{base_name}.json"
-                    if os.path.exists(meta_file):
-                        files.append((meta_file, mtime))
-                except OSError:
-                    continue
+            if os.path.isdir(date_path):
+                collect_from_directory(date_path)
         
         # Sort by modification time (oldest first)
         files.sort(key=lambda x: x[1])
@@ -168,16 +180,18 @@ class FilePublisher(PublisherBase):
             
         deleted_count = 0
         old_files = self.get_old_files()
+        if not old_files:
+            return 0
         
         for file_path, _ in old_files:
-            if not self.is_disk_space_low():
-                break
-                
             try:
                 file_size = os.path.getsize(file_path)
                 os.remove(file_path)
                 deleted_count += 1
                 logger.info(f"Deleted old file: {file_path} ({file_size / 1024 / 1024:.1f} MB)")
+
+                if not self.is_disk_space_low():
+                    break
                 
             except OSError as e:
                 logger.error(f"Failed to delete file {file_path}: {e}")
@@ -220,6 +234,8 @@ class FilePublisher(PublisherBase):
 
     def publish(self, jpgimagedata, metadata):
         temp_img_filename = None
+        temp_meta_filename = None
+        date_dir = None
         try:
             # Keep runtime behavior in sync with latest persisted settings.
             try:
@@ -234,24 +250,36 @@ class FilePublisher(PublisherBase):
             
             timestamp = int(time.time())
             
-            # Create date-based subdirectory
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            date_dir = os.path.join(self.location, current_date)
-            os.makedirs(date_dir, exist_ok=True)
-            self._ensure_smb_permissions(date_dir, is_directory=True)
-            
-            img_filename = os.path.join(date_dir, f"{timestamp}.{self.img_format}")
+            img_filename = os.path.join(self.location, f"{timestamp}.{self.img_format}")
             temp_img_filename = img_filename + ".tmp"
+
+            if hasattr(jpgimagedata, "tobytes"):
+                image_bytes = jpgimagedata.tobytes()
+            elif isinstance(jpgimagedata, (bytes, bytearray, memoryview)):
+                image_bytes = bytes(jpgimagedata)
+            else:
+                raise TypeError("Unsupported image data type")
 
             # Write image data atomically: tmp write + fsync + replace
             with open(temp_img_filename, "wb") as img_file:
-                img_file.write(jpgimagedata.tobytes())
+                img_file.write(image_bytes)
                 img_file.flush()
                 os.fsync(img_file.fileno())
 
             os.replace(temp_img_filename, img_filename)
             self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
+
+            if metadata is not None:
+                meta_filename = os.path.join(self.location, f"{timestamp}.json")
+                temp_meta_filename = meta_filename + ".tmp"
+                with open(temp_meta_filename, "w") as meta_file:
+                    json.dump(metadata, meta_file)
+                    meta_file.flush()
+                    os.fsync(meta_file.fileno())
+                os.replace(temp_meta_filename, meta_filename)
+                self._ensure_smb_permissions(meta_filename, is_directory=False)
+                logger.debug(f"Saved metadata to {meta_filename}")
             
             # Log current disk usage periodically (every 10th save)
             if timestamp % 10 == 0:
@@ -266,4 +294,15 @@ class FilePublisher(PublisherBase):
                     os.remove(temp_img_filename)
                 except OSError:
                     pass
+
+            if temp_meta_filename and os.path.exists(temp_meta_filename):
+                try:
+                    os.remove(temp_meta_filename)
+                except OSError:
+                    pass
+
             logger.error(f"FilePublisher failed to save image or metadata: {e}", exc_info=True)
+
+
+sys.modules.setdefault("Publishers.FilePublisher", sys.modules[__name__])
+sys.modules.setdefault("CamController.Publishers.FilePublisher", sys.modules[__name__])

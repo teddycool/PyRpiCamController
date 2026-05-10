@@ -93,40 +93,46 @@ class PostState(BaseState.BaseState):
 
             try:
                 if  camupdated:  #Update of image buffer was successful                    
-                    # Process image through vision pipeline
-                    processed_image, enriched_metadata = self._image_processor.process(
-                        self._cam._current_image,
-                        self._cam._current_metadata
-                    )
-                    
-                    # Use processed image for encoding
-                    currentImage = processed_image
-                    
-                    # Log processing results
-                    if 'processors' in enriched_metadata:
-                        for processor_name, processor_data in enriched_metadata['processors'].items():
-                            if 'motion_analysis' in processor_data:
-                                motion_info = processor_data['motion_analysis']
-                                logger.debug(f"Motion detection: {motion_info['motion_detected']} ({motion_info['changed_pixels']} pixels)")
-                    
-                    # Encode and publish the processed image
-                    try:
-                        # Merge camera metadata with processing metadata
-                        final_metadata = self._cam._current_metadata.copy() if self._cam._current_metadata else {}
-                        if enriched_metadata:
-                            final_metadata.update(enriched_metadata)
+                    current_image = self._cam.current_image
+                    current_metadata = self._cam.current_metadata
 
-                        encode_ext = ".jpg"
-                        ok, encoded_image = cv2.imencode(encode_ext, currentImage)
-                        if not ok:
-                            raise RuntimeError(f"Open-cv imencode failed for format {encode_ext}")
+                    if current_image is None:
+                        logger.error("Camera returned no image, skipping processing and upload.")
+                    else:
+                        # Process image through vision pipeline
+                        processed_image, enriched_metadata = self._image_processor.process(
+                            current_image,
+                            current_metadata
+                        )
+                        
+                        # Use processed image for encoding
+                        currentImage = processed_image
+                        
+                        # Log processing results
+                        if 'processors' in enriched_metadata:
+                            for processor_name, processor_data in enriched_metadata['processors'].items():
+                                if 'motion_analysis' in processor_data:
+                                    motion_info = processor_data['motion_analysis']
+                                    logger.debug(f"Motion detection: {motion_info['motion_detected']} ({motion_info['changed_pixels']} pixels)")
+                        
+                        # Encode and publish the processed image
+                        try:
+                            # Merge camera metadata with processing metadata
+                            final_metadata = current_metadata.copy() if current_metadata else {}
+                            if enriched_metadata:
+                                final_metadata.update(enriched_metadata)
 
-                        # Publish one shared encoding to all publishers.
-                        for publisher in self._publishers:
-                            publisher.publish(encoded_image, final_metadata)
-                            logger.debug("Posted %s image-data to %s", encode_ext, type(publisher).__name__)
-                    except Exception as e:
-                        logger.error(f"Open-cv imencode failed. Cam will try to continue. Exception: {e}", exc_info=True)
+                            encode_ext = ".jpg"
+                            ok, encoded_image = cv2.imencode(encode_ext, currentImage)
+                            if not ok:
+                                raise RuntimeError(f"Open-cv imencode failed for format {encode_ext}")
+
+                            # Publish one shared encoding to all publishers.
+                            for publisher in self._publishers:
+                                publisher.publish(encoded_image, final_metadata)
+                                logger.debug("Posted %s image-data to %s", encode_ext, type(publisher).__name__)
+                        except Exception as e:
+                            logger.error(f"Open-cv imencode failed. Cam will try to continue. Exception: {e}", exc_info=True)
                 else:
                     logger.error("currentImage is None, skipping processing and upload.")
             except:                

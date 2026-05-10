@@ -130,6 +130,12 @@ class WebCam(CamBase.CamBase):
             self._cam.release()
             self._cam = None
             logger.info("Webcam released")
+
+    def cleanup(self) -> None:
+        self.stop()
+
+    def dispose(self) -> None:
+        self.stop()
             
     def __del__(self):
         """Ensure camera is released when object is destroyed"""

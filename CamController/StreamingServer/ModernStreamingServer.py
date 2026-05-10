@@ -35,23 +35,6 @@ from Settings.settings_manager import settings_manager
 logger = logging.getLogger("cam.streaming")
 
 try:
-    from picamera2 import Picamera2
-    from picamera2.encoders import JpegEncoder, MJPEGEncoder
-    from picamera2.outputs import FileOutput
-    try:
-        import libcamera
-        LIBCAMERA_AVAILABLE = True
-    except ImportError:
-        LIBCAMERA_AVAILABLE = False
-        logger.warning("libcamera not available, autofocus controls disabled")
-    PICAMERA2_AVAILABLE = True
-    logger.info("Picamera2 available")
-except ImportError:
-    PICAMERA2_AVAILABLE = False
-    LIBCAMERA_AVAILABLE = False
-    logger.warning("Picamera2 not available, will use OpenCV fallback")
-
-try:
     import cv2
     OPENCV_AVAILABLE = True
     logger.info("OpenCV available")
@@ -556,12 +539,12 @@ class CameraStreamer:
     """Main camera streaming class"""
     
     def __init__(self):
-        self.camera = None
+        self.cam = None
         self.output = None
         self.server = None
         self.server_thread = None
+        self.capture_thread = None
         self.running = False
-        self.camera_type = None
         
     def initialize(self, settings: Dict[str, Any]) -> bool:
         """Initialize camera and streaming server with settings"""
@@ -575,19 +558,16 @@ class CameraStreamer:
             port = settings_manager.get('Stream.port')
             
             logger.info(f"Camera type: {cam_chip}, Resolution: {resolution}, FPS: {framerate}, Port: {port}")
-            
-            # Initialize camera based on type
-            if cam_chip in ['PiCam2', 'PiCam3', 'PiCamHQ'] and PICAMERA2_AVAILABLE:
-                logger.info("Attempting Picamera2 initialization...")
-                success = self._init_picamera2(resolution, framerate)
-                self.camera_type = 'picamera2'
-            elif cam_chip == 'WebCam' and OPENCV_AVAILABLE:
-                logger.info("Attempting OpenCV initialization...")
-                success = self._init_opencv(resolution, framerate)
-                self.camera_type = 'opencv'
-            else:
-                logger.error(f"Unsupported camera type: {cam_chip}, Picamera2: {PICAMERA2_AVAILABLE}, OpenCV: {OPENCV_AVAILABLE}")
-                return False
+
+            # Build stream settings expected by camera implementations.
+            stream_settings = dict(settings)
+            stream_settings['Stream'] = {
+                'resolution': resolution,
+                'framerate': framerate,
+            }
+
+            # Initialize camera through unified camera interface.
+            success = self._init_camera_interface(cam_chip, stream_settings, framerate)
             
             if not success:
                 logger.error("Camera initialization failed")
@@ -603,123 +583,53 @@ class CameraStreamer:
         except Exception as e:
             logger.error(f"Error initializing camera streamer: {e}", exc_info=True)
             return False
-    
-    def _init_picamera2(self, resolution, framerate) -> bool:
-        """Initialize Picamera2 for Pi camera modules"""
-        try:
-            logger.info("Initializing Picamera2...")
-            
-            # Check if camera is already in use
-            try:
-                self.camera = Picamera2()
-                logger.info("Picamera2 instance created")
-            except Exception as e:
-                logger.error(f"Failed to create Picamera2 instance: {e}")
-                return False
-            
-            # Configure camera for streaming
-            try:
-                video_config = self.camera.create_video_configuration(
-                    main={"size": tuple(resolution), "format": "YUV420"},
-                    controls={"FrameDurationLimits": (int(1000000/framerate), int(1000000/framerate))}
-                )
-                logger.info(f"Video config created: {video_config}")
-                
-                self.camera.configure(video_config)
-                logger.info("Camera configured")
-            except Exception as e:
-                logger.error(f"Failed to configure camera: {e}")
-                return False
-            
-            # Create output buffer
-            self.output = StreamingOutput()
-            logger.info("Output buffer created")
-            
-            # Start recording
-            try:
-                encoder = MJPEGEncoder(bitrate=10000000)
-                self.camera.start_recording(encoder, FileOutput(self.output))
-                logger.info("Recording started")
 
-                # Apply autofocus where supported (e.g. PiCam3)
-                self._apply_picamera2_autofocus()
-                
-                # Mark as running
-                self.running = True
-            except Exception as e:
-                logger.error(f"Failed to start recording: {e}")
+    def _init_camera_interface(self, cam_chip: str, stream_settings: Dict[str, Any], framerate: int) -> bool:
+        """Initialize streaming camera through CamBase interface."""
+        try:
+            if not OPENCV_AVAILABLE:
+                logger.error("OpenCV is required for JPEG stream encoding")
                 return False
-            
-            logger.info("Picamera2 streaming started successfully")
+
+            from Cam import CamBase
+
+            self.cam = CamBase.get_cam(cam_chip)
+            logger.info("Camera interface instance created: %s", type(self.cam).__name__)
+            self.cam.start_stream(stream_settings)
+
+            self.output = StreamingOutput()
+            self._start_cam_capture(framerate)
+
+            logger.info("Camera interface streaming started")
             return True
-            
         except Exception as e:
-            logger.error(f"Picamera2 initialization failed: {e}", exc_info=True)
+            logger.error(f"Camera interface initialization failed: {e}", exc_info=True)
             return False
 
-    def _apply_picamera2_autofocus(self) -> None:
-        """Enable continuous autofocus if camera supports it."""
-        if not self.camera:
-            return
+    def _start_cam_capture(self, framerate: int):
+        """Start frame capture from camera interface in separate thread."""
+        frame_interval = 1.0 / framerate if framerate > 0 else 0.05
 
-        if not LIBCAMERA_AVAILABLE:
-            logger.debug("Skipping autofocus setup: libcamera unavailable")
-            return
-
-        camera_controls = getattr(self.camera, "camera_controls", {}) or {}
-        if "AfMode" not in camera_controls:
-            logger.info("Autofocus control not available on this camera")
-            return
-
-        try:
-            self.camera.set_controls({"AfMode": libcamera.controls.AfModeEnum.Continuous})
-            logger.info("Continuous autofocus enabled for streaming")
-        except Exception as e:
-            logger.warning(f"Failed to enable autofocus controls: {e}")
-    
-    def _init_opencv(self, resolution, framerate) -> bool:
-        """Initialize OpenCV for USB webcams"""
-        try:
-            logger.info("Initializing OpenCV webcam...")
-            
-            # Open camera
-            self.camera = cv2.VideoCapture(0)
-            
-            if not self.camera.isOpened():
-                logger.error("Failed to open webcam")
-                return False
-            
-            # Set camera properties
-            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
-            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-            self.camera.set(cv2.CAP_PROP_FPS, framerate)
-            
-            # Create output buffer
-            self.output = StreamingOutput()
-            
-            # Start capture thread
-            self._start_opencv_capture()
-            
-            logger.info("OpenCV webcam streaming started")
-            return True
-            
-        except Exception as e:
-            logger.error(f"OpenCV initialization failed: {e}")
-            return False
-    
-    def _start_opencv_capture(self):
-        """Start OpenCV frame capture in separate thread"""
         def capture_frames():
             while self.running:
                 try:
-                    ret, frame = self.camera.read()
-                    if ret:
-                        # Encode frame as JPEG
-                        _, buffer = cv2.imencode('.jpg', frame)
+                    if not self.cam:
+                        time.sleep(frame_interval)
+                        continue
+
+                    self.cam.update()
+                    frame = self.cam.current_image
+                    if frame is None:
+                        logger.warning("No frame available from camera interface")
+                        time.sleep(frame_interval)
+                        continue
+
+                    ok, buffer = cv2.imencode('.jpg', frame)
+                    if ok:
                         self.output.write(buffer.tobytes())
                     else:
-                        logger.warning("Failed to capture frame")
-                        time.sleep(0.1)
+                        logger.warning("Failed to JPEG encode frame")
+                    time.sleep(frame_interval)
                 except Exception as e:
                     logger.error(f"Frame capture error: {e}")
                     time.sleep(1)
@@ -760,11 +670,9 @@ class CameraStreamer:
                 self.server.server_close()
             
             # Stop camera
-            if self.camera_type == 'picamera2' and self.camera:
-                self.camera.stop_recording()
-                self.camera.close()
-            elif self.camera_type == 'opencv' and self.camera:
-                self.camera.release()
+            if self.cam:
+                self.cam.stop()
+                self.cam = None
             
             logger.info("Camera streamer stopped")
             

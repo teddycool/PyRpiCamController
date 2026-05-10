@@ -6,13 +6,14 @@ __author__ = 'teddycool'
 
 #Parent-class for all cams
 #https://en.wikipedia.org/wiki/State_pattern
+from abc import ABC, abstractmethod
 from typing import Any
 
 
 Resolution = tuple[int, int]
 
 
-class CamBase:
+class CamBase(ABC):
 
     def __init__(self) -> None:
         self._current_image: Any = None  # Must be a numpy array
@@ -20,9 +21,31 @@ class CamBase:
         self._supported_image_resolutions: list[Resolution] = []
         self._supported_video_resolutions: list[Resolution] = []
 
+    @property
+    def current_image(self) -> Any:
+        return self._current_image
+
+    @property
+    def current_metadata(self) -> dict[str, Any] | None:
+        return self._current_metadata
+
+    @property
+    def supported_image_resolutions(self) -> list[Resolution]:
+        return list(self._supported_image_resolutions)
+
+    @property
+    def supported_video_resolutions(self) -> list[Resolution]:
+        return list(self._supported_video_resolutions)
+
+    @abstractmethod
     def initialize(self, settings: dict[str, Any]) -> None:  # Init camera with current settings from config
         raise NotImplementedError
 
+    @abstractmethod
+    def start(self, settings: dict[str, Any]) -> None:  # Start camera in capture mode
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self, context: Any = None) -> None:  # Update current image (and metadata) with latest frame from cam
         raise NotImplementedError 
 
@@ -32,10 +55,19 @@ class CamBase:
     def is_video_resolution_supported(self, res: Resolution) -> bool:  # Check if res (x,y) is supported by camera for video
         return self._supported_video_resolutions.count(res) == 1
 
+    @abstractmethod
     def start_stream(self, settings: dict[str, Any] | None = None) -> None:  # Start streaming to io-buffer
         raise NotImplementedError
 
+    @abstractmethod
+    def stop(self) -> None:  # Stop camera and release resources
+        raise NotImplementedError
 
+    def cleanup(self) -> None:
+        self.stop()
+
+    def dispose(self) -> None:
+        self.stop()
 
 
 def get_cam(camtype: str) -> CamBase:

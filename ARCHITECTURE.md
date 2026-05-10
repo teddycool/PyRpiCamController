@@ -76,16 +76,22 @@ Pluggable camera interface supporting multiple hardware types:
 
 ```python
 # CamController/Cam/CamBase.py
-def getCam(camtype):
-    if (camtype == "PiCam3"):
+def get_cam(camtype):
+    if camtype == "PiCam2":
+        return PiCam2.PiCam2()
+    if camtype == "PiCam3":
         return PiCam3.PiCam3()
-    if (camtype == "PiCamHQ"):
+    if camtype == "PiCamHQ":
         return PiCamHQ.PiCamHQ()
+    if camtype == "WebCam":
+        return WebCam.WebCam()
 ```
 
 **Supported Cameras:**
+- **PiCam2**: Raspberry Pi Camera Module 2
 - **PiCam3**: Raspberry Pi Camera Module 3 with autofocus
 - **PiCamHQ**: High Quality Camera with interchangeable lenses
+- **WebCam**: USB webcam fallback for compatible devices
 
 **Camera Features:**
 - Configurable resolution (up to 4608x2592 for PiCam3)
@@ -94,23 +100,22 @@ def getCam(camtype):
 
 ### 3. Streaming Server Architecture
 
-Real-time video streaming with automatic camera detection:
+Real-time video streaming built on the camera abstraction interface:
 
 ```python
 # ModernStreamingServer architecture
 class CameraStreamer:
-    def detect_camera_system():
-        # Try Picamera2 first (preferred)
-        # Fallback to OpenCV if needed
-        
     def start_streaming():
-        # Configure camera based on settings
+        # Create camera from CamBase.get_cam()
+        # Start stream via camera.start_stream(settings)
+        # Capture loop reads camera.current_image
         # Start HTTP server for video stream
         # Handle concurrent connections
 ```
 
 **Streaming Features:**
-- Automatic camera system detection (Picamera2 → OpenCV fallback)
+- Unified camera interface (`CamBase`) for all camera types
+- Camera-specific behavior implemented in camera classes
 - Configurable resolution and framerate
 - Concurrent client support
 - Web-based viewing interface
@@ -349,7 +354,7 @@ The architecture supports easy extension:
 ### Adding New Camera Types
 
 1. Implement `CamBase` interface in new module
-2. Add camera type to `getCam()` function
+2. Add camera type to `get_cam()` factory function
 3. Update hardware configuration options
 
 ### Custom Processing Pipelines
