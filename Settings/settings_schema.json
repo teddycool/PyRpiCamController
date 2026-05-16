@@ -489,6 +489,34 @@
         "web_editable": true,
         "level": "advanced"
       },
+      "idle_framerate": {
+        "value": 2,
+        "type": "int",
+        "min": 1,
+        "max": 10,
+        "ui": {
+          "name": "Idle stream framerate",
+          "section": "Stream",
+          "description": "Bildrutor per sekund när ingen klient tittar på streamen",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "jpeg_quality": {
+        "value": 80,
+        "type": "int",
+        "min": 40,
+        "max": 95,
+        "ui": {
+          "name": "JPEG-kvalitet",
+          "section": "Stream",
+          "description": "JPEG-kvalitet för MJPEG-stream (högre värde ger bättre kvalitet och högre CPU-belastning)",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
       "port": {
         "value": 8554,
         "type": "int",

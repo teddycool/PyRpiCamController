@@ -60,6 +60,10 @@ class CamBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def capture_stream_frame(self) -> Any:  # Capture one frame for streaming path
+        raise NotImplementedError
+
+    @abstractmethod
     def stop(self) -> None:  # Stop camera and release resources
         raise NotImplementedError
 

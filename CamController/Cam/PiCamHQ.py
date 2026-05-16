@@ -139,6 +139,19 @@ class PiCamHQ(CamBase.CamBase):
         self._cam.start(show_preview=False)
         self._apply_runtime_controls(settings)
 
+    def capture_stream_frame(self) -> Any:
+        if self._cam is None:
+            return None
+        try:
+            request = self._cam.capture_request()
+            frame = request.make_array("main")
+            request.release()
+            self._current_image = frame
+            return frame
+        except Exception:
+            self._logger.warning("Failed to capture stream frame", exc_info=True)
+            return None
+
     def stop(self) -> None:
         if self._cam is not None:
             self._cam.stop()

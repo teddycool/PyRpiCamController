@@ -31,6 +31,23 @@ logger = logging.getLogger("cam.mainloop")
 
 #States: Init. Idle, Post, (ImageStream)
 
+
+class _NoopDisplay:
+    def startup(self):
+        pass
+
+    def off(self):
+        pass
+
+    def wifi_connected(self):
+        pass
+
+    def no_internet(self):
+        pass
+
+    def image_post(self):
+        pass
+
 class MainLoop:
 
     def __init__(self, settings: Any = None, hardware_config: dict[str, Any] | None = None):
@@ -85,19 +102,58 @@ class MainLoop:
             self._ds18b20temp = None
 
         
-        #Setup IO, these settings are NOT configurable from backend but hardware dependent
-        self._display = Display.Display(
-            self._hardware_config["Io"]["displaycontrolgpio"],
-            self._hardware_config["Io"]["displaysize"],
+        # Setup IO, these settings are NOT configurable from backend but hardware dependent
+        light_pin = self._hardware_config["Io"].get("lightcontrolgpio")
+        display_pin = self._hardware_config["Io"].get("displaycontrolgpio")
+
+        pwm_channels = {
+            0: {12, 18},
+            1: {13, 19},
+        }
+
+        channel_conflict = (
+            self._hardware_config["LightBox"]
+            and light_pin is not None
+            and display_pin is not None
+            and any(light_pin in pins and display_pin in pins for pins in pwm_channels.values())
         )
-        self._display.startup()
+
+        if channel_conflict:
+            logger.warning(
+                "PWM channel conflict detected (light GPIO %s, display GPIO %s). "
+                "Prioritizing Light hardware PWM and disabling Display output.",
+                light_pin,
+                display_pin,
+            )
+            self._display = _NoopDisplay()
+        else:
+            self._display = Display.Display(
+                self._hardware_config["Io"]["displaycontrolgpio"],
+                self._hardware_config["Io"]["displaysize"],
+            )
+            self._display.startup()
+        self._lightbox = None
      
         if self._hardware_config["LightBox"]:
-            pwm_freq = self._settings.get("LightPwmFreq")
-            self._lightbox = Light.Light(GPIO, self._hardware_config["Io"]["lightcontrolgpio"], pwm_freq)
-            self._last_light_level = None  # Will be set in initialize()
+            try:
+                pwm_freq = self._settings.get("LightPwmFreq", 2500)
+                self._lightbox = Light.Light(
+                    GPIO,
+                    light_pin,
+                    pwm_freq,
+                    allow_pigpio=True,
+                )
+                self._last_light_level = None  # Will be set in initialize()
+                self._last_light_pwm_freq = pwm_freq
+                logger.info("LightBox initialized")
+            except Exception as e:
+                self._lightbox = None
+                self._last_light_level = None
+                self._last_light_pwm_freq = None
+                logger.error("LightBox initialization failed; continuing without light control: %s", e)
         else:
             self._last_light_level = None  # No lightbox available
+            self._last_light_pwm_freq = None
         
         #Setup states
         self._initState = InitState.InitState()
@@ -112,11 +168,14 @@ class MainLoop:
 
     def initialize(self):
         logger.info("Mainloop initialize")
-        if self._hardware_config["LightBox"]:
+        if self._lightbox is not None:
             light = self._settings.get("Light")
             self._lightbox.start(light)
             self._last_light_level = light  # Track current light level for dynamic updates
+            self._last_light_pwm_freq = self._settings.get("LightPwmFreq", 2500)
             logger.info("Lightbox started with %s%%", light)
+        elif self._hardware_config["LightBox"]:
+            logger.warning("LightBox configured but unavailable due to backend initialization failure")
         
         # Check Mode setting to determine initial state
         mode = self._settings.get("Mode", "Cam")
@@ -201,44 +260,7 @@ class MainLoop:
 
             logger.info("Settings reload requested: %s", reload_type)
 
-            if reload_type == "reload_settings":
-                self._settings.load_user_settings()
-                
-                # Update light PWM duty cycle if Light setting changed
-                if self._hardware_config["LightBox"]:
-                    current_light = self._settings.get("Light")
-                    if hasattr(self, '_last_light_level') and current_light != self._last_light_level:
-                        self._lightbox.set_duty(current_light)
-                        logger.info("Light duty cycle updated from %s%% to %s%%", self._last_light_level, current_light)
-                        self._last_light_level = current_light
-                
-                desired_mode = str(self._settings.get("Mode", "Cam")).strip().lower()
-                current_is_stream = (self._currentstate == self._streamState)
-
-                # Switch state if requested mode differs from current active state.
-                if desired_mode == "stream" and not current_is_stream:
-                    logger.info("Applying mode switch to StreamState")
-                    self.set_state(StateName.STREAM)
-                    return
-                if desired_mode != "stream" and current_is_stream:
-                    logger.info("Applying mode switch to PostState")
-                    # Skip init-state on live mode switch and go straight to photo posting state.
-                    self.set_state(StateName.POST)
-                    return
-
-                # Mode maps to current state: reinitialize current state with updated settings.
-                if hasattr(self._currentstate, 'cleanup'):
-                    try:
-                        self._currentstate.cleanup()
-                    except Exception as e:
-                        logger.warning("Cleanup failed for current state: %s", e)
-
-                settings_dict = dict(self._settings.get_dict())
-                settings_dict.update(self._hardware_config)
-                self._currentstate.initialize(settings_dict)
-                logger.info("Settings reloaded successfully in current state")
-
-            elif reload_type == "restart_service":
+            if reload_type in ("restart_service", "reload_settings"):
                 logger.info("Full service restart requested")
                 os.system("sudo systemctl restart camcontroller.service")
             else:
@@ -279,7 +301,7 @@ class MainLoop:
     def stop(self):
         logger.info("Mainloop stopped")
         self._display.off()
-        if self._hardware_config["LightBox"]:
+        if self._lightbox is not None:
             logger.info("Lightbox stopped")
             self._lightbox.stop()
 

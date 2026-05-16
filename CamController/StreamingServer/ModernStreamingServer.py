@@ -507,6 +507,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             stream_settings = {
                 'resolution': settings_manager.get('Stream.resolution'),
                 'framerate': settings_manager.get('Stream.framerate'),
+                'idle_framerate': settings_manager.get('Stream.idle_framerate', 2),
+                'jpeg_quality': settings_manager.get('Stream.jpeg_quality', 80),
                 'port': settings_manager.get('Stream.port'),
                 'pagetitle': settings_manager.get('Stream.pagetitle'),
                 'h1title': settings_manager.get('Stream.h1title')
@@ -567,7 +569,16 @@ class CameraStreamer:
             }
 
             # Initialize camera through unified camera interface.
-            success = self._init_camera_interface(cam_chip, stream_settings, framerate)
+            idle_framerate = int(settings_manager.get('Stream.idle_framerate', 2))
+            jpeg_quality = int(settings_manager.get('Stream.jpeg_quality', 80))
+
+            success = self._init_camera_interface(
+                cam_chip,
+                stream_settings,
+                framerate,
+                idle_framerate,
+                jpeg_quality,
+            )
             
             if not success:
                 logger.error("Camera initialization failed")
@@ -584,7 +595,14 @@ class CameraStreamer:
             logger.error(f"Error initializing camera streamer: {e}", exc_info=True)
             return False
 
-    def _init_camera_interface(self, cam_chip: str, stream_settings: Dict[str, Any], framerate: int) -> bool:
+    def _init_camera_interface(
+        self,
+        cam_chip: str,
+        stream_settings: Dict[str, Any],
+        framerate: int,
+        idle_framerate: int,
+        jpeg_quality: int,
+    ) -> bool:
         """Initialize streaming camera through CamBase interface."""
         try:
             if not OPENCV_AVAILABLE:
@@ -598,7 +616,7 @@ class CameraStreamer:
             self.cam.start_stream(stream_settings)
 
             self.output = StreamingOutput()
-            self._start_cam_capture(framerate)
+            self._start_cam_capture(framerate, idle_framerate, jpeg_quality)
 
             logger.info("Camera interface streaming started")
             return True
@@ -606,30 +624,49 @@ class CameraStreamer:
             logger.error(f"Camera interface initialization failed: {e}", exc_info=True)
             return False
 
-    def _start_cam_capture(self, framerate: int):
+    def _start_cam_capture(self, framerate: int, idle_framerate: int, jpeg_quality: int):
         """Start frame capture from camera interface in separate thread."""
-        frame_interval = 1.0 / framerate if framerate > 0 else 0.05
+        active_fps = max(1, int(framerate))
+        idle_fps = max(1, int(idle_framerate))
+        frame_interval = 1.0 / active_fps
+        idle_frame_interval = 1.0 / idle_fps
+        jpeg_quality = max(40, min(95, int(jpeg_quality)))
+        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+
+        logger.info(
+            "Streaming capture config: active_fps=%s idle_fps=%s jpeg_quality=%s",
+            active_fps,
+            idle_fps,
+            jpeg_quality,
+        )
 
         def capture_frames():
             while self.running:
+                loop_start = time.monotonic()
                 try:
                     if not self.cam:
                         time.sleep(frame_interval)
                         continue
 
-                    self.cam.update()
-                    frame = self.cam.current_image
+                    has_clients = bool(self.output and self.output.clients > 0)
+                    current_interval = frame_interval if has_clients else idle_frame_interval
+
+                    frame = self.cam.capture_stream_frame()
                     if frame is None:
                         logger.warning("No frame available from camera interface")
-                        time.sleep(frame_interval)
+                        time.sleep(current_interval)
                         continue
 
-                    ok, buffer = cv2.imencode('.jpg', frame)
+                    ok, buffer = cv2.imencode('.jpg', frame, jpeg_params)
                     if ok:
                         self.output.write(buffer.tobytes())
                     else:
                         logger.warning("Failed to JPEG encode frame")
-                    time.sleep(frame_interval)
+
+                    elapsed = time.monotonic() - loop_start
+                    remaining = current_interval - elapsed
+                    if remaining > 0:
+                        time.sleep(remaining)
                 except Exception as e:
                     logger.error(f"Frame capture error: {e}")
                     time.sleep(1)

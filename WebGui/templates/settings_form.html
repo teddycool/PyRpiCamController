@@ -663,6 +663,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     <span class="temp-label">💾 Disk:</span>
                     <span class="temp-value" id="diskSpaceHeaderValue">Loading...</span>
                 </div>
+                <div class="temp-header-widget temp-unknown" id="cpuLoadHeaderWidget">
+                    <span class="temp-label">⚙️ CPU Load:</span>
+                    <span class="temp-value" id="cpuLoadHeaderValue">Loading...</span>
+                </div>
             </div>
         </div>
         
@@ -806,6 +810,14 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                             <span id="actualFps" class="fps-value">-</span>
                         </div>
                         <div class="info-item">
+                            <label>Connected Clients:</label>
+                            <span id="streamClients">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Capture Mode:</label>
+                            <span id="streamCaptureMode">-</span>
+                        </div>
+                        <div class="info-item">
                             <label>View Stream:</label>
                             <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
                                 👁️ Open Stream
@@ -827,6 +839,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                         <div class="temperature-widget" id="ds18b20TempWidget">
                             <span class="temp-label">DS18B20 Temperature:</span>
                             <span class="temp-value" id="ds18b20TempValue">Not available</span>
+                        </div>
+                        <div class="temperature-widget" id="cpuLoadWidget">
+                            <span class="temp-label">CPU Load:</span>
+                            <span class="temp-value" id="cpuLoadValue">Loading...</span>
                         </div>
                     </div>
                 </div>
@@ -1060,6 +1076,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
         // Apply changes and restart service
         async function applyAndRestart() {
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'TEXTAREA')) {
+                activeElement.blur();
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+
             const button = document.getElementById('applyRestartBtn');
             const statusLight = document.getElementById('changesStatusLight');
             const statusText = document.getElementById('changesStatusText');
@@ -1085,7 +1107,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (response.ok) {
                     statusText.textContent = (data && data.message)
                         ? data.message
-                        : 'Changes applied successfully - settings reload requested...';
+                        : 'Changes applied successfully - service restart requested...';
                     // Wait briefly for running service to apply new settings
                     setTimeout(() => {
                         location.reload();
@@ -1151,6 +1173,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const cpuTempValue = document.getElementById('cpuTempValue');
             const ds18b20TempWidget = document.getElementById('ds18b20TempWidget');
             const ds18b20TempValue = document.getElementById('ds18b20TempValue');
+            const cpuLoadWidget = document.getElementById('cpuLoadWidget');
+            const cpuLoadValue = document.getElementById('cpuLoadValue');
             
             // Get header temperature widgets
             const cpuTempHeaderWidget = document.getElementById('cpuTempHeaderWidget');
@@ -1159,13 +1183,17 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const ds18b20TempHeaderValue = document.getElementById('ds18b20TempHeaderValue');
             const diskSpaceHeaderWidget = document.getElementById('diskSpaceHeaderWidget');
             const diskSpaceHeaderValue = document.getElementById('diskSpaceHeaderValue');
+            const cpuLoadHeaderWidget = document.getElementById('cpuLoadHeaderWidget');
+            const cpuLoadHeaderValue = document.getElementById('cpuLoadHeaderValue');
             
             if (!data) {
                 // Update regular widgets
                 if (cpuTempValue) cpuTempValue.textContent = 'Error';
                 if (ds18b20TempValue) ds18b20TempValue.textContent = 'Error';
+                if (cpuLoadValue) cpuLoadValue.textContent = 'Error';
                 if (cpuTempWidget) cpuTempWidget.className = 'temperature-widget temp-unknown';
                 if (ds18b20TempWidget) ds18b20TempWidget.className = 'temperature-widget temp-unknown';
+                if (cpuLoadWidget) cpuLoadWidget.className = 'temperature-widget temp-unknown';
                 
                 // Update header widgets
                 if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = 'Error';
@@ -1174,6 +1202,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
                 if (diskSpaceHeaderValue) diskSpaceHeaderValue.textContent = 'Error';
                 if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = 'temp-header-widget temp-unknown';
+                if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = 'Error';
+                if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = 'temp-header-widget temp-unknown';
                 return;
             }
             
@@ -1223,6 +1253,27 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (ds18b20TempHeaderWidget) ds18b20TempHeaderWidget.className = 'temp-header-widget temp-unknown';
             }
 
+            // Update CPU load
+            if (data.cpu_load_percent !== null && data.cpu_load_percent !== undefined) {
+                const coreText = (data.cpu_cores !== null && data.cpu_cores !== undefined)
+                    ? ` (${data.cpu_cores} cores)`
+                    : '';
+                const loadText = `${data.cpu_load_percent.toFixed(1)}%${coreText}`;
+                const loadClass = getCpuLoadClass(data.cpu_load_percent);
+
+                if (cpuLoadValue) cpuLoadValue.textContent = loadText;
+                if (cpuLoadWidget) cpuLoadWidget.className = `temperature-widget ${loadClass}`;
+
+                if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = loadText;
+                if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = `temp-header-widget ${loadClass}`;
+            } else {
+                if (cpuLoadValue) cpuLoadValue.textContent = 'Not available';
+                if (cpuLoadWidget) cpuLoadWidget.className = 'temperature-widget temp-unknown';
+
+                if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = 'Not available';
+                if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = 'temp-header-widget temp-unknown';
+            }
+
             // Update disk space header status
             if (data.disk_total_bytes !== null && data.disk_total_bytes !== undefined &&
                 data.disk_free_bytes !== null && data.disk_free_bytes !== undefined &&
@@ -1260,6 +1311,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             return 'temp-normal';
         }
 
+        function getCpuLoadClass(loadPercent) {
+            if (loadPercent < 60) return 'temp-normal';
+            if (loadPercent < 85) return 'temp-warm';
+            return 'temp-hot';
+        }
+
         function formatBytes(bytes) {
             if (!Number.isFinite(bytes) || bytes < 0) return 'N/A';
             const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -1292,7 +1349,11 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             // Update status indicator
             if (streamStatus.running) {
                 statusLight.className = 'status-light running';
-                statusText.textContent = 'Streaming Active';
+                const clientCount = Number(streamStatus.stream_clients || 0);
+                const isIdling = Boolean(streamStatus.stream_idling);
+                statusText.textContent = isIdling
+                    ? `Streaming Active (idle, ${clientCount} clients)`
+                    : `Streaming Active (${clientCount} clients)`;
                 viewBtn.disabled = false;
                 
                 // Show stream info
@@ -1317,6 +1378,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 } else {
                     actualFpsElement.classList.add('fps-poor');
                 }
+
+                document.getElementById('streamClients').textContent = `${clientCount}`;
+                document.getElementById('streamCaptureMode').textContent = isIdling ? 'Idle' : 'Active';
             } else {
                 statusLight.className = 'status-light stopped';
                 statusText.textContent = 'Streaming Stopped';

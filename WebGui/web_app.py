@@ -126,8 +126,11 @@ def stream_status():
         except:
             is_running = False
         
-        # Get actual FPS if streaming is running
+        # Get stream runtime details if streaming is running
         actual_fps = 0.0
+        stream_clients = 0
+        stream_capture_mode = 'stopped'
+        stream_idling = False
         if is_running:
             try:
                 import requests
@@ -135,9 +138,15 @@ def stream_status():
                 if response.status_code == 200:
                     stream_info = response.json()
                     actual_fps = stream_info.get('actual_fps', 0.0)
+                    stream_clients = int(stream_info.get('clients', 0) or 0)
+                    stream_idling = stream_clients == 0
+                    stream_capture_mode = 'idle' if stream_idling else 'active'
             except:
                 # Fallback if streaming server API is not available
                 actual_fps = 0.0
+                stream_clients = 0
+                stream_capture_mode = 'active'
+                stream_idling = False
         
         # Read current temperature data from runtime status file
         temperature_data = {
@@ -178,6 +187,12 @@ def stream_status():
             'disk_path': None
         }
 
+        cpu_load_data = {
+            'cpu_load_percent': None,
+            'cpu_load_1min': None,
+            'cpu_cores': None,
+        }
+
         try:
             disk_path = settings_manager.get('Cam.publishers.file.location')
             if not disk_path:
@@ -193,6 +208,18 @@ def stream_status():
         except Exception:
             # Disk data not available, keep None values
             pass
+
+        try:
+            cpu_count = os.cpu_count() or 1
+            load_1min, _, _ = os.getloadavg()
+            cpu_load_percent = (load_1min / cpu_count) * 100.0
+
+            cpu_load_data['cpu_load_percent'] = round(cpu_load_percent, 1)
+            cpu_load_data['cpu_load_1min'] = round(load_1min, 2)
+            cpu_load_data['cpu_cores'] = cpu_count
+        except Exception:
+            # CPU load data not available, keep None values
+            pass
         
         response_data = {
             'running': is_running,
@@ -200,12 +227,16 @@ def stream_status():
             'url': f"http://{hostname}.local:{port}",
             'resolution': settings_manager.get('Stream.resolution'),
             'framerate': settings_manager.get('Stream.framerate'),
-            'actual_fps': actual_fps
+            'actual_fps': actual_fps,
+            'stream_clients': stream_clients,
+            'stream_capture_mode': stream_capture_mode,
+            'stream_idling': stream_idling,
         }
         
         # Add temperature data to response
         response_data.update(temperature_data)
         response_data.update(disk_data)
+        response_data.update(cpu_load_data)
         
         return jsonify(response_data)
     except Exception as e:
@@ -385,36 +416,16 @@ def apply_and_restart():
                 'action': 'none'
             })
         
-        # Re-apply pending changes from the shared pending file before restart.
-        # This prevents stale in-memory worker caches from missing the latest Mode value.
+        # Refresh in-memory view from disk before requesting service restart.
+        # Pending changes are informational only and must not overwrite persisted settings.
         settings_manager.load_user_settings()
-        for field, value in changes['changes'].items():
-            settings_manager.set(field, value, save=False)
-        settings_manager.save_user_settings()
 
-        # Verify persisted Mode when it is part of pending changes.
-        if 'Mode' in changes['changes']:
-            settings_manager.load_user_settings()
-            persisted_mode = settings_manager.get('Mode', None)
-            expected_mode = changes['changes']['Mode']
-            if persisted_mode != expected_mode:
-                return jsonify({
-                    'success': False,
-                    'error': (
-                        f"Failed to persist Mode before restart. "
-                        f"Expected '{expected_mode}', got '{persisted_mode}'"
-                    ),
-                    'action': 'persist_failed',
-                    'changes_not_applied': changes['changes']
-                }), 500
-
-        # Ask running camera service to reload settings in-process.
-        # This avoids sudo/systemctl dependency from web process and makes mode toggles immediate.
+        # All setting changes are restart-only by policy.
         restart_file = "/tmp/cam_reload_settings.txt"
         with open(restart_file, 'w') as f:
-            f.write("reload_settings\n")
+            f.write("restart_service\n")
 
-        restart_message = f'Applied {changes["count"]} changes and requested live settings reload'
+        restart_message = f'Applied {changes["count"]} changes and requested full service restart'
         
         # Clear pending changes after successful persistence + reload request write.
         clear_pending_changes()

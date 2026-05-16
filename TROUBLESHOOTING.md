@@ -48,10 +48,10 @@ Settings changed in the web UI are tracked as pending and written to:
 When you click **Apply Changes & Restart Service** in the UI, the web app:
 
 1. Persists pending settings to `Settings/user_settings.json`
-2. Writes `/tmp/cam_reload_settings.txt` with `reload_settings`
-3. Lets `camcontroller.service` reload settings in-process
+2. Writes `/tmp/cam_reload_settings.txt` with `restart_service`
+3. Requests a full `camcontroller.service` restart
 
-This is a live settings reload path (not a forced full systemd restart).
+This is a restart-only settings apply path.
 
 ### If UI changes do not take effect
 
@@ -65,13 +65,41 @@ ls -l /tmp/cam_reload_settings.txt
 # Confirm settings actually persisted
 sudo cat /home/pi/PyRpiCamController/Settings/user_settings.json
 
-# Check for reload handling errors
-sudo journalctl -u camcontroller.service --since "10 minutes ago" | grep -Ei "reload|settings|mode"
+# Check for apply/restart handling errors
+sudo journalctl -u camcontroller.service --since "10 minutes ago" | grep -Ei "restart|settings|mode"
 ```
 
 If needed, force a full restart:
 
 ```bash
+sudo systemctl restart camcontroller.service
+```
+
+## Light PWM Flicker / Instability
+
+### Current PWM policy
+
+- Light PWM never falls back to `RPi.GPIO` software PWM.
+- Light uses `pigpio` (preferred) or `lgpio`.
+- If no supported backend is available, Light control is disabled and the camera service continues.
+
+### Verify active backend
+
+```bash
+UNIT='camcontroller.service'
+journalctl -u "$UNIT" -n 120 --no-pager | grep 'cam.light'
+```
+
+### GPIO channel conflict behavior
+
+If Light and Display pins share a PWM channel (for example GPIO12 + GPIO18), the system prioritizes Light PWM and disables Display output to prevent flicker.
+
+### Ensure pigpio is available
+
+```bash
+sudo systemctl status pigpiod --no-pager
+sudo systemctl enable pigpiod
+sudo systemctl restart pigpiod
 sudo systemctl restart camcontroller.service
 ```
 
@@ -93,14 +121,14 @@ python3 -c "from picamera2 import Picamera2; print('ok')"
 libcamera-hello --list-cameras
 ```
 
-2. Broken settings JSON or invalid values
+1. Broken settings JSON or invalid values
 
 ```bash
 python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Mode'))"
 python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Cam.resolution'))"
 ```
 
-3. Hardware config mismatch
+1. Hardware config mismatch
 
 ```bash
 python3 -c "from CamController.hwconfig import hwconfig1; print(hwconfig1['CamChip'])"

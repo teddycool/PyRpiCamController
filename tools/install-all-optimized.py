@@ -327,6 +327,7 @@ def package_install(with_opencv=False):
     core_packages = [
         "python3-pip", "python3-picamera2", "libcamera-apps", "python3-libcamera",
         "python3-lgpio", "python3-rpi.gpio", "python3-numpy",
+        "python3-pigpio", "pigpio",
         "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
     ]
     media_packages = [
@@ -600,6 +601,10 @@ def setup_services():
     
     # Restart web service to apply new configuration
     run_cmd("sudo systemctl restart camcontroller-web.service", check=False)
+
+    # Enable pigpio daemon for stable hardware PWM on supported GPIO pins.
+    run_cmd("sudo systemctl enable pigpiod", check=False)
+    run_cmd("sudo systemctl restart pigpiod", check=False)
 
 def sync_hostname_in_hosts(hostname):
     """Ensure /etc/hosts contains a local mapping for the configured hostname."""
