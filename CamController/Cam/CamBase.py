@@ -63,6 +63,18 @@ class CamBase(ABC):
     def capture_stream_frame(self) -> Any:  # Capture one frame for streaming path
         raise NotImplementedError
 
+    def start_stream_encoded(self, settings: dict[str, Any], output: Any) -> bool:
+        """Optional fast path: camera handles encoded stream output directly.
+
+        Return True when encoded streaming started successfully, otherwise False
+        so callers can use frame-capture fallback.
+        """
+        return False
+
+    def set_stream_framerate(self, framerate: int) -> bool:
+        """Optional runtime framerate update for encoded streaming paths."""
+        return False
+
     @abstractmethod
     def stop(self) -> None:  # Stop camera and release resources
         raise NotImplementedError

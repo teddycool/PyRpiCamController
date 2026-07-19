@@ -31,8 +31,8 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 ## Camera and Stream Architecture
 
 - `CamBase.get_cam()` selects the camera implementation (`PiCam2`, `PiCam3`, `PiCamHQ`, `WebCam`).
-- Stream server captures frames from camera abstraction, encodes JPEG, and serves MJPEG.
-- Target framerate pacing uses elapsed-time compensation.
+- Stream server uses camera-native encoded MJPEG output for Raspberry Pi camera modules and serves MJPEG over HTTP.
+- Stream framerate is client-aware: active framerate with connected viewers and reduced `idle_framerate` when no clients are connected.
 
 ## Hardware IO and PWM Policy
 

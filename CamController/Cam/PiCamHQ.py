@@ -7,6 +7,8 @@ __author__ = 'teddycool'
 from Cam import CamBase
 from Cam import camera_settings
 from picamera2 import Picamera2
+from picamera2.encoders import MJPEGEncoder
+from picamera2.outputs import FileOutput
 import libcamera
 from typing import Any
 import logging
@@ -152,8 +154,45 @@ class PiCamHQ(CamBase.CamBase):
             self._logger.warning("Failed to capture stream frame", exc_info=True)
             return None
 
+    def start_stream_encoded(self, settings: dict[str, Any], output: Any) -> bool:
+        """Start camera with Picamera2 MJPEG encoder output for low CPU usage."""
+        try:
+            stream_res = self._resolve_stream_resolution(settings)
+            self._cam = Picamera2()
+            self._camera_config = self._cam.create_video_configuration(
+                main={"format": "YUV420", "size": stream_res},
+                controls=self._get_stream_controls(settings),
+            )
+            self._logger.info(
+                "%s encoded stream config: %s",
+                self._camera_name,
+                str(self._camera_config.get("main")),
+            )
+            self._cam.configure(self._camera_config)
+            encoder = MJPEGEncoder(bitrate=10000000)
+            self._cam.start_recording(encoder, FileOutput(output))
+            self._apply_runtime_controls(settings)
+            return True
+        except Exception:
+            self._logger.warning("Failed to start encoded stream path", exc_info=True)
+            return False
+
+    def set_stream_framerate(self, framerate: int) -> bool:
+        if self._cam is None:
+            return False
+        try:
+            self._cam.set_controls({"FrameRate": int(framerate)})
+            return True
+        except Exception:
+            self._logger.warning("Failed to set stream framerate", exc_info=True)
+            return False
+
     def stop(self) -> None:
         if self._cam is not None:
+            try:
+                self._cam.stop_recording()
+            except Exception:
+                pass
             self._cam.stop()
             self._cam.close()
             self._cam = None

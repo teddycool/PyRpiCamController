@@ -47,7 +47,7 @@ If you want to support the project, consider donating via [PayPal](https://www.p
 
 ### Core Functionality
 
-- Multi-camera support (PiCam2, PiCam3, PiCamHQ, USB webcam fallback)
+- Multi-camera support (PiCam2, PiCam3, PiCamHQ)
 - Unified settings system with schema-backed validation
 - Real-time streaming with configurable resolution and framerate
 - Time-based capture scheduling
@@ -166,7 +166,8 @@ Main backend endpoints used by the bundled Web UI:
 - Raspberry Pi Camera Module 2
 - Raspberry Pi Camera Module 3
 - Raspberry Pi High Quality Camera
-- USB webcam (fallback)
+
+Streaming in this release is optimized for Raspberry Pi camera modules using native encoded MJPEG.
 
 ### Boards
 

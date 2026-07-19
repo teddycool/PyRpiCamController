@@ -249,8 +249,12 @@ class FilePublisher(PublisherBase):
                 return
             
             timestamp = int(time.time())
-            
-            img_filename = os.path.join(self.location, f"{timestamp}.{self.img_format}")
+
+            date_dir = os.path.join(self.location, datetime.now().strftime("%Y-%m-%d"))
+            os.makedirs(date_dir, exist_ok=True)
+            self._ensure_smb_permissions(date_dir, is_directory=True)
+
+            img_filename = os.path.join(date_dir, f"{timestamp}.{self.img_format}")
             temp_img_filename = img_filename + ".tmp"
 
             if hasattr(jpgimagedata, "tobytes"):
@@ -270,8 +274,9 @@ class FilePublisher(PublisherBase):
             self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
 
-            if metadata is not None:
-                meta_filename = os.path.join(self.location, f"{timestamp}.json")
+            save_metadata_json = bool(settings_manager.get("Cam.save_metadata_json", False))
+            if save_metadata_json and metadata is not None:
+                meta_filename = os.path.join(date_dir, f"{timestamp}.json")
                 temp_meta_filename = meta_filename + ".tmp"
                 with open(temp_meta_filename, "w") as meta_file:
                     json.dump(metadata, meta_file)

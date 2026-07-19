@@ -52,6 +52,25 @@ class MyNewState(BaseState.BaseState):
 - Use `context.set_state(StateName.X)` to transition
 - Log with `logger.info()` on state changes; `logger.debug()` for details
 
+#### Separation of Concerns (MainLoop vs States)
+
+`MainLoop` must remain state-agnostic orchestration. State-specific behavior belongs inside each state class.
+
+**MainLoop responsibilities (allowed):**
+- Global housekeeping (settings reload checks, CPU/board temperature checks, runtime status file writes)
+- Delegating behavior via `self._currentstate.update(self)`
+- State transitions through `set_state(...)`
+
+**State responsibilities (allowed):**
+- Mode-specific throttling/cadence (for example, stream health-check intervals)
+- Resource ownership for that mode (start/stop/cleanup of mode-specific services)
+- Mode-specific fallback logic and recovery decisions
+
+**Do not add in MainLoop:**
+- Branching on concrete state type (for example, `if StreamState ...`)
+- Per-state sleep/timing rules that couple loop orchestration to one mode
+- Mode-specific health checks that are only relevant for one state
+
 ### 2. Game Loop Pattern
 
 **Where:** `CamController/Main.py` and `CamController/MainLoop.py`
@@ -86,6 +105,7 @@ class Main(object):
 - Include sleep() to prevent excessive CPU (e.g., `time.sleep(0.5)`)
 - Log exceptions with `logger.exception()` to include traceback
 - Graceful shutdown on KeyboardInterrupt
+- Keep loop cadence generic in `Main`; state-specific cadence belongs in each state's `update()` implementation
 
 ### 3. Publisher Pattern
 

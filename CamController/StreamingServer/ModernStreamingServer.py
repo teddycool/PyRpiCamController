@@ -9,7 +9,6 @@ Modern Streaming Server for PyRpiCamController
 
 Features:
 - Support for Picamera2 (Pi Camera modules)
-- Fallback to OpenCV for USB webcams
 - Integrated with unified settings system
 - Thread-safe operation
 - Proper resource cleanup
@@ -33,14 +32,6 @@ import os
 from Settings.settings_manager import settings_manager
 
 logger = logging.getLogger("cam.streaming")
-
-try:
-    import cv2
-    OPENCV_AVAILABLE = True
-    logger.info("OpenCV available")
-except ImportError:
-    OPENCV_AVAILABLE = False
-    logger.warning("OpenCV not available")
 
 
 class StreamingOutput(io.BufferedIOBase):
@@ -437,7 +428,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                 self.send_error(503, "Stream not available")
                 return
             
-            output.clients += 1
+            with output.condition:
+                output.clients += 1
             logger.info(f"Client connected for streaming. Total clients: {output.clients}")
             
             self.send_response(200)
@@ -464,7 +456,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             except Exception as e:
                 logger.info(f"Client disconnected: {e}")
             finally:
-                output.clients -= 1
+                with output.condition:
+                    output.clients -= 1
                 logger.info(f"Client disconnected. Remaining clients: {output.clients}")
                 
         except Exception as e:
@@ -545,8 +538,12 @@ class CameraStreamer:
         self.output = None
         self.server = None
         self.server_thread = None
-        self.capture_thread = None
         self.running = False
+        self._encoded_stream = False
+        self._active_framerate = 20
+        self._idle_framerate = 2
+        self._current_stream_framerate = None
+        self._framerate_monitor_thread = None
         
     def initialize(self, settings: Dict[str, Any]) -> bool:
         """Initialize camera and streaming server with settings"""
@@ -568,16 +565,14 @@ class CameraStreamer:
                 'framerate': framerate,
             }
 
-            # Initialize camera through unified camera interface.
-            idle_framerate = int(settings_manager.get('Stream.idle_framerate', 2))
-            jpeg_quality = int(settings_manager.get('Stream.jpeg_quality', 80))
+            active_framerate = max(1, int(framerate))
+            idle_framerate = max(1, int(settings_manager.get('Stream.idle_framerate', 2)))
 
             success = self._init_camera_interface(
                 cam_chip,
                 stream_settings,
-                framerate,
+                active_framerate,
                 idle_framerate,
-                jpeg_quality,
             )
             
             if not success:
@@ -599,24 +594,29 @@ class CameraStreamer:
         self,
         cam_chip: str,
         stream_settings: Dict[str, Any],
-        framerate: int,
+        active_framerate: int,
         idle_framerate: int,
-        jpeg_quality: int,
     ) -> bool:
-        """Initialize streaming camera through CamBase interface."""
+        """Initialize streaming camera through CamBase encoded-stream interface."""
         try:
-            if not OPENCV_AVAILABLE:
-                logger.error("OpenCV is required for JPEG stream encoding")
-                return False
-
             from Cam import CamBase
 
             self.cam = CamBase.get_cam(cam_chip)
             logger.info("Camera interface instance created: %s", type(self.cam).__name__)
-            self.cam.start_stream(stream_settings)
-
             self.output = StreamingOutput()
-            self._start_cam_capture(framerate, idle_framerate, jpeg_quality)
+
+            # Require camera-native encoded MJPEG path.
+            if self.cam.start_stream_encoded(stream_settings, self.output):
+                self.running = True
+                self._encoded_stream = True
+                self._active_framerate = active_framerate
+                self._idle_framerate = idle_framerate
+                self._current_stream_framerate = active_framerate
+                self._start_framerate_monitor()
+                logger.info("Using camera native encoded stream path")
+            else:
+                logger.error("Camera does not support encoded stream path; fallback is disabled")
+                return False
 
             logger.info("Camera interface streaming started")
             return True
@@ -624,56 +624,31 @@ class CameraStreamer:
             logger.error(f"Camera interface initialization failed: {e}", exc_info=True)
             return False
 
-    def _start_cam_capture(self, framerate: int, idle_framerate: int, jpeg_quality: int):
-        """Start frame capture from camera interface in separate thread."""
-        active_fps = max(1, int(framerate))
-        idle_fps = max(1, int(idle_framerate))
-        frame_interval = 1.0 / active_fps
-        idle_frame_interval = 1.0 / idle_fps
-        jpeg_quality = max(40, min(95, int(jpeg_quality)))
-        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
-
-        logger.info(
-            "Streaming capture config: active_fps=%s idle_fps=%s jpeg_quality=%s",
-            active_fps,
-            idle_fps,
-            jpeg_quality,
-        )
-
-        def capture_frames():
-            while self.running:
-                loop_start = time.monotonic()
+    def _start_framerate_monitor(self) -> None:
+        """Adjust encoded stream framerate based on connected clients."""
+        def monitor_framerate():
+            while self.running and self._encoded_stream:
                 try:
-                    if not self.cam:
-                        time.sleep(frame_interval)
-                        continue
-
                     has_clients = bool(self.output and self.output.clients > 0)
-                    current_interval = frame_interval if has_clients else idle_frame_interval
+                    target_fps = self._active_framerate if has_clients else self._idle_framerate
 
-                    frame = self.cam.capture_stream_frame()
-                    if frame is None:
-                        logger.warning("No frame available from camera interface")
-                        time.sleep(current_interval)
-                        continue
-
-                    ok, buffer = cv2.imencode('.jpg', frame, jpeg_params)
-                    if ok:
-                        self.output.write(buffer.tobytes())
-                    else:
-                        logger.warning("Failed to JPEG encode frame")
-
-                    elapsed = time.monotonic() - loop_start
-                    remaining = current_interval - elapsed
-                    if remaining > 0:
-                        time.sleep(remaining)
+                    if target_fps != self._current_stream_framerate and self.cam is not None:
+                        if self.cam.set_stream_framerate(target_fps):
+                            logger.info(
+                                "Encoded stream framerate updated to %s fps (clients=%s)",
+                                target_fps,
+                                int(has_clients),
+                            )
+                            self._current_stream_framerate = target_fps
+                        else:
+                            logger.warning("Failed to update encoded stream framerate to %s", target_fps)
                 except Exception as e:
-                    logger.error(f"Frame capture error: {e}")
-                    time.sleep(1)
-        
-        self.running = True
-        self.capture_thread = Thread(target=capture_frames, daemon=True)
-        self.capture_thread.start()
+                    logger.warning("Framerate monitor error: %s", e)
+
+                time.sleep(1.0)
+
+        self._framerate_monitor_thread = Thread(target=monitor_framerate, daemon=True)
+        self._framerate_monitor_thread.start()
     
     def _start_server(self, port):
         """Start HTTP streaming server"""
@@ -700,6 +675,7 @@ class CameraStreamer:
             logger.info("Stopping camera streamer...")
             
             self.running = False
+            self._encoded_stream = False
             
             # Stop server
             if self.server:

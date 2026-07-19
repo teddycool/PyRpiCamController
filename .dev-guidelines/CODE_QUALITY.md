@@ -12,6 +12,7 @@ cd /home/psk/Dropbox/dev/PyRpiCamController
 ```
 
 **Expectations:**
+
 - All tests pass (green)
 - No new warnings introduced
 - Coverage remains ≥80% for modified files
@@ -53,6 +54,15 @@ If touching Publisher, camera, or network code:
 6. **Check logs:** `sudo journalctl -u camcontroller.service -n 20`
 
 ## Code Standards
+
+### Separation of Concerns Check (Required)
+
+When changing loop/state behavior, verify architecture boundaries:
+
+- `MainLoop` remains generic orchestration and global housekeeping only
+- No concrete state checks in `MainLoop` (avoid patterns like `if StreamState ...`)
+- State-specific timing and health logic stays in the corresponding state class
+- `Main` loop sleep remains generic; mode-specific cadence belongs in state `update()`
 
 ### Python Style
 

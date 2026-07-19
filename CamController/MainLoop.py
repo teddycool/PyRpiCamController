@@ -75,6 +75,10 @@ class MainLoop:
         self._lastconfigcheck = 0
         self._lasttempcheck = 0
         self._lastds18b20tempcheck = 0
+        self._last_runtime_status_write = 0.0
+
+        # Main-loop workload throttling
+        self._runtime_status_interval = 0.5
         
         logger.info("Starting temperature monitor initialization...")
               
@@ -189,13 +193,15 @@ class MainLoop:
             self.set_state(StateName.INIT)
         
     def update(self):
+        now = time.time()
+
         # Check for settings reload requests from web interface.
         self._check_settings_reload_request()
         
         #TODO: Check temperatures and other 'house-keeping'
 
         # Check CPU temperature
-        if time.time() - self._lasttempcheck > self._settings.get("CheckCpuTemp"):
+        if now - self._lasttempcheck > self._settings.get("CheckCpuTemp"):
             temp_reading = self._cputempmonitor.get_cpu_temperature()
             if temp_reading is not None:
                 self._cputemp = temp_reading
@@ -207,29 +213,31 @@ class MainLoop:
                     logger.info("CPU-temperature after cool-off is now: %s", str(self._cputempmonitor.get_cpu_temperature()))
             else:
                 logger.warning("Failed to read CPU temperature")
-            self._lasttempcheck = time.time()
+            self._lasttempcheck = now
         
         # Check DS18B20 temperature every 60 seconds
-        if self._ds18b20tempmonitor is not None and time.time() - self._lastds18b20tempcheck > 60:
+        if self._ds18b20tempmonitor is not None and now - self._lastds18b20tempcheck > 60:
             temp = self._ds18b20tempmonitor.get_temperature()
             if temp is not None:
                 self._ds18b20temp = temp
                 logger.debug("DS18B20 temperature: %.1f°C", temp)
             else:
                 logger.warning("Failed to read DS18B20 temperature")
-            self._lastds18b20tempcheck = time.time()
+            self._lastds18b20tempcheck = now
             
-        # Write runtime status for web interface (every update cycle for timely GUI updates)
-        self._update_runtime_status()
+        # Write runtime status with a generic loop interval.
+        if now - self._last_runtime_status_write >= self._runtime_status_interval:
+            self._update_runtime_status(now)
+            self._last_runtime_status_write = now
         
-        #Finally, update the current state logic..                  
-        self._currentstate.update(self)      
+        # Delegate state behavior to the active state implementation.
+        self._currentstate.update(self)
 
-    def _update_runtime_status(self):
+    def _update_runtime_status(self, timestamp: float | None = None):
         """Write current runtime status to file for web interface"""
         try:
             status_data = {
-                'timestamp': time.time(),
+                'timestamp': timestamp if timestamp is not None else time.time(),
                 'cpu_temperature': self._cputemp if self._cputemp is not None else None,
                 'ds18b20_temperature': self._ds18b20temp,
                 'ds18b20_available': self._ds18b20tempmonitor is not None

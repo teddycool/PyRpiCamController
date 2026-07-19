@@ -1082,6 +1082,34 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 await new Promise(resolve => setTimeout(resolve, 150));
             }
 
+            // Ensure Mode is persisted right before restart (defensive sync in case autosave missed it).
+            const modeField = document.getElementById('Mode');
+            if (modeField) {
+                try {
+                    const modeResponse = await fetch('/api/settings/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            field: 'Mode',
+                            value: getInputValue(modeField)
+                        })
+                    });
+
+                    if (!modeResponse.ok) {
+                        const modeError = await modeResponse.text();
+                        console.error('Mode sync failed before restart:', modeError);
+                        alert('Could not save Mode before restart. Please try again.');
+                        return;
+                    }
+                } catch (syncError) {
+                    console.error('Mode sync request failed before restart:', syncError);
+                    alert('Could not save Mode before restart. Please check connection and try again.');
+                    return;
+                }
+            }
+
             const button = document.getElementById('applyRestartBtn');
             const statusLight = document.getElementById('changesStatusLight');
             const statusText = document.getElementById('changesStatusText');

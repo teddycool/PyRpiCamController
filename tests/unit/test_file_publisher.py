@@ -16,6 +16,15 @@ sys.path.insert(0, os.path.join(project_root, 'CamController'))
 from Publishers.FilePublisher import FilePublisher
 from tests.utils.mock_helpers import MockDiskUsage, MockFileSystem, create_mock_logger
 
+
+def _collect_files_recursive(base_dir, suffix):
+    collected = []
+    for root, _, files in os.walk(base_dir):
+        for filename in files:
+            if filename.endswith(suffix):
+                collected.append(os.path.join(root, filename))
+    return collected
+
 class TestFilePublisherDiskManagement:
     """Test cases for FilePublisher disk space management features."""
 
@@ -248,12 +257,11 @@ class TestFilePublisherDiskManagement:
         self.publisher.publish(image_data, metadata)
         
         # Should create files
-        files = os.listdir(self.temp_dir)
-        jpg_files = [f for f in files if f.endswith('.jpg')]
-        json_files = [f for f in files if f.endswith('.json')]
+        jpg_files = _collect_files_recursive(self.temp_dir, '.jpg')
+        json_files = _collect_files_recursive(self.temp_dir, '.json')
         
         assert len(jpg_files) == 1
-        assert len(json_files) == 1
+        assert len(json_files) == 0
 
     @patch('shutil.disk_usage')
     @patch('CamController.Publishers.FilePublisher.logger')
@@ -301,9 +309,8 @@ class TestFilePublisherDiskManagement:
         self.publisher.publish(image_data, metadata)
         
         # Should create new files and delete some old ones
-        files = os.listdir(self.temp_dir)
-        jpg_files = [f for f in files if f.endswith('.jpg')]
-        json_files = [f for f in files if f.endswith('.json')]
+        jpg_files = _collect_files_recursive(self.temp_dir, '.jpg')
+        json_files = _collect_files_recursive(self.temp_dir, '.json')
         
         assert len(jpg_files) >= 1  # At least the new file
         assert len(json_files) >= 1  # At least the new metadata

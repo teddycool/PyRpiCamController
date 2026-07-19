@@ -7,6 +7,7 @@ This guide covers the built-in SMB (Samba) file sharing feature that provides au
 SMB (Server Message Block) file sharing allows you to access files on your Raspberry Pi camera system directly from your computer's file explorer as if they were local folders. No special software needed - it works natively with Windows, macOS, and Linux.
 
 **Key Benefits:**
+
 - ✅ **Zero Configuration**: Automatically set up during installation  
 - ✅ **Cross-Platform**: Works with Windows, Mac, and Linux file managers
 - ✅ **Guest Access**: No passwords required - just browse and access

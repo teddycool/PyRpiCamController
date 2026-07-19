@@ -19,6 +19,15 @@ from Publishers.FilePublisher import FilePublisher
 from settings_manager import SettingsManager
 from tests.utils.mock_helpers import MockFileSystem
 
+
+def _collect_files_recursive(base_dir, suffix):
+    collected = []
+    for root, _, files in os.walk(base_dir):
+        for filename in files:
+            if filename.endswith(suffix):
+                collected.append(os.path.join(root, filename))
+    return collected
+
 class TestStorageManagementIntegration:
     """Integration tests for the complete storage management system."""
 
@@ -235,12 +244,11 @@ class TestStorageManagementIntegration:
             publisher.publish(image_data, metadata)
             
             # Verify files were created
-            files = os.listdir(self.image_dir)
-            jpg_files = [f for f in files if f.endswith('.jpg')]
-            json_files = [f for f in files if f.endswith('.json')]
+            jpg_files = _collect_files_recursive(self.image_dir, '.jpg')
+            json_files = _collect_files_recursive(self.image_dir, '.json')
             
             assert len(jpg_files) == 1
-            assert len(json_files) == 1
+            assert len(json_files) == 0
 
     def test_persistence_of_settings_across_restarts(self):
         """Test that storage management settings persist across application restarts."""

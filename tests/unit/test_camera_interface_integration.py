@@ -111,26 +111,27 @@ class TestModernStreamingServerCameraInterface:
 
         fake_cam = MagicMock()
 
-        def fake_settings_get(key):
+        def fake_settings_get(key, default=None):
             values = {
                 'Stream.resolution': (1280, 720),
                 'Stream.framerate': 20,
                 'Stream.port': 8081,
+                'Stream.idle_framerate': 2,
             }
-            return values[key]
+            return values.get(key, default)
 
-        monkeypatch.setattr(streaming_server_module, 'OPENCV_AVAILABLE', True)
         monkeypatch.setattr(streaming_server_module.settings_manager, 'get', fake_settings_get)
         monkeypatch.setattr('Cam.CamBase.get_cam', lambda cam_chip: fake_cam)
+        fake_cam.start_stream_encoded.return_value = True
         monkeypatch.setattr(streamer, '_start_server', lambda port: None)
-        monkeypatch.setattr(streamer, '_start_cam_capture', lambda framerate: setattr(streamer, 'running', True))
+        monkeypatch.setattr(streamer, '_start_framerate_monitor', lambda: None)
 
         ok = streamer.initialize({'CamChip': 'PiCam3'})
 
         assert ok is True
-        fake_cam.start_stream.assert_called_once()
+        fake_cam.start_stream_encoded.assert_called_once()
 
-        stream_settings = fake_cam.start_stream.call_args[0][0]
+        stream_settings = fake_cam.start_stream_encoded.call_args[0][0]
         assert stream_settings['Stream']['resolution'] == (1280, 720)
         assert stream_settings['Stream']['framerate'] == 20
 
