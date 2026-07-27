@@ -437,7 +437,7 @@ class UpdateManager:
     def _stop_service(self):
         """Stop the camera service."""
         try:
-            result = subprocess.run(['sudo', 'systemctl', 'stop', self.config['service_name']], 
+            result = subprocess.run(['systemctl', 'stop', self.config['service_name']], 
                                   capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 self.logger.warning(f"Service stop returned non-zero: {result.stderr}")
@@ -447,7 +447,7 @@ class UpdateManager:
     def _start_service(self):
         """Start the camera service."""
         try:
-            result = subprocess.run(['sudo', 'systemctl', 'start', self.config['service_name']], 
+            result = subprocess.run(['systemctl', 'start', self.config['service_name']], 
                                   capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 self.logger.warning(f"Service start returned non-zero: {result.stderr}")
@@ -475,8 +475,8 @@ class UpdateManager:
     def _set_permissions(self):
         """Set proper file permissions after installation."""
         try:
-            os.system(f"sudo chown -R pi:pi {self.paths['install_path']}")
-            os.system(f"sudo chmod +x {self.paths['install_path']}/CamController/Main.py")
+            os.system(f"chown -R pi:pi {self.paths['install_path']}")
+            os.system(f"chmod +x {self.paths['install_path']}/CamController/Main.py")
         except Exception as e:
             self.logger.warning(f"Error setting permissions: {e}")
             
