@@ -139,6 +139,35 @@ shared/
 
 ---
 
+## 🔄 OTA-uppdateringar
+
+Din enhet stödjer OTA-uppdateringar (Over-The-Air) av mjukvaran.
+
+### Så fungerar OTA
+
+1. Uppdateringsdaemonen kontrollerar nya versioner mot konfigurerad server.
+2. Om en uppdatering finns visas ny version i webbgränssnittet.
+3. Du kan läsa ändringslogg/release notes i gränssnittet.
+4. Starta uppdatering från webbgränssnittet (eller vänta på auto-apply om det är aktiverat).
+5. Enheten verifierar paketets checksumma före installation.
+6. Enheten skapar backup, installerar uppdateringen, verifierar tjänstens hälsa och rapporterar status.
+
+### Manuell OTA-kontroll/uppdatering
+
+I webbgränssnittet:
+
+- Öppna inställningssidan.
+- Använd **Check for Updates**.
+- Om uppdatering finns, använd **Apply Update**.
+
+### Noteringar
+
+- Enhetsidentitet kopplas till CPU-serienummer + API-nyckel i OTA-backend.
+- Om ingen uppdatering visas, kontrollera server-URL, API-nyckel och registrerad enhet i backend.
+- Efter lyckad uppdatering ska versionsnumret i UI matcha installerad release.
+
+---
+
 ## 🆘 Behöver du hjälp?
 
 Om du fortfarande har problem:
