@@ -51,7 +51,7 @@ class UpdateManager:
         
         # File handler
         log_dir = Path('/home/pi/shared/logs')
-        log_dir.mkdir(exist_ok=True)
+        log_dir.mkdir(parents=True, exist_ok=True)
         
         file_handler = logging.handlers.RotatingFileHandler(
             log_dir / 'camcontroller_update.log',
@@ -100,7 +100,7 @@ class UpdateManager:
         
     def setup_paths(self):
         """Setup directory structure for Update operations."""
-        base_path = Path('/home/pi/Updates')
+        base_path = Path('/home/pi/ota')
         
         self.paths = {
             'base': base_path,
@@ -523,7 +523,7 @@ class UpdateManager:
 
 def main():
     """Main entry point for OTA installer."""
-    ota = OTAManager()
+    ota = UpdateManager()
     
     # Setup signal handlers for graceful shutdown
     def signal_handler(signum, frame):

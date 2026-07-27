@@ -235,14 +235,22 @@ class UpdateDaemon:
         self.logger.info("Manual OTA check triggered")
         
         try:
-            result = self.ota_manager.perform_update()
-            if result:
-                self.logger.info("Manual OTA check completed successfully")
+            update_info = self.update_manager.check_for_updates()
+            if update_info:
+                available_version = update_info.get('version', 'Unknown')
+                settings_manager.set('OTA.available_version', available_version, save=True)
+                settings_manager.set('OTA.update_status', 'available', save=True)
+                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                self.logger.info(f"Manual OTA check found update: {available_version}")
+                return True
             else:
-                self.logger.warning("Manual OTA check failed")
-            return result
+                settings_manager.set('OTA.update_status', 'idle', save=True)
+                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                self.logger.info("Manual OTA check completed: no updates available")
+                return True
         except Exception as e:
             self.logger.error(f"Error during manual OTA check: {e}")
+            settings_manager.set('OTA.update_status', 'error', save=True)
             return False
 
 
