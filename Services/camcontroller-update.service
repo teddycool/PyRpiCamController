@@ -25,6 +25,16 @@ ReadWritePaths=/home/pi/PyRpiCamController /home/pi/shared/logs /home/pi/ota
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
 
 # Resource limits
 MemoryHigh=256M

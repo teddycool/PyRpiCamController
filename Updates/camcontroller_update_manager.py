@@ -117,6 +117,36 @@ class UpdateManager:
             path.mkdir(parents=True, exist_ok=True)
             
         self.logger.info(f"OTA paths configured: {self.paths}")
+
+    def _is_within_directory(self, base_path: Path, target_path: Path) -> bool:
+        """Return True if target_path is within base_path."""
+        try:
+            base_resolved = base_path.resolve()
+            target_resolved = target_path.resolve()
+            return str(target_resolved).startswith(str(base_resolved) + os.sep) or target_resolved == base_resolved
+        except Exception:
+            return False
+
+    def _safe_extract_tar(self, archive_path: Path, destination: Path):
+        """Safely extract tar archive and block path traversal entries."""
+        with tarfile.open(archive_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                member_target = destination / member.name
+                if not self._is_within_directory(destination, member_target):
+                    raise ValueError(f"Unsafe archive entry blocked: {member.name}")
+            tar.extractall(destination)
+
+    def _validate_extracted_package(self, source_path: Path):
+        """Validate that extracted package has the minimum expected project structure."""
+        required_paths = [
+            source_path / 'CamController' / 'Main.py',
+            source_path / 'Settings' / 'settings_manager.py',
+            source_path / 'WebGui' / 'web_app.py',
+            source_path / 'VERSION',
+        ]
+        missing = [str(path.relative_to(source_path)) for path in required_paths if not path.exists()]
+        if missing:
+            raise ValueError(f"Update package missing required files: {', '.join(missing)}")
         
     def get_cpu_serial(self):
         """Get CPU serial for device identification."""
@@ -251,8 +281,7 @@ class UpdateManager:
             
             self.logger.info(f"Extracting update package: {update_package_path}")
             
-            with tarfile.open(update_package_path, "r:gz") as tar:
-                tar.extractall(temp_extract_path)
+            self._safe_extract_tar(update_package_path, temp_extract_path)
                 
             # Find extracted content
             extracted_items = list(temp_extract_path.iterdir())
@@ -266,6 +295,9 @@ class UpdateManager:
                 source_path = extracted_items[0]
             else:
                 source_path = temp_extract_path
+
+            # Validate package content before stopping service
+            self._validate_extracted_package(source_path)
             
             # Stop service
             self.logger.info("Stopping camera service")
@@ -365,7 +397,12 @@ class UpdateManager:
             self.logger.info(f"Restoring from backup: {backup_path}")
             
             with tarfile.open(backup_path, "r:gz") as tar:
-                tar.extractall(self.paths['install_path'].parent)
+                restore_base = self.paths['install_path'].parent
+                for member in tar.getmembers():
+                    member_target = restore_base / member.name
+                    if not self._is_within_directory(restore_base, member_target):
+                        raise ValueError(f"Unsafe backup entry blocked: {member.name}")
+                tar.extractall(restore_base)
                 
             # Set permissions
             self._set_permissions()
@@ -420,7 +457,7 @@ class UpdateManager:
                 if update_info.get('requires_reboot', False):
                     self.logger.info("Update requires reboot - rebooting in 30 seconds")
                     time.sleep(30)
-                    os.system("sudo reboot")
+                    subprocess.run(['systemctl', 'reboot'], check=False)
                 
                 return True
             else:
@@ -513,8 +550,8 @@ class UpdateManager:
     def _set_permissions(self):
         """Set proper file permissions after installation."""
         try:
-            os.system(f"chown -R pi:pi {self.paths['install_path']}")
-            os.system(f"chmod +x {self.paths['install_path']}/CamController/Main.py")
+            subprocess.run(['chown', '-R', 'pi:pi', str(self.paths['install_path'])], check=False)
+            subprocess.run(['chmod', '+x', str(self.paths['install_path'] / 'CamController' / 'Main.py')], check=False)
         except Exception as e:
             self.logger.warning(f"Error setting permissions: {e}")
             
