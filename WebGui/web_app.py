@@ -551,7 +551,11 @@ def get_update_status():
             update_info['available_version'] != ''):
             update_info['has_update'] = True
             
-        return jsonify(update_info)
+        response = jsonify(update_info)
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
         
     except Exception as e:
         return jsonify({'error': f'Failed to get update status: {str(e)}'}), 500

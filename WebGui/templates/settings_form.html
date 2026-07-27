@@ -1434,7 +1434,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         }
 
         function updateUpdateStatus() {
-            fetch('/api/updates/status')
+            fetch(`/api/updates/status?_t=${Date.now()}`, { cache: 'no-store' })
                 .then(response => response.json())
                 .then(data => {
                     updateUpdateUI(data);
@@ -1528,6 +1528,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     }
                     // Immediately refresh the displayed status/timestamp
                     updateUpdateStatus();
+                    // Follow-up refresh to cover delayed file write visibility across workers
+                    setTimeout(updateUpdateStatus, 400);
                 } else {
                     showMessage(data.error || 'Failed to start update check', 'error');
                     hideUpdateProgress();
