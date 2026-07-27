@@ -1,71 +1,72 @@
-# PyRpiCamController OTA API .htaccess
-# Upload this file to /pycamota/ directory on server
-# Designed to coexist with WordPress in parent directory
+# CamController OTA Backend — Apache configuration
+# Place this file in the root of the pycamota/ deployment directory.
 
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /pycamota/
-    
-    # Security: Block direct access to sensitive files
-    RewriteRule ^secrets\.php$ - [F,L]
-    RewriteRule ^config\.php$ - [F,L]
-    RewriteRule ^logs/.*$ - [F,L]
-    RewriteRule ^storage/.*$ - [F,L]
-    RewriteRule ^\..*$ - [F,L]
-    
-    # API Routing - only process requests for this subfolder
-    # Don't interfere with WordPress URLs
-    
-    # OTA API endpoints
-    RewriteRule ^api/ota/check/?$ api/ota_check.php [L]
-    RewriteRule ^api/ota/report/?$ api/ota_report.php [L]
-    
-    # Version management API
-    RewriteRule ^api/versions/?$ api/version_management_new.php [L]
-    RewriteRule ^api/versions/([0-9]+)/?$ api/version_management_new.php?id=$1 [L]
-    
-    # Device management API
-    RewriteRule ^api/devices/?$ api/device_management.php [L]
-    RewriteRule ^api/devices/([a-zA-Z0-9]+)/?$ api/device_management.php?cpu_id=$1 [L]
-    
-    # Logs API (if needed)
-    RewriteRule ^api/logs/?$ api/ota_report.php?action=logs [L]
-    
-    # Admin dashboard and authentication
-    RewriteRule ^admin/login/?$ admin/admin_login.php [L]
-    RewriteRule ^admin/logout/?$ admin/admin_logout.php [L]
-    RewriteRule ^admin/?$ admin/admin_dashboard.php [L]
-    
-    # Debug endpoints (keep only api_test for API testing)
-    RewriteRule ^api/test/?$ api/api_test.php [L]
-    RewriteRule ^api/simplelist/?$ utils/simple_device_list.php [L]
-</IfModule>
-
-<IfModule mod_headers.c>
-	Header unset X-Robots-Tag
-</IfModule>
-
-<Files wp-config.php>
-	<IfModule !mod_authz_core.c>
-		order allow,deny
-		deny from all
-	</IfModule>
-	<IfModule mod_authz_core.c>
-		Require all denied
-	</IfModule>
-</Files>
-
-# Disable directory browsing
 Options -Indexes
+DirectoryIndex admin/admin_dashboard.php
 
+# ---------------------------------------------------------------------------
+# Block direct access to sensitive directories
+# ---------------------------------------------------------------------------
+<FilesMatch "\.(sql|md|json|log|sh|py)$">
+    Require all denied
+</FilesMatch>
+
+# .htaccess context-safe protection for sensitive folders
+RewriteEngine On
+RewriteRule ^(utils|database)(/|$) - [F,L]
+
+# ---------------------------------------------------------------------------
+# URL routing — map clean API paths to PHP files
+#
+# Pi client calls:
+#   GET  /pycamota/api/ota/check   → api/ota_check.php
+#   POST /pycamota/api/ota/report  → api/ota_report.php
+#
+# Admin AJAX calls:
+#   *    /pycamota/api/devices     → api/devices.php
+#   *    /pycamota/api/releases    → api/releases.php
+#   *    /pycamota/api/logs        → api/logs.php
+# ---------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Device OTA endpoints (public, authenticated by api_key)
+RewriteRule ^api/ota/check$   api/ota_check.php  [L,QSA]
+RewriteRule ^api/ota/report$  api/ota_report.php [L,QSA]
+
+# Admin API endpoints (protected by session)
+RewriteRule ^api/devices$   api/devices.php  [L,QSA]
+RewriteRule ^api/releases$  api/releases.php [L,QSA]
+RewriteRule ^api/logs$      api/logs.php     [L,QSA]
+
+# Admin UI
+RewriteRule ^admin/?$  admin/admin_dashboard.php [L,QSA]
+RewriteRule ^login$    admin/admin_login.php      [L,QSA]
+RewriteRule ^logout$   admin/admin_logout.php     [L,QSA]
+ </IfModule>
+
+# ---------------------------------------------------------------------------
 # Security headers
+# ---------------------------------------------------------------------------
 <IfModule mod_headers.c>
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# Limit file upload size (adjust as needed)
-php_value upload_max_filesize 50M
-php_value post_max_size 50M
-php_value max_execution_time 300
+# ---------------------------------------------------------------------------
+# PHP settings (shared hosting)
+# ---------------------------------------------------------------------------
+<IfModule mod_php.c>
+    php_value upload_max_filesize 52M
+    php_value post_max_size 54M
+    php_value max_execution_time 120
+    php_value memory_limit 128M
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 52M
+    php_value post_max_size 54M
+    php_value max_execution_time 120
+    php_value memory_limit 128M
+</IfModule>
