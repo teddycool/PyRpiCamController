@@ -178,10 +178,16 @@ class UpdateDaemon:
                 self.logger.info(f"Next OTA check in {interval} seconds")
                 
                 # Sleep in small increments to allow for graceful shutdown
+                # and prompt processing of manual trigger files.
                 elapsed = 0
                 while elapsed < interval and self.running:
-                    time.sleep(min(10, interval - elapsed))
-                    elapsed += 10
+                    step = min(10, interval - elapsed)
+                    time.sleep(step)
+                    elapsed += step
+
+                    # Process manual check/apply requests promptly instead of
+                    # waiting for the full check interval.
+                    self._check_manual_triggers()
                     
             except Exception as e:
                 self.logger.error(f"Error in OTA check loop: {e}")
