@@ -1521,8 +1521,13 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showMessage('Update check started', 'info');
-                    // Status will be updated by periodic refresh
+                    if (data.status === 'update_available') {
+                        showMessage(`Update available: v${data.available_version}`, 'success');
+                    } else {
+                        showMessage('Already up to date', 'info');
+                    }
+                    // Immediately refresh the displayed status/timestamp
+                    updateUpdateStatus();
                 } else {
                     showMessage(data.error || 'Failed to start update check', 'error');
                     hideUpdateProgress();
