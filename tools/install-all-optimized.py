@@ -585,6 +585,7 @@ def setup_services():
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),
         ("camcontroller-web.service", "Services/camcontroller-web.service"),
+        ("camcontroller-update.service", "Services/camcontroller-update.service"),
     ]
     
     for service_name, service_path in services:
@@ -601,6 +602,7 @@ def setup_services():
     
     # Restart web service to apply new configuration
     run_cmd("sudo systemctl restart camcontroller-web.service", check=False)
+    run_cmd("sudo systemctl restart camcontroller-update.service", check=False)
 
     # Enable pigpio daemon for stable hardware PWM on supported GPIO pins.
     run_cmd("sudo systemctl enable pigpiod", check=False)

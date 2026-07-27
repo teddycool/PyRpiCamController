@@ -11,6 +11,8 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 - `CamController/StreamingServer/*` — stream server and frame pipeline
 - `Settings/*` — schema and persistence (`settings_schema.json`, `user_settings.json`, manager)
 - `WebGui/*` — web app and settings UI
+- `Updates/*` — OTA manager/daemon, package install/rollback logic
+- `backend/Updates/*` — OTA backend API/admin/dashboard and DB schema
 
 ## Runtime Model
 
@@ -46,7 +48,40 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 
 - `camcontroller.service` — main camera controller/runtime
 - `camcontroller-web.service` — web settings UI
+- `camcontroller-update.service` — OTA daemon and update orchestration
 - `pigpiod.service` — required for preferred Light hardware PWM backend
+
+## OTA Architecture
+
+The OTA system is split between device-side update logic and backend release management.
+
+### Device-side OTA
+
+- `Updates/camcontroller_update_daemon.py` runs as `camcontroller-update.service` and performs scheduled checks.
+- `Updates/camcontroller_update_manager.py` performs:
+  - version check against backend
+  - package download
+  - SHA-256 verification
+  - backup creation
+  - package extraction/install
+  - post-update health verification
+  - rollback on failure
+- Manual triggers are file-based:
+  - `/tmp/ota_check_trigger`
+  - `/tmp/ota_apply_trigger`
+
+### Backend OTA
+
+- `backend/Updates/api/ota_check.php` provides update metadata for devices.
+- `backend/Updates/api/ota_report.php` receives install status reports.
+- `backend/Updates/admin/*` provides release/device/log administration.
+- Database schema (`backend/Updates/database/ota_schema_v2.sql`) stores admins, devices, releases, and OTA logs.
+
+### Identity and Security
+
+- Device identity uses CPU serial + API key.
+- Service sandbox settings must allow CPU serial lookup via `/proc/cpuinfo`.
+- Current service configuration keeps hardening while permitting serial access.
 
 ## Persistence And Observability
 

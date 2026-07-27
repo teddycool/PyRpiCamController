@@ -137,6 +137,35 @@ shared/
 
 ---
 
+## 🔄 OTA Updates
+
+Your device supports Over-The-Air (OTA) software updates.
+
+### How OTA works
+
+1. The update daemon checks for new releases on the configured server.
+2. If an update is available, the Web UI shows the new version.
+3. You can review changelog/release notes in the UI.
+4. Start update from UI (or wait for configured auto-apply behavior).
+5. Device verifies package checksum before install.
+6. Device creates backup, installs update, verifies service health, and reports status.
+
+### Manual OTA check/apply
+
+In the web interface:
+
+- Open settings page.
+- Use **Check for Updates**.
+- If available, use **Apply Update**.
+
+### Notes
+
+- Device identity is tied to CPU serial + API key in OTA backend.
+- If no update appears, confirm server URL, API key, and registered device entry.
+- After successful update, current version in UI should match installed release.
+
+---
+
 ## 🆘 Need Help?
 
 If you're still having issues:

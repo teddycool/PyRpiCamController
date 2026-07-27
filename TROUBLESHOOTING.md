@@ -197,6 +197,33 @@ python3 web_app.py
 
 ## OTA Update Issues
 
+### 401 Unauthorized during OTA check (`cpu_id=unknown`)
+
+If logs show errors like:
+
+- `Could not get CPU serial: ... /proc/cpuinfo`
+- `401 Client Error: Unauthorized ... cpu_id=unknown`
+
+then the update service cannot read CPU serial and backend authentication fails.
+
+Verify service config and restart sequence:
+
+```bash
+sudo systemctl cat camcontroller-update.service | grep -E "ProtectProc|ProcSubset"
+```
+
+Expected behavior is a configuration that still allows `/proc/cpuinfo` to be read.
+If you deployed older service files, reinstall current unit and reload:
+
+```bash
+sudo cp /home/pi/PyRpiCamController/Services/camcontroller-update.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart camcontroller-update.service
+sudo journalctl -u camcontroller-update.service -n 120 --no-pager
+```
+
+Then confirm device is registered in OTA backend with matching CPU serial + API key.
+
 ### Update checks do not run
 
 ```bash
