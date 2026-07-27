@@ -277,15 +277,24 @@ class UpdateManager:
             # Backup current installation (already done, but keep reference)
             # backup_path = self.create_backup()  # Already done before calling this
             
-            # Install new version
+            # Install new version (merge into existing install path)
+            # This preserves repository metadata (.git) and runtime-only files
+            # like Settings/user_settings.json that are intentionally not packaged.
             self.logger.info(f"Installing update from {source_path} to {self.paths['install_path']}")
-            
-            # Remove old installation (but keep backup)
-            if self.paths['install_path'].exists():
-                shutil.rmtree(self.paths['install_path'])
-                
-            # Copy new installation
-            shutil.copytree(source_path, self.paths['install_path'])
+
+            self.paths['install_path'].mkdir(parents=True, exist_ok=True)
+
+            for item in source_path.iterdir():
+                # Never touch git metadata during OTA updates
+                if item.name == '.git':
+                    continue
+
+                destination = self.paths['install_path'] / item.name
+                if item.is_dir():
+                    shutil.copytree(item, destination, dirs_exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(item, destination)
             
             # Set proper permissions
             self._set_permissions()
