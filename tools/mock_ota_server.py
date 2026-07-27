@@ -235,14 +235,23 @@ def main():
         log.error(str(e))
         sys.exit(1)
 
-    # Check for pre-computed .sha256 sidecar first, otherwise compute on the fly
+    # Compute real checksum and only trust sidecar if it matches.
+    # This avoids hard-to-debug cases where tarball was rebuilt but sidecar is stale.
+    actual_checksum = _sha256(tarball)
     sidecar = Path(str(tarball) + ".sha256")
     if sidecar.exists():
-        checksum = sidecar.read_text().split()[0]
-        log.info(f"SHA-256 loaded from sidecar: {checksum}")
+        sidecar_checksum = sidecar.read_text().split()[0]
+        if sidecar_checksum == actual_checksum:
+            checksum = sidecar_checksum
+            log.info(f"SHA-256 loaded from sidecar: {checksum}")
+        else:
+            checksum = actual_checksum
+            log.warning("SHA-256 sidecar mismatch detected; using computed checksum instead")
+            log.warning(f"  sidecar : {sidecar_checksum}")
+            log.warning(f"  computed: {actual_checksum}")
     else:
-        log.info("Computing SHA-256 (no sidecar found)…")
-        checksum = _sha256(tarball)
+        checksum = actual_checksum
+        log.info("Computed SHA-256 (no sidecar found)…")
 
     STATE["version"]      = version
     STATE["tarball_path"] = tarball
