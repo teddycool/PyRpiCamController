@@ -6,8 +6,8 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
+User=root
+Group=root
 WorkingDirectory=/home/pi/PyRpiCamController
 Environment=PYTHONPATH=/home/pi/PyRpiCamController
 ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/Updates/camcontroller_update_daemon.py --daemon

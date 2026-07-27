@@ -176,14 +176,23 @@ class UpdateManager:
             
             self.logger.info(f"Downloading update from {download_url}")
             
-            with requests.get(download_url, stream=True, timeout=self.config['download_timeout']) as response:
+            with requests.get(
+                download_url,
+                stream=True,
+                timeout=self.config['download_timeout'],
+                headers={'Accept-Encoding': 'identity'}
+            ) as response:
                 response.raise_for_status()
+                response.raw.decode_content = False
                 
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded = 0
                 
                 with open(download_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    while True:
+                        chunk = response.raw.read(8192)
+                        if not chunk:
+                            break
                         f.write(chunk)
                         downloaded += len(chunk)
                         
