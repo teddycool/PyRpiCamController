@@ -533,6 +533,9 @@ def get_update_status():
         if os.path.exists(version_file):
             with open(version_file, 'r') as f:
                 current_version = f.read().strip()
+        else:
+            # Fallback to OTA runtime state if VERSION file is temporarily missing
+            current_version = settings_manager.get('OTA.current_version', 'Unknown')
         
         update_info = {
             'current_version': current_version,

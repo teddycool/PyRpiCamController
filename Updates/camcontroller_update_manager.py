@@ -16,6 +16,7 @@ import hashlib
 import json
 import subprocess
 import signal
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -255,10 +256,16 @@ class UpdateManager:
                 
             # Find extracted content
             extracted_items = list(temp_extract_path.iterdir())
-            if len(extracted_items) != 1:
-                raise ValueError("Update package should contain exactly one directory")
-                
-            source_path = extracted_items[0]
+            if not extracted_items:
+                raise ValueError("Update package is empty")
+
+            # Support both package layouts:
+            # 1) single top-level directory containing the project
+            # 2) project files/directories directly at archive root
+            if len(extracted_items) == 1 and extracted_items[0].is_dir():
+                source_path = extracted_items[0]
+            else:
+                source_path = temp_extract_path
             
             # Stop service
             self.logger.info("Stopping camera service")
@@ -282,6 +289,19 @@ class UpdateManager:
             
             # Set proper permissions
             self._set_permissions()
+
+            # Ensure VERSION file exists and matches target version
+            target_version = None
+            try:
+                match = re.search(r"(\d+\.\d+\.\d+)", update_package_path.name)
+                if match:
+                    target_version = match.group(1)
+            except Exception:
+                target_version = None
+
+            version_file = self.paths['install_path'] / 'VERSION'
+            if not version_file.exists() and target_version:
+                version_file.write_text(f"{target_version}\n")
             
             self.logger.info("Update installation completed")
             
