@@ -544,8 +544,8 @@ def get_update_status():
             'update_status': settings_manager.get('OTA.update_status', 'idle'),
             'auto_apply': settings_manager.get('OTA.auto_apply'),
             'notify_available': settings_manager.get('OTA.notify_available', True),
+            'changelog': settings_manager.get('OTA.changelog', ''),
             'has_update': False,
-            'changelog': ''
         }
         
         # Check if update is available
@@ -617,7 +617,9 @@ def check_for_updates():
 
         if data.get('update_available'):
             new_ver = data.get('version', '')
+            changelog = data.get('release_notes', '') or ''
             _set_runtime_setting('OTA.available_version', new_ver)
+            _set_runtime_setting('OTA.changelog', changelog)
             _set_runtime_setting('OTA.update_status', 'update_available')
             # Also drop trigger file so daemon can pick it up if running
             _ensure_ota_command_dir()
@@ -631,6 +633,7 @@ def check_for_updates():
                 'last_check': now,
             })
         else:
+            _set_runtime_setting('OTA.changelog', '')
             _set_runtime_setting('OTA.update_status', 'up_to_date')
             return jsonify({
                 'success': True,
@@ -690,13 +693,18 @@ def apply_update():
 def get_changelog():
     """Get changelog for available update"""
     try:
-        # Try to read changelog from download directory
-        changelog_file = OTA_CHANGELOG_FILE
-        changelog = "No changelog available"
-        
-        if changelog_file.exists():
-            with open(changelog_file, 'r', encoding='utf-8') as f:
-                changelog = f.read()
+        # Prefer changelog stored in runtime OTA state from the last successful check
+        changelog = settings_manager.get('OTA.changelog', '')
+
+        # Backward-compatible fallback to the shared changelog file if present
+        if not changelog:
+            changelog_file = OTA_CHANGELOG_FILE
+            if changelog_file.exists():
+                with open(changelog_file, 'r', encoding='utf-8') as f:
+                    changelog = f.read()
+
+        if not changelog:
+            changelog = "No changelog available"
         
         return jsonify({
             'changelog': changelog,
