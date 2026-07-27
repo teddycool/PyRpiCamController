@@ -14,8 +14,22 @@
  * If the secrets file does not exist, fallback constants are used (dev only).
  */
 
-$secretsFile = dirname(__DIR__, 4) . '/private/cam_ota_secrets.php';
-if (file_exists($secretsFile)) {
+$secretsCandidates = [
+    getenv('CAM_SECRETS_FILE') ?: '',
+    __DIR__ . '/cam_ota_secrets.php',             // utils/ — blocked from HTTP by .htaccess
+    dirname(__DIR__, 3) . '/private/cam_ota_secrets.php',
+    dirname(__DIR__, 4) . '/private/cam_ota_secrets.php',
+];
+
+$secretsFile = '';
+foreach ($secretsCandidates as $candidate) {
+    if ($candidate && file_exists($candidate)) {
+        $secretsFile = $candidate;
+        break;
+    }
+}
+
+if ($secretsFile) {
     require_once $secretsFile;
 } else {
     // Dev fallback — override in secrets file on production
