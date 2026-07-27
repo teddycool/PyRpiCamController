@@ -31,6 +31,14 @@ else
     echo "     Check with: sudo systemctl status camcontroller-web.service"
 fi
 
+echo -n "   • camcontroller-update.service: "
+if systemctl is-active camcontroller-update.service >/dev/null; then
+    echo "✅ Running"
+else
+    echo "❌ Not running"
+    echo "     Check with: sudo systemctl status camcontroller-update.service"
+fi
+
 echo -n "   • Samba (smbd): "
 if systemctl is-active smbd >/dev/null; then
     echo "✅ Running"
@@ -164,6 +172,7 @@ python_ok=0
 
 systemctl is-active camcontroller.service >/dev/null && ((services_ok++))
 systemctl is-active camcontroller-web.service >/dev/null && ((services_ok++))
+systemctl is-active camcontroller-update.service >/dev/null && ((services_ok++))
 systemctl is-active smbd >/dev/null && ((services_ok++))
 systemctl is-active nmbd >/dev/null && ((services_ok++))
 
@@ -175,7 +184,7 @@ for test in "${test_imports[@]}"; do
     python3 -c "$import_cmd" 2>/dev/null && ((python_ok++))
 done
 
-echo "Services: $services_ok/4 running"
+echo "Services: $services_ok/5 running"
 echo "Network: $network_ok/2 accessible"
 echo "Python: $python_ok/${#test_imports[@]} imports working"
 
