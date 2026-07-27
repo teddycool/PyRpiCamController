@@ -1521,15 +1521,18 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Update timestamp instantly from the POST response (no extra round-trip)
+                    const now = data.last_check || new Date().toLocaleString('sv-SE').replace('T', ' ');
+                    const lastCheckSpan = document.getElementById('lastCheck');
+                    if (lastCheckSpan) lastCheckSpan.textContent = now;
+
                     if (data.status === 'update_available') {
                         showMessage(`Update available: v${data.available_version}`, 'success');
                     } else {
                         showMessage('Already up to date', 'info');
                     }
-                    // Immediately refresh the displayed status/timestamp
+                    // Full UI refresh to pick up status/available_version from backend
                     updateUpdateStatus();
-                    // Follow-up refresh to cover delayed file write visibility across workers
-                    setTimeout(updateUpdateStatus, 400);
                 } else {
                     showMessage(data.error || 'Failed to start update check', 'error');
                     hideUpdateProgress();

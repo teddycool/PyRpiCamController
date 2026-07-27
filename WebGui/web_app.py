@@ -625,6 +625,7 @@ def check_for_updates():
                 'status': 'update_available',
                 'available_version': new_ver,
                 'current_version': current_version,
+                'last_check': now,
             })
         else:
             _set_runtime_setting('OTA.update_status', 'up_to_date')
@@ -633,6 +634,7 @@ def check_for_updates():
                 'message': 'Already up to date',
                 'status': 'up_to_date',
                 'current_version': current_version,
+                'last_check': now,
             })
 
     except Exception as e:
