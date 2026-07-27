@@ -352,8 +352,8 @@ function statusColor(s) {
 
 async function promoteRelease(id, status) {
     try {
-        await api('PATCH', `../api/releases.php?id=${id}`, { status });
-        toast(`Release status → ${status}`);
+        await api('POST', `../api/releases.php?id=${id}`, { _method: 'PATCH', status });
+        toast(`Release status \u2192 ${status}`);
         loadReleases();
     } catch(e) { toast(e.message, 'danger'); loadReleases(); }
 }
@@ -361,7 +361,7 @@ async function promoteRelease(id, status) {
 async function deleteRelease(id, version) {
     if (!confirm(`Delete release ${version}? The file will be removed from disk.`)) return;
     try {
-        await api('DELETE', `../api/releases.php?id=${id}`);
+        await api('POST', `../api/releases.php?id=${id}`, { _method: 'DELETE' });
         toast(`Release ${version} deleted`);
         loadReleases();
     } catch(e) { toast(e.message, 'danger'); }
@@ -428,7 +428,7 @@ async function loadDevices() {
 
 async function changeDeviceChannel(id, channel) {
     try {
-        await api('PUT', `../api/devices.php?id=${id}`, { channel });
+        await api('POST', `../api/devices.php?id=${id}`, { _method: 'PUT', channel });
         toast(`Channel updated to ${channel}`);
         loadDevices();
     } catch(e) { toast(e.message, 'danger'); loadDevices(); }
@@ -436,7 +436,7 @@ async function changeDeviceChannel(id, channel) {
 
 async function toggleDevice(id, current) {
     try {
-        await api('PUT', `../api/devices.php?id=${id}`, { is_active: current ? 0 : 1 });
+        await api('POST', `../api/devices.php?id=${id}`, { _method: 'PUT', is_active: current ? 0 : 1 });
         toast(current ? 'Device deactivated' : 'Device activated');
         loadDevices();
     } catch(e) { toast(e.message, 'danger'); }
@@ -445,7 +445,7 @@ async function toggleDevice(id, current) {
 async function deleteDevice(id, device_id) {
     if (!confirm(`Delete device ${device_id}?`)) return;
     try {
-        await api('DELETE', `../api/devices.php?id=${id}`);
+        await api('POST', `../api/devices.php?id=${id}`, { _method: 'DELETE' });
         toast('Device deleted');
         loadDevices();
     } catch(e) { toast(e.message, 'danger'); }

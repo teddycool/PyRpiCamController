@@ -14,7 +14,17 @@ require_once __DIR__ . '/../utils/helpers.php';
 require_admin_api();
 
 $method = $_SERVER['REQUEST_METHOD'];
-$id     = isset($_GET['id']) ? (int) $_GET['id'] : null;
+// Allow POST with _method override for hosts that block PUT/DELETE
+if ($method === 'POST') {
+    $peek = json_decode(file_get_contents('php://input'), true);
+    if (!empty($peek['_method'])) {
+        $method = strtoupper($peek['_method']);
+    }
+    if ($peek !== null) {
+        $GLOBALS['_json_body_cache'] = $peek;
+    }
+}
+$id  = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $pdo    = cam_db();
 
 // ---------------------------------------------------------------------------

@@ -595,7 +595,7 @@ def check_for_updates():
             with open('/proc/cpuinfo') as f:
                 for line in f:
                     if line.startswith('Serial'):
-                        cpu_id = line.split(':')[1].strip().lstrip('0')
+                        cpu_id = line.split(':')[1].strip()
                         break
         except Exception:
             pass

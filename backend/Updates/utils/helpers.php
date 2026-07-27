@@ -44,6 +44,10 @@ function json_error(string $message, int $status = 400): void
  */
 function json_body(): array
 {
+    // May have been pre-read (e.g. _method override in releases.php)
+    if (isset($GLOBALS['_json_body_cache']) && is_array($GLOBALS['_json_body_cache'])) {
+        return $GLOBALS['_json_body_cache'];
+    }
     $raw = file_get_contents('php://input');
     if ($raw === false || $raw === '') {
         return [];

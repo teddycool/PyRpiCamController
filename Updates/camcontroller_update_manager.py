@@ -154,7 +154,7 @@ class UpdateManager:
             with open('/proc/cpuinfo', 'r') as f:
                 for line in f:
                     if line.startswith('Serial'):
-                        return line.split(':')[1].strip().lstrip('0')
+                        return line.split(':')[1].strip()
         except Exception as e:
             self.logger.warning(f"Could not get CPU serial: {e}")
             return "unknown"
