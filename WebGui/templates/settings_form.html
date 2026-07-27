@@ -1513,7 +1513,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
         function checkForUpdates() {
             showUpdateProgress('Initiating update check...', 10);
-            
+
+            // Update timestamp immediately in the UI — don't wait for the round-trip
+            const nowStr = new Date().toLocaleString('sv-SE').replace('T', ' ').substring(0, 19);
+            const lastCheckSpan = document.getElementById('lastCheck');
+            if (lastCheckSpan) lastCheckSpan.textContent = nowStr;
+
             fetch('/api/updates/check', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
