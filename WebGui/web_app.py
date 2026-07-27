@@ -652,11 +652,14 @@ def apply_update():
         _ensure_ota_command_dir()
 
         # Check if update is available
-        current_version = settings_manager.get('OTA.current_version', '')
+        # Use VERSION file as source-of-truth (same as /api/updates/status)
+        version_file = Path(__file__).parent.parent / 'VERSION'
+        current_version = version_file.read_text().strip() if version_file.exists() else settings_manager.get('OTA.current_version', '')
+        _set_runtime_setting('OTA.current_version', current_version)
         available_version = settings_manager.get('OTA.available_version', '')
         
         if not available_version or available_version == current_version:
-            return jsonify({'error': 'No update available to apply'}), 400
+            return jsonify({'error': f'No update available to apply (current={current_version}, available={available_version})'}), 400
         
         # Update status to applying
         _set_runtime_setting('OTA.update_status', 'applying')
