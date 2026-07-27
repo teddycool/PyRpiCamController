@@ -17,7 +17,7 @@ StandardOutput=journal
 StandardError=journal
 
 # Security settings
-NoNewPrivileges=yes
+NoNewPrivileges=no
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
