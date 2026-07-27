@@ -18,7 +18,7 @@ import os
 import sys
 import json
 import subprocess
-import zipfile
+import tarfile
 import hashlib
 import shutil
 from datetime import datetime
@@ -146,7 +146,7 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
 - [Add your changes here]
 
 ## Installation:
-1. Extract PyRpiCamController-{version}.zip to /home/pi/PyRpiCamController
+1. Extract PyRpiCamController-{version}.tar.gz to /home/pi/PyRpiCamController
 2. Run: cd /home/pi/PyRpiCamController/tools
 3. Run: sudo python3 install-all-optimized.py
 
@@ -170,15 +170,15 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
         return notes
     
     def create_distribution_package(self, version):
-        """Create distribution zip file"""
+        """Create distribution tar.gz file suitable for OTA delivery"""
         self.log(f"Creating distribution package for v{version}...")
         
         # Create output directories
         RELEASE_DIR.mkdir(exist_ok=True)
         DIST_DIR.mkdir(exist_ok=True)
         
-        zip_name = f"PyRpiCamController-{version}.zip"
-        zip_path = DIST_DIR / zip_name
+        tar_name = f"PyRpiCamController-{version}.tar.gz"
+        tar_path = DIST_DIR / tar_name
         
         # Files/directories to include
         include_patterns = [
@@ -207,47 +207,42 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
             "dist/",
             "debug_packaging.py"
         ]
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+
+        def _tar_filter(tarinfo):
+            for excl in exclude_patterns:
+                if excl in tarinfo.name:
+                    return None
+            return tarinfo
+
+        with tarfile.open(tar_path, 'w:gz') as tf:
             for pattern in include_patterns:
                 path = PROJECT_ROOT / pattern
-                if path.is_file():
-                    zipf.write(path, pattern)
-                elif path.is_dir():
-                    for file_path in path.rglob('*'):
-                        if file_path.is_file():
-                            # Skip excluded patterns
-                            skip = False
-                            for exclude in exclude_patterns:
-                                if exclude in str(file_path):
-                                    skip = True
-                                    break
-                            if not skip:
-                                arcname = file_path.relative_to(PROJECT_ROOT)
-                                zipf.write(file_path, arcname)
+                if path.exists():
+                    tf.add(path, arcname=pattern.rstrip('/'), filter=_tar_filter)
         
-        # Create checksum
+        # Create SHA-256 sidecar (matches OTA client expectation)
         sha256_hash = hashlib.sha256()
-        with open(zip_path, "rb") as f:
+        with open(tar_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
         
         checksum = sha256_hash.hexdigest()
-        checksum_path = DIST_DIR / f"{zip_name}.sha256"
+        checksum_path = DIST_DIR / f"{tar_name}.sha256"
         with open(checksum_path, 'w') as f:
-            f.write(f"{checksum}  {zip_name}\n")
+            f.write(f"{checksum}  {tar_name}\n")
         
         # Create release notes
         notes_path = DIST_DIR / f"release-notes-{version}.md"
         with open(notes_path, 'w') as f:
             f.write(self.create_release_notes(version))
         
-        file_size = zip_path.stat().st_size / (1024 * 1024)  # MB
-        self.log(f"✓ Package created: {zip_name} ({file_size:.1f} MB)")
-        self.log(f"✓ Checksum: {checksum[:16]}...")
+        file_size = tar_path.stat().st_size / (1024 * 1024)  # MB
+        self.log(f"✓ Package created: {tar_name} ({file_size:.1f} MB)")
+        self.log(f"✓ SHA-256: {checksum}")
+        self.log(f"✓ Sidecar:  {tar_name}.sha256")
         self.log(f"✓ Release notes: release-notes-{version}.md")
         
-        return zip_path, checksum
+        return tar_path, checksum
     
     def git_commit_and_tag(self, version):
         """Commit version changes and create git tag"""

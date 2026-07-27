@@ -1,0 +1,6 @@
+# Release tarballs are stored here.
+# This directory is served directly by Apache.
+# Do NOT commit real release packages to git.
+*.tar.gz
+*.tar
+*.zip

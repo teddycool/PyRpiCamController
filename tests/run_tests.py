@@ -8,7 +8,7 @@ import subprocess
 import argparse
 from pathlib import Path
 
-def run_tests(test_type="all", verbose=False, coverage=True):
+def run_tests(test_type="all", verbose=False, coverage=True, include_hardware=False):
     """
     Run tests for the PyRpiCamController project.
     
@@ -26,7 +26,7 @@ def run_tests(test_type="all", verbose=False, coverage=True):
     os.chdir(project_root)
     
     # Build pytest command
-    cmd = ["python", "-m", "pytest"]
+    cmd = [sys.executable, "-m", "pytest"]
     
     # Add test path based on test type
     if test_type == "unit":
@@ -39,6 +39,10 @@ def run_tests(test_type="all", verbose=False, coverage=True):
     # Add verbosity
     if verbose:
         cmd.extend(["-v", "-s"])
+
+    # Default dev behavior: exclude hardware-marked tests unless explicitly requested.
+    if not include_hardware:
+        cmd.extend(["-m", "not hardware"])
     
     # Add coverage
     if coverage:
@@ -54,6 +58,7 @@ def run_tests(test_type="all", verbose=False, coverage=True):
     reports_dir.mkdir(exist_ok=True)
     
     print(f"Running {test_type} tests...")
+    print(f"Hardware tests included: {include_hardware}")
     print(f"Command: {' '.join(cmd)}")
     
     # Run tests
@@ -77,7 +82,7 @@ def check_requirements():
     except ImportError as e:
         print(f"Missing test dependencies: {e}")
         print("Please install test requirements:")
-        print("  pip install -r tests/requirements.txt")
+        print("  pip install -r requirements.txt")
         return False
 
 def main():
@@ -103,6 +108,11 @@ def main():
         action="store_true",
         help="Check if test requirements are installed"
     )
+    parser.add_argument(
+        "--hardware",
+        action="store_true",
+        help="Include hardware-marked tests (intended for Raspberry Pi target)"
+    )
     
     args = parser.parse_args()
     
@@ -122,7 +132,8 @@ def main():
     return run_tests(
         test_type=args.type,
         verbose=args.verbose,
-        coverage=not args.no_coverage
+        coverage=not args.no_coverage,
+        include_hardware=args.hardware
     )
 
 if __name__ == "__main__":

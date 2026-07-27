@@ -123,6 +123,21 @@ class WebCam(CamBase.CamBase):
         # The camera is already continuously capturing
         self.start(settings)
         logger.info("Webcam streaming started")
+
+    def capture_stream_frame(self) -> Any:
+        try:
+            if self._cam is None or not self._cam.isOpened():
+                return None
+
+            ret, frame = self._cam.read()
+            if not ret:
+                return None
+
+            self._current_image = frame
+            return frame
+        except Exception as e:
+            logger.warning("Failed to capture stream frame: %s", str(e))
+            return None
         
     def stop(self) -> None:
         """Clean up webcam resources"""
@@ -130,6 +145,12 @@ class WebCam(CamBase.CamBase):
             self._cam.release()
             self._cam = None
             logger.info("Webcam released")
+
+    def cleanup(self) -> None:
+        self.stop()
+
+    def dispose(self) -> None:
+        self.stop()
             
     def __del__(self):
         """Ensure camera is released when object is destroyed"""

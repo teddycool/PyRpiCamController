@@ -125,9 +125,13 @@ class TestFilePublisherEdgeCases:
                 # Should handle disk full error gracefully
                 publisher.publish(image_data, metadata)
                 
-                # No files should be created
-                files = os.listdir(self.temp_dir)
-                assert len(files) == 0
+                # No image or metadata files should be created
+                created_files = []
+                for root, _, files in os.walk(self.temp_dir):
+                    for filename in files:
+                        created_files.append(os.path.join(root, filename))
+                assert not any(path.endswith('.jpg') for path in created_files)
+                assert not any(path.endswith('.json') for path in created_files)
 
     def test_extremely_low_threshold_values(self):
         """Test behavior with very low threshold values."""

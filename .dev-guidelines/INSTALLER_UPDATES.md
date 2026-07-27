@@ -41,12 +41,12 @@ packages_to_install = [
 ```
 
 **Also update:**
-- `tools/requirements.txt` with version pin
+- `requirements.txt` with version pin
 - `INSTALLATION.md` if package needs system dependencies (e.g., `libpango1.0-0` for weasyprint)
 - `README.md` if affecting minimum system specs
 
 **Related Files to Check:**
-- `tests/requirements.txt` — Add test dependencies here too
+- `requirements.txt` — Add test/runtime dependencies here too
 - `backend/requirements.txt` — If backend uses the package
 - `docs/requirements.txt` — If documentation generation affected
 
@@ -298,7 +298,7 @@ def main():
 
 Before pushing code with installer changes:
 
-- ✅ New package? Added to pip batch + `tools/requirements.txt`
+- ✅ New package? Added to pip batch + `requirements.txt`
 - ✅ New system package? Added to apt batch + `INSTALLATION.md`
 - ✅ New service? Enabled + started in `setup_services()`
 - ✅ New script? Copied + made executable in installer

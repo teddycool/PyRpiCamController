@@ -16,11 +16,15 @@ class StreamState(BaseState.BaseState):
     def __init__(self):
         super(StreamState, self).__init__()
         self._streaming_server = None
+        self._last_health_check = 0.0
+        self._health_check_interval = 3.0
         return
 
     def initialize(self, settings):
         """Initialize streaming state with camera and server"""
         logger.info("StreamState initialize...")
+        self._last_health_check = 0.0
+        self._health_check_interval = float(settings.get("Stream.health_check_interval", 3.0))
         
         try:
             logger.info(f"Starting streaming with settings: CamChip={settings.get('CamChip', 'Unknown')}")
@@ -43,6 +47,11 @@ class StreamState(BaseState.BaseState):
 
     def update(self, context):
         """Update streaming state - camera runs in background"""
+        now = time.time()
+        if now - self._last_health_check < self._health_check_interval:
+            return
+        self._last_health_check = now
+
         # Check if streaming is still active
         if not ModernStreamingServer.is_streaming():
             logger.warning("Streaming stopped unexpectedly")

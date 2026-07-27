@@ -15,6 +15,21 @@ sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, 'CamController'))
 sys.path.insert(0, os.path.join(project_root, 'Settings'))
 
+
+def pytest_collection_modifyitems(config, items):
+    """Skip hardware tests by default on local/dev machines.
+
+    Set RUN_HARDWARE_TESTS=1 to include tests marked with @pytest.mark.hardware.
+    """
+    run_hardware = os.getenv("RUN_HARDWARE_TESTS", "0").strip().lower() in {"1", "true", "yes", "on"}
+    if run_hardware:
+        return
+
+    skip_hardware = pytest.mark.skip(reason="hardware test skipped in dev mode (set RUN_HARDWARE_TESTS=1 to run)")
+    for item in items:
+        if "hardware" in item.keywords:
+            item.add_marker(skip_hardware)
+
 @pytest.fixture
 def temp_image_dir():
     """Create a temporary directory for image storage during tests."""

@@ -39,7 +39,7 @@
         "description": "Aktivera trådlösa uppdateringar över luften",
         "level": "advanced"
       },
-      "web_editable": false
+      "web_editable": true
     },
     "DeviceName": {
       "value": "",
@@ -57,7 +57,7 @@
       "type": "bool",
       "ui": {
         "name": "Testenhet",
-        "section": "System", 
+        "section": "System",
         "description": "Aktivera testläge för utveckling och avancerade uppdateringskanaler (endast för testutrustning)",
         "level": "advanced"
       },
@@ -74,7 +74,7 @@
         "TestDevice": {
           "true": [
             "production",
-            "beta", 
+            "beta",
             "development"
           ],
           "false": [
@@ -101,7 +101,7 @@
           "description": "Server-URL för OTA-uppdateringar",
           "level": "advanced"
         },
-        "web_editable": false
+        "web_editable": true
       },
       "check_interval": {
         "value": 3600,
@@ -114,7 +114,7 @@
           "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
           "level": "advanced"
         },
-        "web_editable": false
+        "web_editable": true
       },
       "api_key": {
         "value": "",
@@ -125,7 +125,7 @@
           "description": "API-nyckel för OTA-serverautentisering",
           "level": "advanced"
         },
-        "web_editable": false
+        "web_editable": true
       },
       "service_name": {
         "value": "camcontroller.service",
@@ -197,7 +197,7 @@
           "description": "Tillämpa uppdateringar automatiskt när de hittas (rekommenderas inte)",
           "level": "advanced"
         },
-        "web_editable": false
+        "web_editable": true
       },
       "notify_available": {
         "value": true,
@@ -208,7 +208,7 @@
           "description": "Visa notifikation när nya uppdateringar upptäcks",
           "level": "basic"
         },
-        "web_editable": false
+        "web_editable": true
       },
       "current_version": {
         "value": "",
@@ -249,7 +249,14 @@
       "update_status": {
         "value": "idle",
         "type": "enum",
-        "options": ["idle", "checking", "downloading", "available", "applying", "error"],
+        "options": [
+          "idle",
+          "checking",
+          "downloading",
+          "available",
+          "applying",
+          "error"
+        ],
         "readonly": true,
         "ui": {
           "name": "Uppdateringsstatus",
@@ -262,15 +269,36 @@
     },
     "Cam": {
       "resolution": {
-        "value": [4608, 2592],
+        "value": [
+          4608,
+          2592
+        ],
         "type": "enum",
         "options": [
-          [4608, 2592],
-          [3280, 2464],
-          [1920, 1080],
-          [1640, 1232],
-          [1280, 720],
-          [640, 480]
+          [
+            4608,
+            2592
+          ],
+          [
+            3280,
+            2464
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            1640,
+            1232
+          ],
+          [
+            1280,
+            720
+          ],
+          [
+            640,
+            480
+          ]
         ],
         "ui": {
           "name": "Bildupplösning",
@@ -457,14 +485,32 @@
     },
     "Stream": {
       "resolution": {
-        "value": [1024, 768],
+        "value": [
+          1024,
+          768
+        ],
         "type": "enum",
         "options": [
-          [1920, 1080],
-          [1280, 720],
-          [1024, 768],
-          [800, 600],
-          [640, 480]
+          [
+            1920,
+            1080
+          ],
+          [
+            1280,
+            720
+          ],
+          [
+            1024,
+            768
+          ],
+          [
+            800,
+            600
+          ],
+          [
+            640,
+            480
+          ]
         ],
         "ui": {
           "name": "Streamupplösning",
@@ -484,6 +530,34 @@
           "name": "Stream framerate",
           "section": "Stream",
           "description": "Bildrutor per sekund för streaming",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "idle_framerate": {
+        "value": 2,
+        "type": "int",
+        "min": 1,
+        "max": 10,
+        "ui": {
+          "name": "Idle stream framerate",
+          "section": "Stream",
+          "description": "Bildrutor per sekund när ingen klient tittar på streamen",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "jpeg_quality": {
+        "value": 80,
+        "type": "int",
+        "min": 40,
+        "max": 95,
+        "ui": {
+          "name": "JPEG-kvalitet",
+          "section": "Stream",
+          "description": "JPEG-kvalitet för MJPEG-stream (högre värde ger bättre kvalitet och högre CPU-belastning)",
           "level": "advanced"
         },
         "web_editable": true,
@@ -578,7 +652,7 @@
       "max": 10000,
       "ui": {
         "name": "PWM-frekvens (Hz)",
-        "section": "System", 
+        "section": "System",
         "description": "PWM-frekvens för ljusstyrning (högre värde = mindre flimmer)",
         "level": "advanced"
       },
@@ -876,7 +950,7 @@
         "value": true,
         "type": "bool",
         "ui": {
-          "name": "Aktivera diskhantering", 
+          "name": "Aktivera diskhantering",
           "section": "Lagring",
           "description": "Aktivera automatisk diskutrymmehantering",
           "level": "basic"
@@ -885,14 +959,14 @@
       },
       "mode": {
         "value": "delete_old",
-        "type": "enum", 
+        "type": "enum",
         "options": [
           "stop_saving",
           "delete_old"
         ],
         "ui": {
           "name": "Hanteringsläge",
-          "section": "Lagring", 
+          "section": "Lagring",
           "description": "stop_saving: Sluta spara när utrymmet tar slut, delete_old: Radera gamla filer automatiskt",
           "level": "advanced"
         },
@@ -907,7 +981,7 @@
           "name": "Tröskelvärde",
           "section": "Lagring",
           "description": "Tröskelvärde för fri diskplats (MB)",
-          "level": "advanced" 
+          "level": "advanced"
         },
         "web_editable": true
       },
@@ -920,7 +994,7 @@
         "ui": {
           "name": "Enhet för tröskelvärde",
           "section": "Lagring",
-          "description": "MB: Absolut värde i megabyte", 
+          "description": "MB: Absolut värde i megabyte",
           "level": "advanced"
         },
         "web_editable": true

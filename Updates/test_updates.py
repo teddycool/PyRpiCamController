@@ -20,6 +20,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+# Detect if running on actual Raspberry Pi / target hardware
+ON_PI = Path('/home/pi').exists()
+
 def test_imports():
     """Test that all required modules can be imported."""
     print("Testing imports...")
@@ -45,13 +48,17 @@ def test_directories():
     """Test that required directories exist."""
     print("\nTesting directories...")
     
+    if not ON_PI:
+        print("! Skipping directory check — not running on target Pi hardware")
+        return True
+    
     required_dirs = [
         '/home/pi/ota',
         '/home/pi/ota/backups',
         '/home/pi/ota/downloads',
         '/home/pi/ota/temp',
-        '/home/pi/Updates/backup',
-        '/home/pi/Updates/staging'
+        '/home/pi/ota/scripts',
+        '/home/pi/ota/commands'
     ]
     
     success = True
@@ -108,11 +115,14 @@ def test_ota_manager():
     """Test OTA manager instantiation."""
     print("\nTesting OTA manager...")
     
+    if not ON_PI:
+        print("! Skipping OTA manager instantiation — log/path setup requires Pi filesystem")
+        return True
+
     try:
-        sys.path.append('/home/pi/PyRpiCamController/ota/install')
-        from installota_v2 import OTAManager
+        from Updates.camcontroller_update_manager import UpdateManager
         
-        ota = OTAManager()
+        ota = UpdateManager()
         print("✓ OTA manager created successfully")
         
         # Test CPU serial
@@ -136,14 +146,18 @@ def test_permissions():
     """Test file permissions."""
     print("\nTesting permissions...")
     
+    if not ON_PI:
+        print("! Skipping permission check — not running on target Pi hardware")
+        return True
+
     # Check if recovery script is executable
-    recovery_script = Path('/home/pi/PyRpiCamController/ota/recovery.sh')
+    recovery_script = Path('/home/pi/PyRpiCamController/Updates/recovery.sh')
     if recovery_script.exists():
         if os.access(recovery_script, os.X_OK):
             print("✓ Recovery script is executable")
         else:
             print("✗ Recovery script is not executable")
-            print("  Run: chmod +x ota/recovery.sh")
+            print("  Run: chmod +x Updates/recovery.sh")
             return False
     else:
         print("✗ Recovery script not found")
@@ -180,8 +194,12 @@ def test_service_commands():
 def test_version_file():
     """Test version file handling."""
     print("\nTesting version file...")
-    
-    project_root = Path('/home/pi/PyRpiCamController')
+
+    if not ON_PI:
+        # On dev machine, check the actual project VERSION file instead
+        project_root = Path(__file__).parent.parent
+    else:
+        project_root = Path('/home/pi/PyRpiCamController')
     version_file = project_root / 'VERSION'
     
     if version_file.exists():

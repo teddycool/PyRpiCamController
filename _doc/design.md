@@ -2,11 +2,11 @@
 
 ## Key Principles
 
-* SD-image for complete system and a base-configuration
-* Settings from server
-* Everything handled by settings either from server or via SSH
-* No writing to SD-card
-* SSH is enabled, the password is available on account
+- SD image for complete system and base configuration
+- Settings managed from server
+- Configuration handled by settings from server or via SSH
+- No writing to SD card
+- SSH enabled with documented account access
 
 ## Basics
 
@@ -14,7 +14,7 @@
 
 The PyRpiCamController follows a modular, event-driven architecture:
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Web Interface │    │  Settings API   │    │   Main Loop     │
 │   (Flask)       │◄──►│  (JSON Schema)  │◄──►│   (Game Loop)   │
@@ -30,19 +30,19 @@ The PyRpiCamController follows a modular, event-driven architecture:
 
 ### State Management
 
-* **Cam State**: Captures images at configured intervals
-* **Stream State**: Provides real-time video streaming  
-* **Post State**: Handles image processing and publishing
+- **Cam State**: Captures images at configured intervals
+- **Stream State**: Provides real-time video streaming
+- **Post State**: Handles image processing and publishing
 
 ### Configuration Philosophy
 
-* **Single Source of Truth**: JSON schema defines all settings
-* **Multi-Interface Access**: Web GUI, API, and file-based configuration
-* **Runtime Updates**: Settings changes apply without restart where possible
+- **Single Source of Truth**: JSON schema defines all settings
+- **Multi-Interface Access**: Web GUI, API, and file-based configuration
+- **Apply Workflow**: Settings changes are persisted and applied through service restart
 
 ### Hardware Abstraction
 
-* **Camera Interface**: Pluggable camera modules (PiCam3, PiCamHQ)
-* **IO Control**: PWM lighting, RGB status indicators
-* **Connectivity**: WiFi management with fallback access point
+- **Camera Interface**: Pluggable camera modules (PiCam3, PiCamHQ)
+- **IO Control**: PWM lighting and RGB status indicators
+- **Connectivity**: WiFi management with fallback access point
 

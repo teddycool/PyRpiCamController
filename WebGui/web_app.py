@@ -12,11 +12,27 @@ import socket
 import time
 import datetime
 import shutil
+from pathlib import Path
 # Add parent directory to path to access Settings module
 from Settings.settings_manager import settings_manager
 
+OTA_SHARED_DIR = Path('/home/pi/ota')
+OTA_COMMAND_DIR = OTA_SHARED_DIR / 'commands'
+OTA_WEB_BACKUP_DIR = OTA_SHARED_DIR / 'web_backups'
+OTA_CHANGELOG_FILE = OTA_SHARED_DIR / 'ota_changelog.txt'
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
+
+
+def _ensure_ota_command_dir():
+    """Ensure the OTA command directory exists for web/daemon coordination."""
+    OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _set_runtime_setting(path, value):
+    """Persist OTA runtime state, including readonly status fields."""
+    settings_manager.set(path, value, save=True, allow_readonly=True)
 
 @app.route("/", methods=["GET"])
 def index():
@@ -126,8 +142,11 @@ def stream_status():
         except:
             is_running = False
         
-        # Get actual FPS if streaming is running
+        # Get stream runtime details if streaming is running
         actual_fps = 0.0
+        stream_clients = 0
+        stream_capture_mode = 'stopped'
+        stream_idling = False
         if is_running:
             try:
                 import requests
@@ -135,9 +154,15 @@ def stream_status():
                 if response.status_code == 200:
                     stream_info = response.json()
                     actual_fps = stream_info.get('actual_fps', 0.0)
+                    stream_clients = int(stream_info.get('clients', 0) or 0)
+                    stream_idling = stream_clients == 0
+                    stream_capture_mode = 'idle' if stream_idling else 'active'
             except:
                 # Fallback if streaming server API is not available
                 actual_fps = 0.0
+                stream_clients = 0
+                stream_capture_mode = 'active'
+                stream_idling = False
         
         # Read current temperature data from runtime status file
         temperature_data = {
@@ -178,6 +203,12 @@ def stream_status():
             'disk_path': None
         }
 
+        cpu_load_data = {
+            'cpu_load_percent': None,
+            'cpu_load_1min': None,
+            'cpu_cores': None,
+        }
+
         try:
             disk_path = settings_manager.get('Cam.publishers.file.location')
             if not disk_path:
@@ -193,6 +224,18 @@ def stream_status():
         except Exception:
             # Disk data not available, keep None values
             pass
+
+        try:
+            cpu_count = os.cpu_count() or 1
+            load_1min, _, _ = os.getloadavg()
+            cpu_load_percent = (load_1min / cpu_count) * 100.0
+
+            cpu_load_data['cpu_load_percent'] = round(cpu_load_percent, 1)
+            cpu_load_data['cpu_load_1min'] = round(load_1min, 2)
+            cpu_load_data['cpu_cores'] = cpu_count
+        except Exception:
+            # CPU load data not available, keep None values
+            pass
         
         response_data = {
             'running': is_running,
@@ -200,12 +243,16 @@ def stream_status():
             'url': f"http://{hostname}.local:{port}",
             'resolution': settings_manager.get('Stream.resolution'),
             'framerate': settings_manager.get('Stream.framerate'),
-            'actual_fps': actual_fps
+            'actual_fps': actual_fps,
+            'stream_clients': stream_clients,
+            'stream_capture_mode': stream_capture_mode,
+            'stream_idling': stream_idling,
         }
         
         # Add temperature data to response
         response_data.update(temperature_data)
         response_data.update(disk_data)
+        response_data.update(cpu_load_data)
         
         return jsonify(response_data)
     except Exception as e:
@@ -385,36 +432,16 @@ def apply_and_restart():
                 'action': 'none'
             })
         
-        # Re-apply pending changes from the shared pending file before restart.
-        # This prevents stale in-memory worker caches from missing the latest Mode value.
+        # Refresh in-memory view from disk before requesting service restart.
+        # Pending changes are informational only and must not overwrite persisted settings.
         settings_manager.load_user_settings()
-        for field, value in changes['changes'].items():
-            settings_manager.set(field, value, save=False)
-        settings_manager.save_user_settings()
 
-        # Verify persisted Mode when it is part of pending changes.
-        if 'Mode' in changes['changes']:
-            settings_manager.load_user_settings()
-            persisted_mode = settings_manager.get('Mode', None)
-            expected_mode = changes['changes']['Mode']
-            if persisted_mode != expected_mode:
-                return jsonify({
-                    'success': False,
-                    'error': (
-                        f"Failed to persist Mode before restart. "
-                        f"Expected '{expected_mode}', got '{persisted_mode}'"
-                    ),
-                    'action': 'persist_failed',
-                    'changes_not_applied': changes['changes']
-                }), 500
-
-        # Ask running camera service to reload settings in-process.
-        # This avoids sudo/systemctl dependency from web process and makes mode toggles immediate.
+        # All setting changes are restart-only by policy.
         restart_file = "/tmp/cam_reload_settings.txt"
         with open(restart_file, 'w') as f:
-            f.write("reload_settings\n")
+            f.write("restart_service\n")
 
-        restart_message = f'Applied {changes["count"]} changes and requested live settings reload'
+        restart_message = f'Applied {changes["count"]} changes and requested full service restart'
         
         # Clear pending changes after successful persistence + reload request write.
         clear_pending_changes()
@@ -497,12 +524,18 @@ def test_endpoint():
 def get_update_status():
     """Get current update status information"""
     try:
+        # Reload settings from disk to avoid stale per-worker caches under Gunicorn
+        settings_manager.load_user_settings()
+
         # Get version info from VERSION file
         version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
         current_version = "Unknown"
         if os.path.exists(version_file):
             with open(version_file, 'r') as f:
                 current_version = f.read().strip()
+        else:
+            # Fallback to OTA runtime state if VERSION file is temporarily missing
+            current_version = settings_manager.get('OTA.current_version', 'Unknown')
         
         update_info = {
             'current_version': current_version,
@@ -511,8 +544,8 @@ def get_update_status():
             'update_status': settings_manager.get('OTA.update_status', 'idle'),
             'auto_apply': settings_manager.get('OTA.auto_apply'),
             'notify_available': settings_manager.get('OTA.notify_available', True),
+            'changelog': settings_manager.get('OTA.changelog', ''),
             'has_update': False,
-            'changelog': ''
         }
         
         # Check if update is available
@@ -521,7 +554,11 @@ def get_update_status():
             update_info['available_version'] != ''):
             update_info['has_update'] = True
             
-        return jsonify(update_info)
+        response = jsonify(update_info)
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
         
     except Exception as e:
         return jsonify({'error': f'Failed to get update status: {str(e)}'}), 500
@@ -529,62 +566,126 @@ def get_update_status():
 
 @app.route("/api/updates/check", methods=["POST"])
 def check_for_updates():
-    """Manually trigger update check"""
+    """Manually trigger update check - performs check directly for immediate feedback."""
     try:
-        # Update status to checking
-        settings_manager.set('OTA.update_status', 'checking', save=True)
-        settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
-        
-        # Create update check trigger file (to be picked up by OTA daemon)
-        check_file_path = "/tmp/ota_check_trigger"
-        with open(check_file_path, 'w') as f:
-            f.write(f"manual check requested at {time.time()}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Update check initiated',
-            'status': 'checking'
-        })
-        
+        # Reload settings from disk to ensure this worker has fresh values
+        settings_manager.load_user_settings()
+
+        _ensure_ota_command_dir()
+        _set_runtime_setting('OTA.update_status', 'checking')
+        now = time.strftime('%Y-%m-%d %H:%M:%S')
+        _set_runtime_setting('OTA.last_check', now)
+
+        # Read config
+        server_url = settings_manager.get('OTA.server_url', '')
+        api_key    = settings_manager.get('OTA.api_key', '')
+        enabled    = settings_manager.get('OtaEnable', False)
+
+        if not enabled:
+            _set_runtime_setting('OTA.update_status', 'idle')
+            return jsonify({'success': False, 'message': 'OTA updates are disabled', 'status': 'idle'})
+
+        if not server_url:
+            _set_runtime_setting('OTA.update_status', 'error')
+            return jsonify({'error': 'OTA server URL not configured'}), 400
+
+        # Get CPU serial for device identification
+        cpu_id = 'unknown'
+        try:
+            with open('/proc/cpuinfo') as f:
+                for line in f:
+                    if line.startswith('Serial'):
+                        cpu_id = line.split(':')[1].strip()
+                        break
+        except Exception:
+            pass
+
+        # Read current version from VERSION file
+        version_file = Path(__file__).parent.parent / 'VERSION'
+        current_version = version_file.read_text().strip() if version_file.exists() else '0.0.0'
+
+        # Perform the HTTP check directly
+        import requests as _requests
+        check_url = f"{server_url.rstrip('/')}/api/ota/check"
+        resp = _requests.get(check_url, params={
+            'cpu_id': cpu_id,
+            'current_version': current_version,
+            'api_key': api_key,
+        }, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get('update_available'):
+            new_ver = data.get('version', '')
+            changelog = data.get('release_notes', '') or ''
+            _set_runtime_setting('OTA.available_version', new_ver)
+            _set_runtime_setting('OTA.changelog', changelog)
+            _set_runtime_setting('OTA.update_status', 'update_available')
+            # Also drop trigger file so daemon can pick it up if running
+            _ensure_ota_command_dir()
+            (OTA_COMMAND_DIR / 'ota_check_trigger').write_text(f"manual check at {time.time()}")
+            return jsonify({
+                'success': True,
+                'message': f'Update available: v{new_ver}',
+                'status': 'update_available',
+                'available_version': new_ver,
+                'current_version': current_version,
+                'last_check': now,
+            })
+        else:
+            _set_runtime_setting('OTA.changelog', '')
+            _set_runtime_setting('OTA.update_status', 'up_to_date')
+            return jsonify({
+                'success': True,
+                'message': 'Already up to date',
+                'status': 'up_to_date',
+                'current_version': current_version,
+                'last_check': now,
+            })
+
     except Exception as e:
-        settings_manager.set('OTA.update_status', 'error', save=True)
-        return jsonify({'error': f'Failed to start update check: {str(e)}'}), 500
+        _set_runtime_setting('OTA.update_status', 'error')
+        return jsonify({'error': f'Update check failed: {str(e)}'}), 500
 
 
 @app.route("/api/updates/apply", methods=["POST"])
 def apply_update():
     """User-triggered update application with backup"""
     try:
+        # Reload settings from disk to avoid stale reads across Gunicorn workers
+        settings_manager.load_user_settings()
+
+        _ensure_ota_command_dir()
+
         # Check if update is available
-        current_version = settings_manager.get('OTA.current_version', '')
+        # Use VERSION file as source-of-truth (same as /api/updates/status)
+        version_file = Path(__file__).parent.parent / 'VERSION'
+        current_version = version_file.read_text().strip() if version_file.exists() else settings_manager.get('OTA.current_version', '')
+        _set_runtime_setting('OTA.current_version', current_version)
         available_version = settings_manager.get('OTA.available_version', '')
         
         if not available_version or available_version == current_version:
-            return jsonify({'error': 'No update available to apply'}), 400
+            return jsonify({'error': f'No update available to apply (current={current_version}, available={available_version})'}), 400
         
         # Update status to applying
-        settings_manager.set('OTA.update_status', 'applying', save=True)
-        
-        # Create backup before update
-        backup_info = create_backup()
+        _set_runtime_setting('OTA.update_status', 'applying')
         
         # Create update apply trigger file
-        apply_file_path = "/tmp/ota_apply_trigger"
-        with open(apply_file_path, 'w') as f:
+        apply_file_path = OTA_COMMAND_DIR / "ota_apply_trigger"
+        with open(apply_file_path, 'w', encoding='utf-8') as f:
             f.write(f"manual update apply requested at {time.time()}\n")
-            f.write(f"backup_id: {backup_info['backup_id']}\n")
             f.write(f"from_version: {current_version}\n")
             f.write(f"to_version: {available_version}\n")
         
         return jsonify({
             'success': True,
             'message': f'Update application initiated (v{current_version} → v{available_version})',
-            'backup_id': backup_info['backup_id'],
+            'backup_id': None,
             'status': 'applying'
         })
         
     except Exception as e:
-        settings_manager.set('OTA.update_status', 'error', save=True)
+        _set_runtime_setting('OTA.update_status', 'error')
         return jsonify({'error': f'Failed to apply update: {str(e)}'}), 500
 
 
@@ -592,13 +693,18 @@ def apply_update():
 def get_changelog():
     """Get changelog for available update"""
     try:
-        # Try to read changelog from download directory
-        changelog_file = "/tmp/ota_changelog.txt"
-        changelog = "No changelog available"
-        
-        if os.path.exists(changelog_file):
-            with open(changelog_file, 'r') as f:
-                changelog = f.read()
+        # Prefer changelog stored in runtime OTA state from the last successful check
+        changelog = settings_manager.get('OTA.changelog', '')
+
+        # Backward-compatible fallback to the shared changelog file if present
+        if not changelog:
+            changelog_file = OTA_CHANGELOG_FILE
+            if changelog_file.exists():
+                with open(changelog_file, 'r', encoding='utf-8') as f:
+                    changelog = f.read()
+
+        if not changelog:
+            changelog = "No changelog available"
         
         return jsonify({
             'changelog': changelog,
@@ -616,13 +722,13 @@ def create_backup():
     try:
         backup_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         install_path = settings_manager.get('OTA.install_path', '/home/pi/PyRpiCamController')
-        backup_dir = f"/tmp/backups/backup_{backup_id}"
+        backup_dir = OTA_WEB_BACKUP_DIR / f"backup_{backup_id}"
         
         # Create backup directory
-        os.makedirs(backup_dir, exist_ok=True)
+        backup_dir.mkdir(parents=True, exist_ok=True)
         
         # Create backup info file
-        backup_info_file = os.path.join(backup_dir, 'backup_info.json')
+        backup_info_file = backup_dir / 'backup_info.json'
         backup_info = {
             'backup_id': backup_id,
             'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -633,17 +739,17 @@ def create_backup():
         }
         
         # Backup settings
-        settings_backup_dir = os.path.join(backup_dir, 'settings')
-        os.makedirs(settings_backup_dir, exist_ok=True)
+        settings_backup_dir = backup_dir / 'settings'
+        settings_backup_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy settings files
         import shutil
         settings_dir = os.path.join(install_path, 'Settings')
         if os.path.exists(settings_dir):
-            shutil.copytree(settings_dir, os.path.join(settings_backup_dir, 'Settings'))
+            shutil.copytree(settings_dir, settings_backup_dir / 'Settings')
         
         # Save backup info
-        with open(backup_info_file, 'w') as f:
+        with open(backup_info_file, 'w', encoding='utf-8') as f:
             json_module.dump(backup_info, f, indent=2)
         
         return backup_info

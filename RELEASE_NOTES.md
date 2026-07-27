@@ -13,7 +13,8 @@ First stable baseline release of PyRpiCamController for Raspberry Pi camera depl
 - Built-in SMB file sharing for captured images and logs.
 - Unified JSON schema settings system.
 - Temperature monitoring and system status visibility in the Web UI.
-- Support for Raspberry Pi Camera Module 2, Camera Module 3, HQ Camera, and USB webcam fallback.
+- Support for Raspberry Pi Camera Module 2, Camera Module 3, and HQ Camera.
+- Stream mode uses native encoded MJPEG on Raspberry Pi camera modules with client-aware idle framerate throttling.
 
 ### Included in this release
 

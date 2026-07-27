@@ -16,6 +16,7 @@ import hashlib
 import json
 import subprocess
 import signal
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -51,7 +52,7 @@ class UpdateManager:
         
         # File handler
         log_dir = Path('/home/pi/shared/logs')
-        log_dir.mkdir(exist_ok=True)
+        log_dir.mkdir(parents=True, exist_ok=True)
         
         file_handler = logging.handlers.RotatingFileHandler(
             log_dir / 'camcontroller_update.log',
@@ -100,7 +101,7 @@ class UpdateManager:
         
     def setup_paths(self):
         """Setup directory structure for Update operations."""
-        base_path = Path('/home/pi/Updates')
+        base_path = Path('/home/pi/ota')
         
         self.paths = {
             'base': base_path,
@@ -116,6 +117,36 @@ class UpdateManager:
             path.mkdir(parents=True, exist_ok=True)
             
         self.logger.info(f"OTA paths configured: {self.paths}")
+
+    def _is_within_directory(self, base_path: Path, target_path: Path) -> bool:
+        """Return True if target_path is within base_path."""
+        try:
+            base_resolved = base_path.resolve()
+            target_resolved = target_path.resolve()
+            return str(target_resolved).startswith(str(base_resolved) + os.sep) or target_resolved == base_resolved
+        except Exception:
+            return False
+
+    def _safe_extract_tar(self, archive_path: Path, destination: Path):
+        """Safely extract tar archive and block path traversal entries."""
+        with tarfile.open(archive_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                member_target = destination / member.name
+                if not self._is_within_directory(destination, member_target):
+                    raise ValueError(f"Unsafe archive entry blocked: {member.name}")
+            tar.extractall(destination)
+
+    def _validate_extracted_package(self, source_path: Path):
+        """Validate that extracted package has the minimum expected project structure."""
+        required_paths = [
+            source_path / 'CamController' / 'Main.py',
+            source_path / 'Settings' / 'settings_manager.py',
+            source_path / 'WebGui' / 'web_app.py',
+            source_path / 'VERSION',
+        ]
+        missing = [str(path.relative_to(source_path)) for path in required_paths if not path.exists()]
+        if missing:
+            raise ValueError(f"Update package missing required files: {', '.join(missing)}")
         
     def get_cpu_serial(self):
         """Get CPU serial for device identification."""
@@ -123,7 +154,7 @@ class UpdateManager:
             with open('/proc/cpuinfo', 'r') as f:
                 for line in f:
                     if line.startswith('Serial'):
-                        return line.split(':')[1].strip().lstrip('0')
+                        return line.split(':')[1].strip()
         except Exception as e:
             self.logger.warning(f"Could not get CPU serial: {e}")
             return "unknown"
@@ -176,14 +207,23 @@ class UpdateManager:
             
             self.logger.info(f"Downloading update from {download_url}")
             
-            with requests.get(download_url, stream=True, timeout=self.config['download_timeout']) as response:
+            with requests.get(
+                download_url,
+                stream=True,
+                timeout=self.config['download_timeout'],
+                headers={'Accept-Encoding': 'identity'}
+            ) as response:
                 response.raise_for_status()
+                response.raw.decode_content = False
                 
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded = 0
                 
                 with open(download_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    while True:
+                        chunk = response.raw.read(8192)
+                        if not chunk:
+                            break
                         f.write(chunk)
                         downloaded += len(chunk)
                         
@@ -241,15 +281,23 @@ class UpdateManager:
             
             self.logger.info(f"Extracting update package: {update_package_path}")
             
-            with tarfile.open(update_package_path, "r:gz") as tar:
-                tar.extractall(temp_extract_path)
+            self._safe_extract_tar(update_package_path, temp_extract_path)
                 
             # Find extracted content
             extracted_items = list(temp_extract_path.iterdir())
-            if len(extracted_items) != 1:
-                raise ValueError("Update package should contain exactly one directory")
-                
-            source_path = extracted_items[0]
+            if not extracted_items:
+                raise ValueError("Update package is empty")
+
+            # Support both package layouts:
+            # 1) single top-level directory containing the project
+            # 2) project files/directories directly at archive root
+            if len(extracted_items) == 1 and extracted_items[0].is_dir():
+                source_path = extracted_items[0]
+            else:
+                source_path = temp_extract_path
+
+            # Validate package content before stopping service
+            self._validate_extracted_package(source_path)
             
             # Stop service
             self.logger.info("Stopping camera service")
@@ -261,18 +309,40 @@ class UpdateManager:
             # Backup current installation (already done, but keep reference)
             # backup_path = self.create_backup()  # Already done before calling this
             
-            # Install new version
+            # Install new version (merge into existing install path)
+            # This preserves repository metadata (.git) and runtime-only files
+            # like Settings/user_settings.json that are intentionally not packaged.
             self.logger.info(f"Installing update from {source_path} to {self.paths['install_path']}")
-            
-            # Remove old installation (but keep backup)
-            if self.paths['install_path'].exists():
-                shutil.rmtree(self.paths['install_path'])
-                
-            # Copy new installation
-            shutil.copytree(source_path, self.paths['install_path'])
+
+            self.paths['install_path'].mkdir(parents=True, exist_ok=True)
+
+            for item in source_path.iterdir():
+                # Never touch git metadata during OTA updates
+                if item.name == '.git':
+                    continue
+
+                destination = self.paths['install_path'] / item.name
+                if item.is_dir():
+                    shutil.copytree(item, destination, dirs_exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(item, destination)
             
             # Set proper permissions
             self._set_permissions()
+
+            # Ensure VERSION file exists and matches target version
+            target_version = None
+            try:
+                match = re.search(r"(\d+\.\d+\.\d+)", update_package_path.name)
+                if match:
+                    target_version = match.group(1)
+            except Exception:
+                target_version = None
+
+            version_file = self.paths['install_path'] / 'VERSION'
+            if not version_file.exists() and target_version:
+                version_file.write_text(f"{target_version}\n")
             
             self.logger.info("Update installation completed")
             
@@ -327,7 +397,12 @@ class UpdateManager:
             self.logger.info(f"Restoring from backup: {backup_path}")
             
             with tarfile.open(backup_path, "r:gz") as tar:
-                tar.extractall(self.paths['install_path'].parent)
+                restore_base = self.paths['install_path'].parent
+                for member in tar.getmembers():
+                    member_target = restore_base / member.name
+                    if not self._is_within_directory(restore_base, member_target):
+                        raise ValueError(f"Unsafe backup entry blocked: {member.name}")
+                tar.extractall(restore_base)
                 
             # Set permissions
             self._set_permissions()
@@ -382,7 +457,7 @@ class UpdateManager:
                 if update_info.get('requires_reboot', False):
                     self.logger.info("Update requires reboot - rebooting in 30 seconds")
                     time.sleep(30)
-                    os.system("sudo reboot")
+                    subprocess.run(['systemctl', 'reboot'], check=False)
                 
                 return True
             else:
@@ -437,7 +512,7 @@ class UpdateManager:
     def _stop_service(self):
         """Stop the camera service."""
         try:
-            result = subprocess.run(['sudo', 'systemctl', 'stop', self.config['service_name']], 
+            result = subprocess.run(['systemctl', 'stop', self.config['service_name']], 
                                   capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 self.logger.warning(f"Service stop returned non-zero: {result.stderr}")
@@ -447,7 +522,7 @@ class UpdateManager:
     def _start_service(self):
         """Start the camera service."""
         try:
-            result = subprocess.run(['sudo', 'systemctl', 'start', self.config['service_name']], 
+            result = subprocess.run(['systemctl', 'start', self.config['service_name']], 
                                   capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 self.logger.warning(f"Service start returned non-zero: {result.stderr}")
@@ -475,8 +550,8 @@ class UpdateManager:
     def _set_permissions(self):
         """Set proper file permissions after installation."""
         try:
-            os.system(f"sudo chown -R pi:pi {self.paths['install_path']}")
-            os.system(f"sudo chmod +x {self.paths['install_path']}/CamController/Main.py")
+            subprocess.run(['chown', '-R', 'pi:pi', str(self.paths['install_path'])], check=False)
+            subprocess.run(['chmod', '+x', str(self.paths['install_path'] / 'CamController' / 'Main.py')], check=False)
         except Exception as e:
             self.logger.warning(f"Error setting permissions: {e}")
             
@@ -523,7 +598,7 @@ class UpdateManager:
 
 def main():
     """Main entry point for OTA installer."""
-    ota = OTAManager()
+    ota = UpdateManager()
     
     # Setup signal handlers for graceful shutdown
     def signal_handler(signum, frame):

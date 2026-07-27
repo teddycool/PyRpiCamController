@@ -78,6 +78,10 @@ class SettingsManager:
                     os.remove(temp_file)
                 except OSError:
                     pass
+
+    def save_settings(self):
+        """Backwards-compatible alias for saving user settings."""
+        self.save_user_settings()
     
     def _get_nested_value(self, data: Dict, path: str) -> Any:
         """Get a nested value using dot notation path."""
@@ -129,13 +133,13 @@ class SettingsManager:
                     return default
                 raise
     
-    def set(self, path: str, value: Any, save: bool = True):
+    def set(self, path: str, value: Any, save: bool = True, allow_readonly: bool = False):
         """Set a setting value and optionally save to file."""
         # Validate against schema if possible
         try:
             schema_item = self._get_nested_value(self._schema['settings'], path)
             if isinstance(schema_item, dict):
-                self._validate_value(value, schema_item)
+                self._validate_value(value, schema_item, allow_readonly=allow_readonly)
         except KeyError:
             pass  # Setting not in schema, allow it
         
@@ -145,9 +149,9 @@ class SettingsManager:
         if save:
             self.save_user_settings()
     
-    def _validate_value(self, value: Any, schema_item: Dict):
+    def _validate_value(self, value: Any, schema_item: Dict, allow_readonly: bool = False):
         """Validate a value against its schema definition."""
-        if 'readonly' in schema_item and schema_item['readonly']:
+        if not allow_readonly and 'readonly' in schema_item and schema_item['readonly']:
             raise ValueError(f"Setting is read-only")
         
         setting_type = schema_item.get('type')

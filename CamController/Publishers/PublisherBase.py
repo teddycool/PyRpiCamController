@@ -13,7 +13,7 @@ class PublisherBase(object):
         raise NotImplementedError 
     
     def __del__(self):
-        raise NotImplementedError
+        return
     
     def initialize(self, settings):  #Init publisher with current settings from config
         raise NotImplementedError   
