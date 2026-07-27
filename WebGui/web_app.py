@@ -524,6 +524,9 @@ def test_endpoint():
 def get_update_status():
     """Get current update status information"""
     try:
+        # Reload settings from disk to avoid stale per-worker caches under Gunicorn
+        settings_manager.load_user_settings()
+
         # Get version info from VERSION file
         version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
         current_version = "Unknown"
@@ -558,6 +561,9 @@ def get_update_status():
 def check_for_updates():
     """Manually trigger update check - performs check directly for immediate feedback."""
     try:
+        # Reload settings from disk to ensure this worker has fresh values
+        settings_manager.load_user_settings()
+
         _ensure_ota_command_dir()
         _set_runtime_setting('OTA.update_status', 'checking')
         now = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -634,6 +640,9 @@ def check_for_updates():
 def apply_update():
     """User-triggered update application with backup"""
     try:
+        # Reload settings from disk to avoid stale reads across Gunicorn workers
+        settings_manager.load_user_settings()
+
         _ensure_ota_command_dir()
 
         # Check if update is available
