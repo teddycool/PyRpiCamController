@@ -57,7 +57,8 @@ def test_directories():
         '/home/pi/ota/backups',
         '/home/pi/ota/downloads',
         '/home/pi/ota/temp',
-        '/home/pi/ota/scripts'
+        '/home/pi/ota/scripts',
+        '/home/pi/ota/commands'
     ]
     
     success = True

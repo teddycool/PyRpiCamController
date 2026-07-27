@@ -12,11 +12,27 @@ import socket
 import time
 import datetime
 import shutil
+from pathlib import Path
 # Add parent directory to path to access Settings module
 from Settings.settings_manager import settings_manager
 
+OTA_SHARED_DIR = Path('/home/pi/ota')
+OTA_COMMAND_DIR = OTA_SHARED_DIR / 'commands'
+OTA_WEB_BACKUP_DIR = OTA_SHARED_DIR / 'web_backups'
+OTA_CHANGELOG_FILE = OTA_SHARED_DIR / 'ota_changelog.txt'
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
+
+
+def _ensure_ota_command_dir():
+    """Ensure the OTA command directory exists for web/daemon coordination."""
+    OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _set_runtime_setting(path, value):
+    """Persist OTA runtime state, including readonly status fields."""
+    settings_manager.set(path, value, save=True, allow_readonly=True)
 
 @app.route("/", methods=["GET"])
 def index():
@@ -542,13 +558,15 @@ def get_update_status():
 def check_for_updates():
     """Manually trigger update check"""
     try:
+        _ensure_ota_command_dir()
+
         # Update status to checking
-        settings_manager.set('OTA.update_status', 'checking', save=True)
-        settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+        _set_runtime_setting('OTA.update_status', 'checking')
+        _set_runtime_setting('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'))
         
         # Create update check trigger file (to be picked up by OTA daemon)
-        check_file_path = "/tmp/ota_check_trigger"
-        with open(check_file_path, 'w') as f:
+        check_file_path = OTA_COMMAND_DIR / "ota_check_trigger"
+        with open(check_file_path, 'w', encoding='utf-8') as f:
             f.write(f"manual check requested at {time.time()}")
         
         return jsonify({
@@ -558,7 +576,7 @@ def check_for_updates():
         })
         
     except Exception as e:
-        settings_manager.set('OTA.update_status', 'error', save=True)
+        _set_runtime_setting('OTA.update_status', 'error')
         return jsonify({'error': f'Failed to start update check: {str(e)}'}), 500
 
 
@@ -566,6 +584,8 @@ def check_for_updates():
 def apply_update():
     """User-triggered update application with backup"""
     try:
+        _ensure_ota_command_dir()
+
         # Check if update is available
         current_version = settings_manager.get('OTA.current_version', '')
         available_version = settings_manager.get('OTA.available_version', '')
@@ -574,28 +594,24 @@ def apply_update():
             return jsonify({'error': 'No update available to apply'}), 400
         
         # Update status to applying
-        settings_manager.set('OTA.update_status', 'applying', save=True)
-        
-        # Create backup before update
-        backup_info = create_backup()
+        _set_runtime_setting('OTA.update_status', 'applying')
         
         # Create update apply trigger file
-        apply_file_path = "/tmp/ota_apply_trigger"
-        with open(apply_file_path, 'w') as f:
+        apply_file_path = OTA_COMMAND_DIR / "ota_apply_trigger"
+        with open(apply_file_path, 'w', encoding='utf-8') as f:
             f.write(f"manual update apply requested at {time.time()}\n")
-            f.write(f"backup_id: {backup_info['backup_id']}\n")
             f.write(f"from_version: {current_version}\n")
             f.write(f"to_version: {available_version}\n")
         
         return jsonify({
             'success': True,
             'message': f'Update application initiated (v{current_version} → v{available_version})',
-            'backup_id': backup_info['backup_id'],
+            'backup_id': None,
             'status': 'applying'
         })
         
     except Exception as e:
-        settings_manager.set('OTA.update_status', 'error', save=True)
+        _set_runtime_setting('OTA.update_status', 'error')
         return jsonify({'error': f'Failed to apply update: {str(e)}'}), 500
 
 
@@ -604,11 +620,11 @@ def get_changelog():
     """Get changelog for available update"""
     try:
         # Try to read changelog from download directory
-        changelog_file = "/tmp/ota_changelog.txt"
+        changelog_file = OTA_CHANGELOG_FILE
         changelog = "No changelog available"
         
-        if os.path.exists(changelog_file):
-            with open(changelog_file, 'r') as f:
+        if changelog_file.exists():
+            with open(changelog_file, 'r', encoding='utf-8') as f:
                 changelog = f.read()
         
         return jsonify({
@@ -627,13 +643,13 @@ def create_backup():
     try:
         backup_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         install_path = settings_manager.get('OTA.install_path', '/home/pi/PyRpiCamController')
-        backup_dir = f"/tmp/backups/backup_{backup_id}"
+        backup_dir = OTA_WEB_BACKUP_DIR / f"backup_{backup_id}"
         
         # Create backup directory
-        os.makedirs(backup_dir, exist_ok=True)
+        backup_dir.mkdir(parents=True, exist_ok=True)
         
         # Create backup info file
-        backup_info_file = os.path.join(backup_dir, 'backup_info.json')
+        backup_info_file = backup_dir / 'backup_info.json'
         backup_info = {
             'backup_id': backup_id,
             'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -644,17 +660,17 @@ def create_backup():
         }
         
         # Backup settings
-        settings_backup_dir = os.path.join(backup_dir, 'settings')
-        os.makedirs(settings_backup_dir, exist_ok=True)
+        settings_backup_dir = backup_dir / 'settings'
+        settings_backup_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy settings files
         import shutil
         settings_dir = os.path.join(install_path, 'Settings')
         if os.path.exists(settings_dir):
-            shutil.copytree(settings_dir, os.path.join(settings_backup_dir, 'Settings'))
+            shutil.copytree(settings_dir, settings_backup_dir / 'Settings')
         
         # Save backup info
-        with open(backup_info_file, 'w') as f:
+        with open(backup_info_file, 'w', encoding='utf-8') as f:
             json_module.dump(backup_info, f, indent=2)
         
         return backup_info

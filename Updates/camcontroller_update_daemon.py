@@ -11,6 +11,11 @@ import sys
 import os
 from pathlib import Path
 
+OTA_SHARED_DIR = Path('/home/pi/ota')
+OTA_COMMAND_DIR = OTA_SHARED_DIR / 'commands'
+CHECK_TRIGGER_FILE = OTA_COMMAND_DIR / 'ota_check_trigger'
+APPLY_TRIGGER_FILE = OTA_COMMAND_DIR / 'ota_apply_trigger'
+
 # Add project root to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
@@ -43,6 +48,18 @@ class UpdateDaemon:
         # Setup signal handlers for graceful shutdown
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
+
+    def _ensure_command_dir(self):
+        """Ensure the shared OTA command directory exists."""
+        OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _set_runtime_setting(self, path, value):
+        """Persist OTA runtime state, including readonly status fields."""
+        settings_manager.set(path, value, save=True, allow_readonly=True)
+
+    def _set_last_check(self):
+        """Persist the current OTA last-check timestamp."""
+        self._set_runtime_setting('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'))
         
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully."""
@@ -80,7 +97,7 @@ class UpdateDaemon:
             if version_file.exists():
                 with open(version_file, 'r') as f:
                     current_version = f.read().strip()
-                settings_manager.set('OTA.current_version', current_version, save=True)
+                self._set_runtime_setting('OTA.current_version', current_version)
                 self.logger.info(f"Current version set to: {current_version}")
             else:
                 self.logger.warning("VERSION file not found")
@@ -120,7 +137,7 @@ class UpdateDaemon:
                 interval = settings_manager.get('OTA.check_interval')
                 
                 self.logger.info("Checking for OTA updates...")
-                settings_manager.set('OTA.update_status', 'checking', save=True)
+                self._set_runtime_setting('OTA.update_status', 'checking')
                 
                 # Check for updates
                 try:
@@ -129,32 +146,33 @@ class UpdateDaemon:
                         success = self.update_manager.perform_update()
                         if success is True:
                             self.logger.info("OTA check and update completed successfully")
-                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                            self._update_current_version()
+                            self._set_runtime_setting('OTA.available_version', '')
+                            self._set_runtime_setting('OTA.update_status', 'idle')
                         elif success is False:
                             self.logger.warning("OTA update failed")
-                            settings_manager.set('OTA.update_status', 'error', save=True)
+                            self._set_runtime_setting('OTA.update_status', 'error')
                         else:
                             # No updates available
-                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                            self._set_runtime_setting('OTA.update_status', 'idle')
                     else:
                         # New behavior: check only, don't auto-apply
                         update_info = self.update_manager.check_for_updates()
                         if update_info:
                             available_version = update_info.get('version', 'Unknown')
                             self.logger.info(f"Update available: {available_version}")
-                            settings_manager.set('OTA.available_version', available_version, save=True)
-                            settings_manager.set('OTA.update_status', 'available', save=True)
+                            self._set_runtime_setting('OTA.available_version', available_version)
+                            self._set_runtime_setting('OTA.update_status', 'available')
                         else:
                             self.logger.info("No updates available")
-                            settings_manager.set('OTA.update_status', 'idle', save=True)
+                            self._set_runtime_setting('OTA.update_status', 'idle')
                     
                     # Update last check time
-                    import time
-                    settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                    self._set_last_check()
                         
                 except Exception as e:
                     self.logger.error(f"Error during OTA update: {e}")
-                    settings_manager.set('OTA.update_status', 'error', save=True)
+                    self._set_runtime_setting('OTA.update_status', 'error')
                 
                 # Wait for next check
                 self.logger.info(f"Next OTA check in {interval} seconds")
@@ -173,61 +191,59 @@ class UpdateDaemon:
     
     def _check_manual_triggers(self):
         """Check for manual trigger files and process them."""
-        check_trigger_file = "/tmp/ota_check_trigger"
-        apply_trigger_file = "/tmp/ota_apply_trigger"
+        self._ensure_command_dir()
+        check_trigger_file = CHECK_TRIGGER_FILE
+        apply_trigger_file = APPLY_TRIGGER_FILE
         
         # Handle manual check trigger
-        if os.path.exists(check_trigger_file):
+        if check_trigger_file.exists():
             self.logger.info("Manual update check triggered via file")
             try:
-                settings_manager.set('OTA.update_status', 'checking', save=True)
+                self._set_runtime_setting('OTA.update_status', 'checking')
                 update_info = self.update_manager.check_for_updates()
                 if update_info:
                     available_version = update_info.get('version', 'Unknown')
                     self.logger.info(f"Manual check found update: {available_version}")
-                    settings_manager.set('OTA.available_version', available_version, save=True)
-                    settings_manager.set('OTA.update_status', 'available', save=True)
+                    self._set_runtime_setting('OTA.available_version', available_version)
+                    self._set_runtime_setting('OTA.update_status', 'available')
                 else:
                     self.logger.info("Manual check: No updates available")
-                    settings_manager.set('OTA.update_status', 'idle', save=True)
+                    self._set_runtime_setting('OTA.available_version', '')
+                    self._set_runtime_setting('OTA.update_status', 'idle')
                 
-                # Update last check time
-                import time
-                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                self._set_last_check()
                 
             except Exception as e:
                 self.logger.error(f"Manual check failed: {e}")
-                settings_manager.set('OTA.update_status', 'error', save=True)
+                self._set_runtime_setting('OTA.update_status', 'error')
             finally:
-                # Remove trigger file
                 try:
-                    os.remove(check_trigger_file)
-                except:
+                    check_trigger_file.unlink(missing_ok=True)
+                except OSError:
                     pass
         
-        # Handle manual apply trigger  
-        if os.path.exists(apply_trigger_file):
+        # Handle manual apply trigger
+        if apply_trigger_file.exists():
             self.logger.info("Manual update apply triggered via file")
             try:
-                settings_manager.set('OTA.update_status', 'applying', save=True)
+                self._set_runtime_setting('OTA.update_status', 'applying')
                 success = self.update_manager.perform_update()
                 if success:
                     self.logger.info("Manual update application completed successfully")
-                    settings_manager.set('OTA.update_status', 'idle', save=True)
-                    # Clear available version since it's now applied
-                    settings_manager.set('OTA.available_version', '', save=True)
+                    self._update_current_version()
+                    self._set_runtime_setting('OTA.available_version', '')
+                    self._set_runtime_setting('OTA.update_status', 'idle')
                 else:
                     self.logger.error("Manual update application failed")
-                    settings_manager.set('OTA.update_status', 'error', save=True)
+                    self._set_runtime_setting('OTA.update_status', 'error')
                     
             except Exception as e:
                 self.logger.error(f"Manual apply failed: {e}")
-                settings_manager.set('OTA.update_status', 'error', save=True)
+                self._set_runtime_setting('OTA.update_status', 'error')
             finally:
-                # Remove trigger file
                 try:
-                    os.remove(apply_trigger_file)
-                except:
+                    apply_trigger_file.unlink(missing_ok=True)
+                except OSError:
                     pass
         
     def manual_check(self):
@@ -238,19 +254,20 @@ class UpdateDaemon:
             update_info = self.update_manager.check_for_updates()
             if update_info:
                 available_version = update_info.get('version', 'Unknown')
-                settings_manager.set('OTA.available_version', available_version, save=True)
-                settings_manager.set('OTA.update_status', 'available', save=True)
-                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                self._set_runtime_setting('OTA.available_version', available_version)
+                self._set_runtime_setting('OTA.update_status', 'available')
+                self._set_last_check()
                 self.logger.info(f"Manual OTA check found update: {available_version}")
                 return True
             else:
-                settings_manager.set('OTA.update_status', 'idle', save=True)
-                settings_manager.set('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'), save=True)
+                self._set_runtime_setting('OTA.available_version', '')
+                self._set_runtime_setting('OTA.update_status', 'idle')
+                self._set_last_check()
                 self.logger.info("Manual OTA check completed: no updates available")
                 return True
         except Exception as e:
             self.logger.error(f"Error during manual OTA check: {e}")
-            settings_manager.set('OTA.update_status', 'error', save=True)
+            self._set_runtime_setting('OTA.update_status', 'error')
             return False
 
 
