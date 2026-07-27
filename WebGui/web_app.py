@@ -556,28 +556,78 @@ def get_update_status():
 
 @app.route("/api/updates/check", methods=["POST"])
 def check_for_updates():
-    """Manually trigger update check"""
+    """Manually trigger update check - performs check directly for immediate feedback."""
     try:
         _ensure_ota_command_dir()
-
-        # Update status to checking
         _set_runtime_setting('OTA.update_status', 'checking')
-        _set_runtime_setting('OTA.last_check', time.strftime('%Y-%m-%d %H:%M:%S'))
-        
-        # Create update check trigger file (to be picked up by OTA daemon)
-        check_file_path = OTA_COMMAND_DIR / "ota_check_trigger"
-        with open(check_file_path, 'w', encoding='utf-8') as f:
-            f.write(f"manual check requested at {time.time()}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Update check initiated',
-            'status': 'checking'
-        })
-        
+        now = time.strftime('%Y-%m-%d %H:%M:%S')
+        _set_runtime_setting('OTA.last_check', now)
+
+        # Read config
+        server_url = settings_manager.get('OTA.server_url', '')
+        api_key    = settings_manager.get('OTA.api_key', '')
+        enabled    = settings_manager.get('OtaEnable', False)
+
+        if not enabled:
+            _set_runtime_setting('OTA.update_status', 'idle')
+            return jsonify({'success': False, 'message': 'OTA updates are disabled', 'status': 'idle'})
+
+        if not server_url:
+            _set_runtime_setting('OTA.update_status', 'error')
+            return jsonify({'error': 'OTA server URL not configured'}), 400
+
+        # Get CPU serial for device identification
+        cpu_id = 'unknown'
+        try:
+            with open('/proc/cpuinfo') as f:
+                for line in f:
+                    if line.startswith('Serial'):
+                        cpu_id = line.split(':')[1].strip().lstrip('0')
+                        break
+        except Exception:
+            pass
+
+        # Read current version from VERSION file
+        version_file = Path(__file__).parent.parent / 'VERSION'
+        current_version = version_file.read_text().strip() if version_file.exists() else '0.0.0'
+
+        # Perform the HTTP check directly
+        import requests as _requests
+        check_url = f"{server_url.rstrip('/')}/api/ota/check"
+        resp = _requests.get(check_url, params={
+            'cpu_id': cpu_id,
+            'current_version': current_version,
+            'api_key': api_key,
+        }, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get('update_available'):
+            new_ver = data.get('version', '')
+            _set_runtime_setting('OTA.available_version', new_ver)
+            _set_runtime_setting('OTA.update_status', 'update_available')
+            # Also drop trigger file so daemon can pick it up if running
+            _ensure_ota_command_dir()
+            (OTA_COMMAND_DIR / 'ota_check_trigger').write_text(f"manual check at {time.time()}")
+            return jsonify({
+                'success': True,
+                'message': f'Update available: v{new_ver}',
+                'status': 'update_available',
+                'available_version': new_ver,
+                'current_version': current_version,
+            })
+        else:
+            _set_runtime_setting('OTA.update_status', 'up_to_date')
+            return jsonify({
+                'success': True,
+                'message': 'Already up to date',
+                'status': 'up_to_date',
+                'current_version': current_version,
+            })
+
     except Exception as e:
         _set_runtime_setting('OTA.update_status', 'error')
-        return jsonify({'error': f'Failed to start update check: {str(e)}'}), 500
+        return jsonify({'error': f'Update check failed: {str(e)}'}), 500
 
 
 @app.route("/api/updates/apply", methods=["POST"])
