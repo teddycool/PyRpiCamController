@@ -137,6 +137,17 @@ def ota_check():
     filename = STATE["tarball_path"].name
     download_url = f"http://{host}/releases/{filename}"
 
+    # Recompute checksum/size from disk on each check call to avoid stale values
+    # if the tarball was rebuilt while the mock server is still running.
+    tarball_path = STATE["tarball_path"]
+    if tarball_path.exists():
+        live_checksum = _sha256(tarball_path)
+        live_size = tarball_path.stat().st_size
+        if STATE.get("checksum") != live_checksum or STATE.get("file_size") != live_size:
+            log.warning("Tarball changed while server was running; refreshing advertised checksum/size")
+            STATE["checksum"] = live_checksum
+            STATE["file_size"] = live_size
+
     resp = {
         "update_available": True,
         "version":          server_ver,
