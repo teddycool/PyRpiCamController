@@ -23,6 +23,7 @@ import sys
 import argparse
 import logging
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -627,6 +628,136 @@ def sync_hostname_in_hosts(hostname):
     else:
         log_step("WARNING", f"Hostname {hostname} not resolvable via /etc/hosts")
 
+
+def detect_rpi_board_name(model_info):
+    """Map detected runtime model to hwconfig RpiBoard value."""
+    model_name = model_info.get("full_name", "").lower()
+    if "raspberry pi 5" in model_name:
+        return "Rpi5"
+    if "raspberry pi 4" in model_name:
+        return "Rpi4"
+    if "raspberry pi 3 model b plus" in model_name:
+        return "Rpi3B+"
+    if "raspberry pi 3 model b" in model_name:
+        return "Rpi3B"
+    if "raspberry pi zero 2" in model_name:
+        return "RpiZero2"
+    if "raspberry pi zero" in model_name:
+        return "RpiZero"
+    return "Unknown"
+
+
+def prompt_bool(prompt_text, default_value, interactive):
+    """Prompt for a yes/no value with default fallback."""
+    if not interactive:
+        return default_value
+
+    default_suffix = "Y/n" if default_value else "y/N"
+    answer = input(f"{prompt_text} [{default_suffix}]: ").strip().lower()
+    if answer == "":
+        return default_value
+    return answer in ("y", "yes", "1", "true")
+
+
+def prompt_int(prompt_text, default_value, interactive, allow_none=False):
+    """Prompt for integer value with default fallback."""
+    if not interactive:
+        return default_value
+
+    default_text = "None" if default_value is None else str(default_value)
+    while True:
+        answer = input(f"{prompt_text} [{default_text}]: ").strip()
+        if answer == "":
+            return default_value
+        if allow_none and answer.lower() in ("none", "null"):
+            return None
+        try:
+            return int(answer)
+        except ValueError:
+            print("Please enter a valid number")
+
+
+def prompt_choice(prompt_text, options, default_value, interactive):
+    """Prompt for value from a finite set with default fallback."""
+    if not interactive:
+        return default_value
+
+    option_text = "/".join(options)
+    while True:
+        answer = input(f"{prompt_text} ({option_text}) [{default_value}]: ").strip()
+        if answer == "":
+            return default_value
+        if answer in options:
+            return answer
+        print(f"Please choose one of: {option_text}")
+
+
+def configure_hwconfig(interactive=True):
+    """Generate device-unique hwconfig.py from template with prompts/defaults."""
+    template_path = Path(PROJECT_ROOT) / "CamController" / "hwconfig.template.py"
+    output_path = Path(PROJECT_ROOT) / "CamController" / "hwconfig.py"
+
+    if not template_path.exists():
+        log_step("WARNING", f"hwconfig template not found: {template_path}")
+        return False
+
+    model_info = detect_model()
+    detected_board = detect_rpi_board_name(model_info)
+
+    default_cam = "PiCam3"
+    default_lightbox = True
+    default_display_enabled = True
+    default_ds18b20_enabled = True
+
+    if interactive:
+        print("\nHardware profile setup (device-unique)")
+        print(f"Detected board: {detected_board}")
+        print(f"Detected memory: {model_info.get('memory_gb', 1)}GB")
+
+    cam_chip = prompt_choice(
+        "Camera module",
+        ["PiCam2", "PiCamHQ", "PiCam3", "WebCam"],
+        default_cam,
+        interactive,
+    )
+    lightbox_enabled = prompt_bool("Enable LightBox", default_lightbox, interactive)
+    light_gpio = prompt_int("Light control GPIO", 12 if lightbox_enabled else None, interactive, allow_none=True)
+
+    display_enabled = prompt_bool("Enable status LED display", default_display_enabled, interactive)
+    display_gpio = prompt_int("Display control GPIO", 18 if display_enabled else None, interactive, allow_none=True)
+    display_size = prompt_int("Display LED count", 1 if display_enabled else 0, interactive)
+
+    ds18b20_enabled = prompt_bool("Enable DS18B20 temperature sensor", default_ds18b20_enabled, interactive)
+    ds18b20_pin = prompt_int("DS18B20 GPIO", 22 if ds18b20_enabled else None, interactive, allow_none=True)
+
+    description = f"{detected_board} with {cam_chip}" + (" and lightbox" if lightbox_enabled else "")
+
+    template_text = template_path.read_text()
+    replacements = {
+        "{{DESCRIPTION}}": description,
+        "{{RPI_BOARD}}": detected_board,
+        "{{CAM_CHIP}}": cam_chip,
+        "{{LIGHTBOX}}": "True" if lightbox_enabled else "False",
+        "{{LIGHT_GPIO}}": "None" if light_gpio is None else str(light_gpio),
+        "{{DISPLAY_GPIO}}": "None" if display_gpio is None else str(display_gpio),
+        "{{DISPLAY_SIZE}}": str(max(0, display_size)),
+        "{{DS18B20_PIN}}": "None" if ds18b20_pin is None else str(ds18b20_pin),
+    }
+
+    rendered = template_text
+    for marker, value in replacements.items():
+        rendered = rendered.replace(marker, value)
+
+    if output_path.exists():
+        backup_path = output_path.with_suffix(".py.bak")
+        shutil.copy2(output_path, backup_path)
+        log_step("HWCONFIG", f"Backed up existing hwconfig to {backup_path}")
+
+    output_path.write_text(rendered)
+    log_step("HWCONFIG", f"Generated device hwconfig: {output_path}")
+    return True
+
+
 def main():
     """Main installation routine"""
     start_time = time.time()
@@ -639,6 +770,16 @@ def main():
         "--with-opencv",
         action="store_true",
         help="(Deprecated - OpenCV is now always installed)",
+    )
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Use defaults for device-unique hwconfig generation without prompts",
+    )
+    parser.add_argument(
+        "--skip-hwconfig",
+        action="store_true",
+        help="Skip hwconfig generation step",
     )
     args = parser.parse_args()
 
@@ -695,9 +836,15 @@ def main():
         # Samba setup
         setup_samba()
         
+        # Generate device-unique hardware config from template
+        if args.skip_hwconfig:
+            log_step("HWCONFIG", "Skipping hwconfig generation (--skip-hwconfig)")
+        else:
+            configure_hwconfig(interactive=(not args.non_interactive and sys.stdin.isatty()))
+
         # DS18B20 temperature sensor hardware setup
         setup_ds18b20_hardware()
-        
+
         # Services setup
         setup_services()
         
@@ -724,6 +871,10 @@ def main():
         print(f"ComitUp portal: http://10.41.0.1 (when connected to {hostname}-comitup WiFi)")
         print(f"Install log: /home/pi/shared/logs/install_{install_logger.start_time.strftime('%Y%m%d_%H%M%S')}.log")
         print("\\nHardware Configuration:")
+        if args.skip_hwconfig:
+            print("• Device hwconfig: not changed (--skip-hwconfig)")
+        else:
+            print("• Device hwconfig: generated from template (CamController/hwconfig.template.py)")
         print("• DS18B20 temperature sensor: 1-wire interface configured (GPIO 22)")
         print("• Temperature monitoring: Available in web interface after reboot")
         print("\\nNext steps:")

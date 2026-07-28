@@ -9,24 +9,31 @@ It can be used to register devices that aren't physically accessible or for test
 import json
 import requests
 import sys
+import os
+import getpass
 
 # OTA Admin Configuration
 OTA_ADMIN_URL = "https://www.sensorwebben.se/pycamota/admin"
 OTA_API_URL = "https://www.sensorwebben.se/pycamota/api/devices"
 
-# Admin credentials
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "K7#mN9@pQ4*vX2!wZ8$rF6&hL3^dS5"
+# Admin credentials (never hardcode secrets)
+ADMIN_USERNAME = os.environ.get("OTA_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("OTA_ADMIN_PASSWORD", "")
 
 def authenticate_admin():
     """Authenticate with admin interface"""
     session = requests.Session()
     
     try:
+        password = ADMIN_PASSWORD or getpass.getpass("OTA admin password: ")
+        if not password:
+            print("❌ Missing admin password (set OTA_ADMIN_PASSWORD or enter at prompt)")
+            return None
+
         # Login to admin interface
         login_data = {
             'username': ADMIN_USERNAME,
-            'password': ADMIN_PASSWORD
+            'password': password
         }
         
         response = session.post(

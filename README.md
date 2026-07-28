@@ -112,6 +112,34 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 Need full setup details? See [INSTALLATION.md](INSTALLATION.md).
 
+## Secure OTA Onboarding (Real Cameras)
+
+For production camera rollout, use the secure enroll flow from your dev/admin computer.
+
+- New tool: `tools/secure_enroll_device.py`
+- Admin credentials stay on dev machine only (env vars or prompt)
+- Pi receives only its own device API key
+
+Example:
+
+```bash
+export OTA_ADMIN_USERNAME=admin
+export OTA_ADMIN_PASSWORD='***'
+
+python3 tools/secure_enroll_device.py \
+   --host 192.168.68.200 \
+   --ssh-user pi \
+   --name "Kitchen Cam" \
+   --location "Kitchen" \
+   --channel stable \
+   --update-group production
+```
+
+Recommended channel model:
+
+- Most devices: backend channel `stable`, update group `production`
+- 1–2 test devices only: backend channel `testing`/`beta`, update group `development`
+
 ## Release Readiness Checklist
 
 - Validate installer on Raspberry Pi 3B+, 4B, and 5

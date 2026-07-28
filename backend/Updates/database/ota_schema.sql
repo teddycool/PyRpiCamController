@@ -43,13 +43,26 @@ CREATE TABLE IF NOT EXISTS cam_devices (
     last_seen        DATETIME        DEFAULT NULL,
     last_ip          VARCHAR(45)     DEFAULT NULL,    -- IPv4 or IPv6
     notes            TEXT            DEFAULT NULL,
+    
+    -- Hardware metadata (optional, captured at enrollment)
+    platform            VARCHAR(32)     DEFAULT NULL,    -- 'Rpi3b+', 'Rpi4', 'Rpi5', etc.
+    memory_gb           INT             DEFAULT NULL,    -- RAM in gigabytes (1, 2, 4, 8, etc.)
+    camera_module       VARCHAR(32)     DEFAULT NULL,    -- 'PiCam2', 'PiCam3', 'PiCamHQ', 'WebCam'
+    hat_installed       VARCHAR(64)     DEFAULT NULL,    -- 'Hailo', 'None', 'CustomHat', etc.
+    lightbox_enabled    TINYINT(1)      DEFAULT 0,       -- Has light control (GPIO PWM)
+    has_ds18b20        TINYINT(1)      DEFAULT 0,       -- Has temperature sensor (1-wire)
+    has_display        TINYINT(1)      DEFAULT 0,       -- Has LED display (NeoPixel)
+    hardware_info_reported_at  DATETIME  DEFAULT NULL,  -- Last update to hardware fields
+    hardware_info_source       VARCHAR(32) DEFAULT NULL, -- 'enrollment', 'manual', etc.
+    
     created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_cam_devices_device_id (device_id),
     UNIQUE KEY uq_cam_devices_api_key (api_key),
     INDEX idx_cam_devices_channel (channel),
-    INDEX idx_cam_devices_is_active (is_active)
+    INDEX idx_cam_devices_is_active (is_active),
+    INDEX idx_cam_devices_platform_cam (platform, camera_module)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -104,6 +117,34 @@ CREATE TABLE IF NOT EXISTS cam_ota_logs (
     INDEX idx_cam_ota_logs_created_at (created_at),
     CONSTRAINT fk_cam_ota_logs_release
         FOREIGN KEY (release_id) REFERENCES cam_releases (id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- -----------------------------------------------------------------------------
+-- cam_enrollment_tokens
+-- One-time enrollment tokens used to securely bootstrap real devices.
+-- Token value is never stored in plaintext, only SHA-256 hash.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cam_enrollment_tokens (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    token_hash       CHAR(64)        NOT NULL,
+    device_id        VARCHAR(64)     DEFAULT NULL,
+    device_name      VARCHAR(128)    DEFAULT NULL,
+    channel          VARCHAR(32)     NOT NULL DEFAULT 'stable',
+    notes            TEXT            DEFAULT NULL,
+    expires_at       DATETIME        NOT NULL,
+    used_at          DATETIME        DEFAULT NULL,
+    used_by_ip       VARCHAR(45)     DEFAULT NULL,
+    created_by       INT UNSIGNED    DEFAULT NULL,
+    created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_cam_enrollment_tokens_hash (token_hash),
+    INDEX idx_cam_enrollment_tokens_device_id (device_id),
+    INDEX idx_cam_enrollment_tokens_expires_at (expires_at),
+    INDEX idx_cam_enrollment_tokens_used_at (used_at),
+    CONSTRAINT fk_cam_enrollment_tokens_admin
+        FOREIGN KEY (created_by) REFERENCES cam_admins (id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
