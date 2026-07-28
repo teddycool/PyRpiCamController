@@ -2,6 +2,20 @@
 
 This guide installs PyRpiCamController on Raspberry Pi and verifies core services.
 
+## Which Installation Path Should I Use?
+
+| Scenario | Recommended Path |
+|----------|-----------------|
+| Production deployment, backend available | ✅ **[Fresh Pi Provisioning](#recommended-fresh-pi-provisioning-release-based)** (default) |
+| Local testing / development / no backend | ✅ **[Manual Installation](#alternative-manual-installation-advanced)** |
+| Backend temporarily unavailable | ✅ **[Manual Installation](#alternative-manual-installation-advanced)** |
+| Exploring the software for the first time | ✅ **[Manual Installation](#alternative-manual-installation-advanced)** |
+| Re-enrolling an existing device | ✅ Fresh Pi Provisioning with `--skip-hwconfig` |
+| Batch rollout of new cameras | ✅ **[Fresh Pi Provisioning](#recommended-fresh-pi-provisioning-release-based)** |
+| Contributing / editing source on Pi | ✅ **[Manual Installation](#alternative-manual-installation-advanced)** |
+
+---
+
 ## Requirements
 
 - Raspberry Pi 3B+, 4B, or 5
