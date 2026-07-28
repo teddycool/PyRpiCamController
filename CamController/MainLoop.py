@@ -109,6 +109,7 @@ class MainLoop:
         # Setup IO, these settings are NOT configurable from backend but hardware dependent
         light_pin = self._hardware_config["Io"].get("lightcontrolgpio")
         display_pin = self._hardware_config["Io"].get("displaycontrolgpio")
+        display_size = self._hardware_config["Io"].get("displaysize")
 
         pwm_channels = {
             0: {12, 18},
@@ -130,12 +131,27 @@ class MainLoop:
                 display_pin,
             )
             self._display = _NoopDisplay()
-        else:
-            self._display = Display.Display(
-                self._hardware_config["Io"]["displaycontrolgpio"],
-                self._hardware_config["Io"]["displaysize"],
+        elif display_pin is None or not display_size:
+            logger.info(
+                "Display not configured (gpio=%s, size=%s). Continuing without display.",
+                display_pin,
+                display_size,
             )
-            self._display.startup()
+            self._display = _NoopDisplay()
+        else:
+            try:
+                self._display = Display.Display(
+                    display_pin,
+                    display_size,
+                )
+                self._display.startup()
+            except Exception as e:
+                logger.error(
+                    "Display initialization failed; continuing without display output: %s",
+                    e,
+                    exc_info=True,
+                )
+                self._display = _NoopDisplay()
         self._lightbox = None
      
         if self._hardware_config["LightBox"]:
