@@ -84,6 +84,44 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 **Prerequisites**: Raspberry Pi 3B+, 4B, or 5 with camera module, WiFi, and USB boot capability.
 
+### Recommended: Fresh Pi Provisioning (Release-Based)
+
+Use this as the default production setup path. Run from your dev machine and provision a fresh Pi over SSH.
+
+**Important:** This path requires a working OTA backend and enrollment endpoints because provisioning includes secure device enrollment.
+
+1. **Provision fresh Pi from a release**
+
+   ```bash
+   python3 tools/provision_fresh_pi.py <pi_ip> <release_version> "<device_name>" "<location>" --non-interactive
+   ```
+
+   Example:
+
+   ```bash
+   python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" --non-interactive
+   ```
+
+2. **Configure**
+
+   Open `http://your-pi-ip`.
+
+3. **Monitor service status**
+
+   ```bash
+   ssh pi@your-pi-ip "sudo systemctl status camcontroller.service camcontroller-update.service --no-pager"
+   ```
+
+### Alternative: Manual Source Installation (Advanced)
+
+Use this only for development/debugging scenarios where source-level editing on the Pi is required.
+
+Use this path when:
+
+- you are testing without a backend,
+- your backend is temporarily unavailable, or
+- you want to run the software locally without OTA enrollment.
+
 1. **Get the code**
 
    ```bash
