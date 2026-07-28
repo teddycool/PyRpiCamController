@@ -71,10 +71,9 @@ def run_cmd(cmd: List[str], capture: bool = True, check: bool = True, input_text
 def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: bool = True) -> subprocess.CompletedProcess:
     cmd = [
         "ssh",
-        "-o",
-        "ControlMaster=auto",
-        "-o",
-        "ControlPersist=600",
+        "-o", "ControlMaster=auto",
+        "-o", "ControlPersist=600",
+        "-o", "SendEnv=none",       # suppress locale forwarding (avoids LC_ALL warnings on Pi)
     ]
 
     if _SSH_CONTROL_PATH:
@@ -104,14 +103,11 @@ def setup_ssh_session(host: str, ssh_user: str, ssh_port: int) -> None:
 
     cmd = [
         "ssh",
-        "-o",
-        "ControlMaster=auto",
-        "-o",
-        "ControlPersist=600",
-        "-o",
-        f"ControlPath={_SSH_CONTROL_PATH}",
-        "-p",
-        str(ssh_port),
+        "-o", "ControlMaster=auto",
+        "-o", "ControlPersist=600",
+        "-o", "SendEnv=none",       # suppress locale forwarding
+        "-o", f"ControlPath={_SSH_CONTROL_PATH}",
+        "-p", str(ssh_port),
         f"{ssh_user}@{host}",
         "true",
     ]
