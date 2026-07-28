@@ -179,6 +179,8 @@ Examples:
    ```bash
    python3 tools/provision_fresh_pi.py <pi_ip> 1.2.3 "Camera-Name" "Location" --non-interactive
    ```
+   
+   Note: this default deployment flow requires a working OTA backend and enrollment endpoints.
 
 5. **Build distribution packages** (if applicable):
    ```bash
@@ -291,3 +293,5 @@ python3 tools/provision_fresh_pi.py --help
 6. Reports success or failure
 
 No git, no manual setup—just a Pi with Pi OS and an IP address.
+
+If backend services are unavailable, use the manual installation path in INSTALLATION.md for local/testing runs without enrollment.

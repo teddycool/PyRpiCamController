@@ -15,11 +15,14 @@ This guide installs PyRpiCamController on Raspberry Pi and verifies core service
 
 For a completely fresh Raspberry Pi, use the **automated provisioning script** from your dev machine. This is the fastest and most reliable method.
 
+**Important:** This is the default production path and it assumes a working OTA backend (including secure enrollment endpoints).
+
 ### Prerequisites
 
 - Fresh Pi running Pi OS with SSH enabled
 - Pi OS should have a static or known IP address on your network
 - Development machine has SSH access to the Pi
+- Reachable OTA backend and valid admin enrollment credentials
 
 ### Provisioning from Dev Machine
 
@@ -62,6 +65,8 @@ python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway"
 
 See `python3 tools/provision_fresh_pi.py --help` for all options.
 
+If your backend is unavailable or you are testing without backend integration, use the **Alternative: Manual Installation (Advanced)** path below.
+
 ### What Gets Provisioned
 
 - PyRpiCamController source code in `~/PyRpiCamController`
@@ -90,6 +95,8 @@ ssh pi@<pi_ip>
 ## Alternative: Manual Installation (Advanced)
 
 If you prefer to install manually or need to debug, use this method.
+
+This is also the recommended path for local/testing use without a backend.
 
 ### 1) Deploy Project Files
 

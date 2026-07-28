@@ -183,6 +183,8 @@ git push origin v1.0.0
 
 Once a release is published, deploy it to any fresh Pi using the provisioning script:
 
+This default deployment path assumes a working OTA backend and enrollment API.
+
 ```bash
 # From your dev machine
 python3 tools/provision_fresh_pi.py <pi_ip> <version> "<device_name>" "<location>" --non-interactive
@@ -192,6 +194,8 @@ python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway"
 ```
 
 See INSTALLATION.md for full provisioning details.
+
+For backend-free testing or local debug environments, use the manual installation path in INSTALLATION.md instead of release provisioning.
 
 ### Release Contents
 

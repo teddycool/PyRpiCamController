@@ -88,6 +88,8 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 Use this as the default production setup path. Run from your dev machine and provision a fresh Pi over SSH.
 
+**Important:** This path requires a working OTA backend and enrollment endpoints because provisioning includes secure device enrollment.
+
 1. **Provision fresh Pi from a release**
 
    ```bash
@@ -113,6 +115,12 @@ Use this as the default production setup path. Run from your dev machine and pro
 ### Alternative: Manual Source Installation (Advanced)
 
 Use this only for development/debugging scenarios where source-level editing on the Pi is required.
+
+Use this path when:
+
+- you are testing without a backend,
+- your backend is temporarily unavailable, or
+- you want to run the software locally without OTA enrollment.
 
 1. **Get the code**
 
