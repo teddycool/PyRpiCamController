@@ -26,6 +26,7 @@ Examples:
 import argparse
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -39,7 +40,7 @@ class ProvisioningManager:
 
     def __init__(self, pi_ip, pi_user, release_version, device_name, location,
                  backend_url=None, non_interactive=False, skip_hwconfig=False,
-                 skip_enrollment=False, ssh_timeout=60):
+                 skip_enrollment=False, ssh_timeout=60, local=False):
         """
         Initialize provisioning manager.
 
@@ -54,6 +55,7 @@ class ProvisioningManager:
             skip_hwconfig: Don't run hwconfig configuration
             skip_enrollment: Don't run device enrollment
             ssh_timeout: SSH command timeout in seconds
+            local: Build tarball from local repo instead of downloading from GitHub
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -66,6 +68,7 @@ class ProvisioningManager:
         self.skip_hwconfig = skip_hwconfig
         self.skip_enrollment = skip_enrollment
         self.ssh_timeout = ssh_timeout
+        self.local = local
 
         # Derive tarball filename and GitHub URL
         self.tarball_filename = f"PyRpiCamController-{self.release_version}.tar.gz"
@@ -74,6 +77,7 @@ class ProvisioningManager:
             f"download/{self.release_tag}/{self.tarball_filename}"
         )
         self.repo_dir = Path(__file__).parent.parent
+        self._ctl_socket = None
 
     @staticmethod
     def _normalize_version(version_str):
@@ -81,6 +85,55 @@ class ProvisioningManager:
         if not version_str.startswith('v'):
             return f"v{version_str}"
         return version_str
+
+    def _base_ssh_opts(self):
+        """Return base SSH options, using ControlMaster socket when available."""
+        opts = [
+            "-o", "ConnectTimeout=10",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "SendEnv=none",
+        ]
+        if self._ctl_socket:
+            opts += ["-o", "ControlMaster=no", "-o", f"ControlPath={self._ctl_socket}"]
+        return opts
+
+    def open_ssh_session(self):
+        """Open a persistent SSH ControlMaster session (single password prompt)."""
+        self._ctl_socket = tempfile.mktemp(prefix="prov_ssh_", suffix=".ctl")
+        print("[0/5] Opening SSH session (you may be prompted for password once)...")
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o", "ConnectTimeout=10",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "SendEnv=none",
+                "-o", "ControlMaster=yes",
+                "-o", f"ControlPath={self._ctl_socket}",
+                "-o", "ControlPersist=600",
+                "-f",   # fork into background after auth
+                "-N",   # no remote command
+                f"{self.pi_user}@{self.pi_ip}",
+            ],
+        )
+        if result.returncode != 0:
+            raise ProvisioningError(
+                f"Cannot connect to Pi at {self.pi_ip}. Make sure:\n"
+                f"  - Pi is powered on and reachable at {self.pi_ip}\n"
+                f"  - SSH is enabled on the Pi\n"
+                f"  - SSH credentials are correct"
+            )
+
+    def close_ssh_session(self):
+        """Close the ControlMaster session."""
+        if self._ctl_socket:
+            subprocess.run(
+                ["ssh", "-o", f"ControlPath={self._ctl_socket}", "-O", "exit",
+                 f"{self.pi_user}@{self.pi_ip}"],
+                capture_output=True,
+            )
+            self._ctl_socket = None
 
     def ssh_run(self, command, description=None, check=True):
         """
@@ -94,14 +147,7 @@ class ProvisioningManager:
         Returns:
             Completed process object
         """
-        ssh_cmd = [
-            "ssh",
-            "-o", "ConnectTimeout=10",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "SendEnv=none",
-            f"{self.pi_user}@{self.pi_ip}",
-        ]
+        ssh_cmd = ["ssh"] + self._base_ssh_opts() + [f"{self.pi_user}@{self.pi_ip}"]
 
         if description:
             print(f"  → {description}...", end=" ", flush=True)
@@ -136,48 +182,76 @@ class ProvisioningManager:
             print(f"✗ ({e})")
             raise
 
+    def scp_run(self, local_path, remote_path):
+        """Copy a file to the Pi via SCP using the existing ControlMaster socket."""
+        scp_cmd = ["scp"] + self._base_ssh_opts() + [str(local_path), f"{self.pi_user}@{self.pi_ip}:{remote_path}"]
+        result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            raise ProvisioningError(f"SCP failed: {result.stderr}")
+
     def verify_pi_connectivity(self):
-        """Verify SSH connectivity to Pi."""
-        print("\n[0/5] Verifying Pi connectivity...")
-        try:
-            result = self.ssh_run(
-                "echo 'SSH connectivity verified'",
-                "Testing SSH connection",
-                check=True
-            )
-        except ProvisioningError as e:
-            raise ProvisioningError(
-                f"Cannot connect to Pi at {self.pi_ip}. Make sure:\n"
-                f"  - Pi is powered on and has IP {self.pi_ip}\n"
-                f"  - SSH is enabled (usually enabled by default on Pi OS)\n"
-                f"  - Your SSH key is authorized (or password is configured)\n"
-                f"\nDetails: {e}"
-            )
+        """Verify SSH connectivity to Pi (ControlMaster already open)."""
+        print("\n[1/5] Verifying Pi connectivity...")
+        self.ssh_run("echo 'SSH ok'", "Testing SSH connection", check=True)
 
     def download_and_extract(self):
-        """Download and extract release tarball on Pi."""
-        print("\n[1/5] Downloading and extracting release {}...".format(self.release_tag))
+        """Download (or build locally and SCP) and extract release tarball on Pi."""
+        if self.local:
+            self._build_and_scp_local()
+        else:
+            self._download_from_github()
 
-        commands = [
-            "command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1",
-            (
-                f"cd ~ && rm -rf PyRpiCamController && "
-                f"(wget --quiet {self.tarball_url} -O {self.tarball_filename} "
-                f"|| curl -fsSL {self.tarball_url} -o {self.tarball_filename})"
-            ),
-            f"cd ~ && tar -xzf {self.tarball_filename}",
-            f"rm ~/{self.tarball_filename}",
-            "ls -ld ~/PyRpiCamController && echo 'Extraction verified'",
-        ]
-
-        for cmd in commands:
-            self.ssh_run(cmd, check=True)
-
+    def _download_from_github(self):
+        """Download release tarball from GitHub and extract on Pi."""
+        print("\n[2/5] Downloading release {} from GitHub...".format(self.release_tag))
+        self.ssh_run(
+            f"cd ~ && rm -rf PyRpiCamController && "
+            f"(wget --quiet {self.tarball_url} -O {self.tarball_filename} "
+            f"|| curl -fsSL {self.tarball_url} -o {self.tarball_filename})",
+            "Downloading tarball",
+            check=True,
+        )
+        self.ssh_run(f"cd ~ && tar -xzf {self.tarball_filename} && rm {self.tarball_filename}",
+                     "Extracting", check=True)
         print("  ✓ Release extracted to ~/PyRpiCamController")
+
+    def _build_and_scp_local(self):
+        """Build tarball from local repo and SCP it to the Pi."""
+        print("\n[2/5] Building tarball from local repo and copying to Pi...")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tarball_path = Path(tmpdir) / self.tarball_filename
+            print(f"  → Building {self.tarball_filename}...", end=" ", flush=True)
+            result = subprocess.run(
+                [
+                    "git", "archive",
+                    "--format=tar.gz",
+                    "--prefix=PyRpiCamController/",
+                    f"--output={tarball_path}",
+                    "HEAD",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_dir,
+            )
+            if result.returncode != 0:
+                print("✗")
+                raise ProvisioningError(f"git archive failed: {result.stderr}")
+            print("✓")
+
+            print(f"  → Copying to Pi...", end=" ", flush=True)
+            self.scp_run(tarball_path, f"~/{self.tarball_filename}")
+            print("✓")
+
+        self.ssh_run(
+            f"cd ~ && rm -rf PyRpiCamController && tar -xzf {self.tarball_filename} && rm {self.tarball_filename}",
+            "Extracting",
+            check=True,
+        )
+        print("  ✓ Local build extracted to ~/PyRpiCamController")
 
     def run_installer(self):
         """Run installer on Pi."""
-        print("\n[2/5] Running installation script...")
+        print("\n[3/5] Running installation script...")
 
         installer_args = ["python3", "tools/install-all-optimized.py"]
 
@@ -196,7 +270,7 @@ class ProvisioningManager:
 
     def enroll_device(self):
         """Enroll device from dev machine."""
-        print("\n[3/5] Enrolling device with backend...")
+        print("\n[4/5] Enrolling device with backend...")
 
         if not (self.repo_dir / "tools" / "secure_enroll_device.py").exists():
             raise ProvisioningError(
@@ -228,7 +302,7 @@ class ProvisioningManager:
 
     def verify_installation(self):
         """Verify installation success."""
-        print("\n[4/5] Verifying installation...")
+        print("\n[5/5] Verifying installation...")
 
         checks = [
             ("sudo systemctl is-active --quiet camcontroller", "Camera controller service"),
@@ -255,7 +329,7 @@ class ProvisioningManager:
         print(f"\nDevice:        {self.device_name}")
         print(f"Location:      {self.location}")
         print(f"IP Address:    {self.pi_ip}")
-        print(f"Release:       {self.release_tag}")
+        print(f"Release:       {'local build' if self.local else self.release_tag}")
         print(f"Enrollment:    {'Skipped' if self.skip_enrollment else 'Complete'}")
         print("\nNext Steps:")
         print("  1. Access the device via SSH:")
@@ -274,11 +348,12 @@ class ProvisioningManager:
             print(f"PyRpiCamController Fresh Pi Provisioning")
             print("=" * 60)
             print(f"Target:   {self.pi_user}@{self.pi_ip}")
-            print(f"Release:  {self.release_tag}")
+            print(f"Release:  {'local build' if self.local else self.release_tag}")
             print(f"Device:   {self.device_name}")
             print(f"Location: {self.location}")
             print("=" * 60)
 
+            self.open_ssh_session()
             self.verify_pi_connectivity()
             self.download_and_extract()
             self.run_installer()
@@ -300,6 +375,8 @@ class ProvisioningManager:
         except Exception as e:
             print(f"\n❌ UNEXPECTED ERROR: {e}")
             return 1
+        finally:
+            self.close_ssh_session()
 
 
 def main():
@@ -319,7 +396,11 @@ Examples:
   python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
       --backend-url https://admin.example.com --non-interactive
 
-    # Reuse an existing hwconfig.py during install
+    # Use local repo instead of GitHub release (no tag needed)
+  python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-04" "Garage" \\
+      --local --non-interactive
+
+  # Reuse an existing hwconfig.py during install
   python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-04" "Garage" \\
       --skip-hwconfig --non-interactive
         """
@@ -354,6 +435,11 @@ Examples:
         "--ssh-timeout", type=int, default=60,
         help="SSH command timeout in seconds (default: 60)"
     )
+    parser.add_argument(
+        "--local", action="store_true",
+        help="Build tarball from local repo (git archive HEAD) and SCP to Pi instead of downloading from GitHub. "
+             "Use when no GitHub release exists yet (e.g., during development)."
+    )
 
     args = parser.parse_args()
 
@@ -368,6 +454,7 @@ Examples:
         skip_hwconfig=args.skip_hwconfig,
         skip_enrollment=args.skip_enrollment,
         ssh_timeout=args.ssh_timeout,
+        local=args.local,
     )
 
     return manager.provision()
