@@ -235,7 +235,12 @@ class ProvisioningManager:
         """Download release tarball from GitHub and extract on Pi."""
         print("\n[2/5] Downloading release {} from GitHub...".format(self.release_tag))
         self.ssh_run(
-            f"cd ~ && rm -rf PyRpiCamController && "
+            f"sudo rm -rf /home/{self.pi_user}/PyRpiCamController && "
+            f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}",
+            "Cleaning previous deployment",
+            check=True,
+        )
+        self.ssh_run(
             f"(wget --quiet {self.tarball_url} -O {self.tarball_filename} "
             f"|| curl -fsSL {self.tarball_url} -o {self.tarball_filename})",
             "Downloading tarball",
@@ -248,6 +253,12 @@ class ProvisioningManager:
     def _build_and_scp_local(self):
         """Build tarball from local repo and SCP it to the Pi."""
         print("\n[2/5] Building tarball from local repo and copying to Pi...")
+        self.ssh_run(
+            f"sudo rm -rf /home/{self.pi_user}/PyRpiCamController && "
+            f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}",
+            "Cleaning previous deployment",
+            check=True,
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             tarball_path = Path(tmpdir) / self.tarball_filename
             print(f"  → Building {self.tarball_filename}...", end=" ", flush=True)
@@ -272,11 +283,7 @@ class ProvisioningManager:
             self.scp_run(tarball_path, f"~/{self.tarball_filename}")
             print("✓")
 
-        self.ssh_run(
-            f"cd ~ && rm -rf PyRpiCamController && tar -xzf {self.tarball_filename} && rm {self.tarball_filename}",
-            "Extracting",
-            check=True,
-        )
+        self.ssh_run(f"cd ~ && tar -xzf {self.tarball_filename} && rm {self.tarball_filename}", "Extracting", check=True)
         print("  ✓ Local build extracted to ~/PyRpiCamController")
 
     def run_installer(self):
