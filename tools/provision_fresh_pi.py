@@ -27,6 +27,7 @@ import argparse
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -332,9 +333,10 @@ class ProvisioningManager:
         """Verify installation success."""
         print("\n[5/5] Verifying installation...")
 
+        self.wait_for_service_active("camcontroller.service", "Camera controller service")
+        self.wait_for_service_active("camcontroller-update.service", "OTA update daemon")
+
         checks = [
-            ("sudo systemctl is-active --quiet camcontroller", "Camera controller service"),
-            ("sudo systemctl is-active --quiet camcontroller-update", "OTA update daemon"),
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
             (f"[[ -f /home/{self.pi_user}/.camcontroller_ota ]]", "OTA settings file"),
         ]
@@ -348,6 +350,42 @@ class ProvisioningManager:
             )
 
         print("\n  ✓ All verification checks passed")
+
+    def wait_for_service_active(self, service_name, label, timeout=180, interval=5):
+        """Wait for a systemd service to become active with retries."""
+        print(f"  → {label}...", end=" ", flush=True)
+        deadline = time.time() + timeout
+        last_state = "unknown"
+
+        while time.time() < deadline:
+            result = self.ssh_run(
+                f"sudo systemctl is-active {service_name} 2>/dev/null",
+                check=False,
+            )
+            state = (result.stdout or "").strip()
+            if state == "active":
+                print("✓")
+                return
+
+            if state:
+                last_state = state
+            time.sleep(interval)
+
+        print("✗")
+        status_result = self.ssh_run(
+            f"sudo systemctl --no-pager --full status {service_name} || true",
+            check=False,
+        )
+        journal_result = self.ssh_run(
+            f"sudo journalctl -u {service_name} -n 60 --no-pager || true",
+            check=False,
+        )
+
+        raise ProvisioningError(
+            f"{label} did not become active within {timeout}s (last state: {last_state}).\n"
+            f"\nService status:\n{status_result.stdout}\n"
+            f"\nRecent journal:\n{journal_result.stdout}"
+        )
 
     def print_summary(self):
         """Print provisioning summary."""
