@@ -366,7 +366,6 @@ class ProvisioningManager:
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
-            (f"[[ -f /home/{self.pi_user}/.camcontroller_ota ]]", "OTA settings file"),
         ]
 
         for cmd, description in checks:
@@ -377,7 +376,23 @@ class ProvisioningManager:
                 check=True
             )
 
+        self.verify_ota_settings()
+
         print("\n  ✓ All verification checks passed")
+
+    def verify_ota_settings(self):
+        """Validate that OTA settings were written into settings_manager."""
+        ota_check_cmd = (
+            "cd ~/PyRpiCamController && "
+            "python3 -c \""
+            "from Settings.settings_manager import settings_manager as s; "
+            "import sys; "
+            "ok = bool(s.get('OtaEnable')) and bool(s.get('OTA.server_url')) and bool(s.get('OTA.api_key')); "
+            "print('OK: OTA settings present' if ok else 'ERROR: OTA settings missing/incomplete'); "
+            "sys.exit(0 if ok else 2)"
+            "\""
+        )
+        self.ssh_run(ota_check_cmd, "OTA settings in settings_manager", check=True)
 
     def wait_for_service_active(self, service_name, label, timeout=180, interval=5):
         """Wait for a systemd service to become active with retries."""
