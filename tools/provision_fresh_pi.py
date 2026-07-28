@@ -669,8 +669,32 @@ Examples:
         action="store_true",
         help="Do not lock the Pi user's password when SSH posture is key-only or disable"
     )
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="Enable production policy checks (requires hardened SSH posture and password lock)"
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate CLI arguments and policy checks, then exit without provisioning"
+    )
 
     args = parser.parse_args()
+
+    if args.production:
+        if args.ssh_posture == "keep":
+            parser.error(
+                "--production requires --ssh-posture key-only or --ssh-posture disable"
+            )
+        if args.no_lock_password:
+            parser.error(
+                "--production does not allow --no-lock-password"
+            )
+
+    if args.validate_only:
+        print("Argument and policy validation successful")
+        return 0
 
     manager = ProvisioningManager(
         pi_ip=args.pi_ip,
