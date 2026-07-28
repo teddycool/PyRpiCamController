@@ -11,6 +11,7 @@ This directory contains project guidelines for contributors and coding agents. T
 - [FILE_PERMISSIONS.md](FILE_PERMISSIONS.md) — SMB permissions and atomic write lessons
 - [INSTALLER_UPDATES.md](INSTALLER_UPDATES.md) — Installer update checklist
 - [GIT_WORKFLOW.md](GIT_WORKFLOW.md) — Branching, commits, and release workflow
+- [SECURITY_BASELINE_V1.md](SECURITY_BASELINE_V1.md) — Production security baseline checklist
 
 ## Quick Reference
 
