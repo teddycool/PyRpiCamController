@@ -295,7 +295,23 @@ class ProvisioningManager:
         print("  (Output streamed live — this can take 15–20 min on a Pi 3)\n")
         self.ssh_stream(cmd, timeout=self.install_timeout)
 
+        self.ensure_services_started()
+
         print("\n  ✓ Installation complete")
+
+    def ensure_services_started(self):
+        """Reload units and start core services after installation."""
+        print("\n  → Ensuring services are started...", end=" ", flush=True)
+        self.ssh_run("sudo systemctl daemon-reload", check=True)
+        self.ssh_run(
+            "sudo systemctl enable camcontroller.service camcontroller-update.service",
+            check=True,
+        )
+        self.ssh_run(
+            "sudo systemctl restart camcontroller.service camcontroller-update.service",
+            check=True,
+        )
+        print("✓")
 
     def enroll_device(self):
         """Enroll device from dev machine."""
