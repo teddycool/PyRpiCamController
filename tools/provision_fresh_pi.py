@@ -24,6 +24,7 @@ Examples:
 """
 
 import argparse
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -42,7 +43,8 @@ class ProvisioningManager:
     def __init__(self, pi_ip, pi_user, release_version, device_name, location,
                  backend_url=None, non_interactive=False, skip_hwconfig=False,
                  skip_enrollment=False, ssh_timeout=60, local=False,
-                 install_timeout=1800):
+                 install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
+                 lock_password=True):
         """
         Initialize provisioning manager.
 
@@ -59,6 +61,9 @@ class ProvisioningManager:
             ssh_timeout: SSH command timeout in seconds
             local: Build tarball from local repo instead of downloading from GitHub
             install_timeout: Seconds before installer is considered hung (default 1800 = 30 min)
+            ssh_posture: Post-provision SSH posture: keep, key-only, or disable
+            ssh_pubkey: Optional path to local public key to install on Pi
+            lock_password: Lock the Pi user's password after provisioning
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -73,6 +78,11 @@ class ProvisioningManager:
         self.ssh_timeout = ssh_timeout
         self.local = local
         self.install_timeout = install_timeout
+        self.ssh_posture = ssh_posture
+        self.ssh_pubkey = Path(ssh_pubkey).expanduser() if ssh_pubkey else None
+        self.lock_password = lock_password
+        self.final_ssh_posture = "unchanged"
+        self.password_locked = False
 
         # Derive tarball filename and GitHub URL
         self.tarball_filename = f"PyRpiCamController-{self.release_version}.tar.gz"
@@ -366,6 +376,7 @@ class ProvisioningManager:
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
+            ("mkdir -p ~/shared/logs && [[ -w ~/shared/logs ]]", "Log directory writable"),
         ]
 
         for cmd, description in checks:
@@ -379,6 +390,67 @@ class ProvisioningManager:
         self.verify_ota_settings()
 
         print("\n  ✓ All verification checks passed")
+
+    def apply_post_provision_hardening(self):
+        """Apply v1 security baseline controls after successful provisioning."""
+        print("\n[6/6] Applying post-provision hardening...")
+
+        if self.ssh_pubkey:
+            if not self.ssh_pubkey.exists():
+                raise ProvisioningError(f"SSH public key file not found: {self.ssh_pubkey}")
+            pubkey_text = self.ssh_pubkey.read_text(encoding="utf-8").strip()
+            if not pubkey_text.startswith("ssh-"):
+                raise ProvisioningError(
+                    f"Invalid SSH public key format in: {self.ssh_pubkey}"
+                )
+            quoted_key = shlex.quote(pubkey_text)
+            self.ssh_run(
+                "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
+                "touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && "
+                f"grep -qxF {quoted_key} ~/.ssh/authorized_keys || echo {quoted_key} >> ~/.ssh/authorized_keys",
+                "Installing operator SSH public key",
+                check=True,
+            )
+
+        if self.ssh_posture == "key-only":
+            has_keys = self.ssh_run("test -s ~/.ssh/authorized_keys", check=False)
+            if has_keys.returncode != 0:
+                raise ProvisioningError(
+                    "Cannot enforce key-only SSH: no authorized keys found on device. "
+                    "Provide --ssh-pubkey or use --ssh-posture keep for this run."
+                )
+            self.ssh_run(
+                "printf '%s\n' "
+                "'PasswordAuthentication no' "
+                "'KbdInteractiveAuthentication no' "
+                "'ChallengeResponseAuthentication no' "
+                "'PubkeyAuthentication yes' "
+                "'PermitRootLogin no' "
+                "| sudo tee /etc/ssh/sshd_config.d/99-camcontroller-security.conf >/dev/null",
+                "Setting SSH to key-only auth",
+                check=True,
+            )
+            self.ssh_run("sudo systemctl reload ssh || sudo systemctl reload sshd", check=True)
+            self.final_ssh_posture = "key_only"
+        elif self.ssh_posture == "disable":
+            self.ssh_run(
+                "sudo systemctl disable --now ssh || sudo systemctl disable --now sshd",
+                "Disabling SSH service",
+                check=True,
+            )
+            self.final_ssh_posture = "disabled"
+        else:
+            self.final_ssh_posture = "unchanged"
+
+        if self.lock_password and self.ssh_posture in ("key-only", "disable"):
+            self.ssh_run(
+                f"sudo passwd -l {self.pi_user} >/dev/null 2>&1 || true",
+                "Locking local account password",
+                check=True,
+            )
+            self.password_locked = True
+
+        print("  ✓ Hardening complete")
 
     def verify_ota_settings(self):
         """Validate that OTA settings were written into settings_manager."""
@@ -459,9 +531,14 @@ class ProvisioningManager:
         print(f"IP Address:    {self.pi_ip}")
         print(f"Release:       {'local build' if self.local else self.release_tag}")
         print(f"Enrollment:    {'Skipped' if self.skip_enrollment else 'Complete'}")
+        print(f"SSH posture:   {self.final_ssh_posture}")
+        print(f"Password lock: {'Applied' if self.password_locked else 'Not applied'}")
         print("\nNext Steps:")
-        print("  1. Access the device via SSH:")
-        print(f"     ssh {self.pi_user}@{self.pi_ip}")
+        if self.final_ssh_posture == "disabled":
+            print("  1. SSH was disabled by policy; use local console for direct access")
+        else:
+            print("  1. Access the device via SSH:")
+            print(f"     ssh {self.pi_user}@{self.pi_ip}")
         print("  2. View logs for the camera controller:")
         print("     sudo journalctl -u camcontroller -f")
         print("  3. Check OTA update status:")
@@ -490,6 +567,7 @@ class ProvisioningManager:
                 self.enroll_device()
 
             self.verify_installation()
+            self.apply_post_provision_hardening()
             self.print_summary()
 
             return 0
@@ -531,6 +609,10 @@ Examples:
   # Reuse an existing hwconfig.py during install
   python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-04" "Garage" \\
       --skip-hwconfig --non-interactive
+
+    # Production hardening: install key and disable password SSH
+    python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Prod" "Warehouse" \
+            --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
         """
     )
 
@@ -572,6 +654,21 @@ Examples:
         help="Build tarball from local repo (git archive HEAD) and SCP to Pi instead of downloading from GitHub. "
              "Use when no GitHub release exists yet (e.g., during development)."
     )
+    parser.add_argument(
+        "--ssh-posture",
+        choices=["keep", "key-only", "disable"],
+        default="keep",
+        help="Post-provision SSH posture (default: keep). Use key-only or disable for production hardening."
+    )
+    parser.add_argument(
+        "--ssh-pubkey",
+        help="Path to a local SSH public key to install on the Pi before enforcing SSH posture"
+    )
+    parser.add_argument(
+        "--no-lock-password",
+        action="store_true",
+        help="Do not lock the Pi user's password when SSH posture is key-only or disable"
+    )
 
     args = parser.parse_args()
 
@@ -588,6 +685,9 @@ Examples:
         ssh_timeout=args.ssh_timeout,
         local=args.local,
         install_timeout=args.install_timeout,
+        ssh_posture=args.ssh_posture,
+        ssh_pubkey=args.ssh_pubkey,
+        lock_password=not args.no_lock_password,
     )
 
     return manager.provision()
