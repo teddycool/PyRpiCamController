@@ -302,6 +302,11 @@ class ProvisioningManager:
     def ensure_services_started(self):
         """Reload units and start core services after installation."""
         print("\n  → Ensuring services are started...", end=" ", flush=True)
+        self.ssh_run(
+            f"sudo mkdir -p /home/{self.pi_user}/ota /home/{self.pi_user}/shared/logs && "
+            f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}/ota /home/{self.pi_user}/shared",
+            check=True,
+        )
         self.ssh_run("sudo systemctl daemon-reload", check=True)
         self.ssh_run(
             "sudo systemctl enable camcontroller.service camcontroller-update.service",
@@ -372,6 +377,7 @@ class ProvisioningManager:
         print(f"  → {label}...", end=" ", flush=True)
         deadline = time.time() + timeout
         last_state = "unknown"
+        healed_namespace = False
 
         while time.time() < deadline:
             result = self.ssh_run(
@@ -385,6 +391,24 @@ class ProvisioningManager:
 
             if state:
                 last_state = state
+
+            if (not healed_namespace) and service_name == "camcontroller-update.service":
+                status_result = self.ssh_run(
+                    f"sudo systemctl --no-pager --full status {service_name} || true",
+                    check=False,
+                )
+                status_text = (status_result.stdout or "") + (status_result.stderr or "")
+                if "status=226/NAMESPACE" in status_text or "Failed to set up mount namespacing" in status_text:
+                    self.ssh_run(
+                        f"sudo mkdir -p /home/{self.pi_user}/ota /home/{self.pi_user}/shared/logs && "
+                        f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}/ota /home/{self.pi_user}/shared && "
+                        f"sudo chmod 755 /home/{self.pi_user}/ota",
+                        check=True,
+                    )
+                    self.ssh_run("sudo systemctl daemon-reload", check=True)
+                    self.ssh_run(f"sudo systemctl restart {service_name}", check=True)
+                    healed_namespace = True
+
             time.sleep(interval)
 
         print("✗")

@@ -464,14 +464,19 @@ def setup_directories():
     directories = [
         "/home/pi/shared",
         "/home/pi/shared/images", 
-        "/home/pi/shared/logs"
+        "/home/pi/shared/logs",
+        "/home/pi/ota",
     ]
     
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
-        os.chmod(directory, 0o777)
+        if directory.startswith("/home/pi/shared"):
+            os.chmod(directory, 0o777)
+        else:
+            os.chmod(directory, 0o755)
     
     run_cmd("sudo chown -R pi:pi /home/pi/shared")
+    run_cmd("sudo chown -R pi:pi /home/pi/ota")
     
     # Initialize install logging to shared directory now that it exists
     install_logger.set_shared_path("/home/pi/shared")
