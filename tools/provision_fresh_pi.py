@@ -40,7 +40,8 @@ class ProvisioningManager:
 
     def __init__(self, pi_ip, pi_user, release_version, device_name, location,
                  backend_url=None, non_interactive=False, skip_hwconfig=False,
-                 skip_enrollment=False, ssh_timeout=60, local=False):
+                 skip_enrollment=False, ssh_timeout=60, local=False,
+                 install_timeout=1800):
         """
         Initialize provisioning manager.
 
@@ -56,6 +57,7 @@ class ProvisioningManager:
             skip_enrollment: Don't run device enrollment
             ssh_timeout: SSH command timeout in seconds
             local: Build tarball from local repo instead of downloading from GitHub
+            install_timeout: Seconds before installer is considered hung (default 1800 = 30 min)
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -69,6 +71,7 @@ class ProvisioningManager:
         self.skip_enrollment = skip_enrollment
         self.ssh_timeout = ssh_timeout
         self.local = local
+        self.install_timeout = install_timeout
 
         # Derive tarball filename and GitHub URL
         self.tarball_filename = f"PyRpiCamController-{self.release_version}.tar.gz"
@@ -182,6 +185,32 @@ class ProvisioningManager:
             print(f"✗ ({e})")
             raise
 
+    def ssh_stream(self, command, timeout=1800):
+        """
+        Execute a long-running command on the Pi and stream output live to the
+        terminal. No capture — output flows directly to stdout/stderr.
+
+        Args:
+            command: Shell command to run
+            timeout: Timeout in seconds (default 1800 = 30 minutes)
+        """
+        ssh_cmd = ["ssh"] + self._base_ssh_opts() + ["-t", f"{self.pi_user}@{self.pi_ip}"]
+        try:
+            result = subprocess.run(
+                ssh_cmd + [command],
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise ProvisioningError(
+                f"Command timed out after {timeout}s ({timeout//60} min).\n"
+                f"  Command: {command}"
+            )
+        if result.returncode != 0:
+            raise ProvisioningError(
+                f"Command failed (exit {result.returncode}):\n  {command}"
+            )
+
     def scp_run(self, local_path, remote_path):
         """Copy a file to the Pi via SCP using the existing ControlMaster socket."""
         scp_cmd = ["scp"] + self._base_ssh_opts() + [str(local_path), f"{self.pi_user}@{self.pi_ip}:{remote_path}"]
@@ -262,9 +291,8 @@ class ProvisioningManager:
 
         cmd = f"cd ~/PyRpiCamController && {' '.join(installer_args)}"
 
-        # Note: installer may take 5-10 minutes
-        print("  (This may take 5-10 minutes, please wait...)\n")
-        self.ssh_run(cmd, "Running install-all-optimized.py", check=True)
+        print("  (Output streamed live — this can take 15–20 min on a Pi 3)\n")
+        self.ssh_stream(cmd, timeout=self.install_timeout)
 
         print("\n  ✓ Installation complete")
 
@@ -436,6 +464,10 @@ Examples:
         help="SSH command timeout in seconds (default: 60)"
     )
     parser.add_argument(
+        "--install-timeout", type=int, default=1800,
+        help="Timeout in seconds for the install step (default: 1800 = 30 min)"
+    )
+    parser.add_argument(
         "--local", action="store_true",
         help="Build tarball from local repo (git archive HEAD) and SCP to Pi instead of downloading from GitHub. "
              "Use when no GitHub release exists yet (e.g., during development)."
@@ -455,6 +487,7 @@ Examples:
         skip_enrollment=args.skip_enrollment,
         ssh_timeout=args.ssh_timeout,
         local=args.local,
+        install_timeout=args.install_timeout,
     )
 
     return manager.provision()
