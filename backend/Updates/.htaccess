@@ -33,11 +33,16 @@ RewriteEngine On
 # Device OTA endpoints (public, authenticated by api_key)
 RewriteRule ^api/ota/check$   api/ota_check.php  [L,QSA]
 RewriteRule ^api/ota/report$  api/ota_report.php [L,QSA]
+RewriteRule ^api/hardware_info$ api/hardware_info.php [L,QSA]
 
 # Admin API endpoints (protected by session)
 RewriteRule ^api/devices$   api/devices.php  [L,QSA]
 RewriteRule ^api/releases$  api/releases.php [L,QSA]
 RewriteRule ^api/logs$      api/logs.php     [L,QSA]
+RewriteRule ^api/enrollment/create$ api/enrollment_create.php [L,QSA]
+
+# One-time enrollment endpoint (public, token-based)
+RewriteRule ^api/enroll$ api/enroll.php [L,QSA]
 
 # Admin UI
 RewriteRule ^admin/?$  admin/admin_dashboard.php [L,QSA]

@@ -1,6 +1,6 @@
 {
   "admin_username": "admin",
-  "admin_password": "K7#mN9@pQ4*vX2!wZ8$rF6&hL3^dS5",
+  "admin_password": "SET_VIA_ENV_OR_LOCAL_UNTRACKED_FILE",
   "ota_server": "https://www.sensorwebben.se/pycamota",
-  "description": "OTA Admin Configuration for PyRpiCamController"
+  "description": "Template only. Do not store real credentials in git-tracked files."
 }
