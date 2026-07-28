@@ -153,6 +153,84 @@ Before submitting or approving a PR:
 - ✅ No secrets or credentials in code
 - ✅ Logger names are hierarchical (`cam.module.submodule`)
 
+## Release & Deployment Process
+
+### Automatic Release Workflow
+
+Releases are created automatically when you push a git tag to GitHub:
+
+```bash
+# 1. Ensure all changes are committed and pushed to main
+git checkout main
+git pull origin main
+
+# 2. Verify version number (check BUILD_SCRIPTS/VERSION or version_management_new.php)
+cat BUILD_SCRIPTS/VERSION
+
+# 3. Tag the release
+git tag v1.0.0    # Use format: vX.Y.Z
+
+# 4. Push tag to GitHub
+git push origin v1.0.0
+
+# 5. GitHub Actions automatically:
+#    - Creates a tarball from the tagged commit
+#    - Uploads it to GitHub Releases
+#    - Adds release notes with deployment instructions
+```
+
+### Deployment to Fresh Pi
+
+Once a release is published, deploy it to any fresh Pi using the provisioning script:
+
+```bash
+# From your dev machine
+python3 tools/provision_fresh_pi.py <pi_ip> <version> "<device_name>" "<location>" --non-interactive
+
+# Example
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" --non-interactive
+```
+
+See INSTALLATION.md for full provisioning details.
+
+### Release Contents
+
+Each release tarball contains:
+
+- Complete PyRpiCamController source code (from tagged commit)
+- Installation scripts and templates
+- Device enrollment and provisioning tools
+- All configuration files and examples
+- Documentation and API references
+
+### Versioning
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
+- **MAJOR:** Breaking changes or significant features
+- **MINOR:** New features, backwards compatible
+- **PATCH:** Bug fixes, minor improvements
+
+Example progression:
+```
+v1.0.0  → initial release
+v1.0.1  → bug fix
+v1.1.0  → new feature
+v2.0.0  → major breaking changes
+```
+
+### What NOT to Release
+
+Do not tag releases that:
+- Have failing tests
+- Are missing documentation updates
+- Include debug code or commented-out sections
+- Have known critical bugs
+- Are incomplete features
+
+Always test on actual hardware before tagging a release.
+
 ## Getting Help
 
 - **Architecture questions?** See ARCHITECTURE.md or `_doc/design.md`

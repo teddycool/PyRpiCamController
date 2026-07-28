@@ -1,0 +1,71 @@
+name: Create Release Tarball
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Creating release for ${VERSION}"
+
+      - name: Create tarball
+        run: |
+          git archive \
+            --format tar.gz \
+            --prefix PyRpiCamController/ \
+            --output PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz \
+            HEAD
+
+      - name: Verify tarball
+        run: |
+          ls -lh PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz
+          tar -tzf PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz | head -20
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz
+          body: |
+            # PyRpiCamController ${{ steps.version.outputs.version }}
+
+            This tarball contains the complete PyRpiCamController codebase ready for deployment to fresh Raspberry Pi devices.
+
+            ## Installation
+
+            See [INSTALLATION.md](https://github.com/teddycool/PyRpiCamController/blob/main/INSTALLATION.md) for setup instructions.
+
+            ### Quick Start (Fresh Pi)
+
+            ```bash
+            python3 provision_fresh_pi.py <pi_ip> ${{ steps.version.outputs.version }} "Camera-Name" "Location"
+            ```
+
+            For non-interactive installation:
+            ```bash
+            python3 provision_fresh_pi.py <pi_ip> ${{ steps.version.outputs.version }} "Camera-Name" "Location" --non-interactive
+            ```
+
+            See `tools/provision_fresh_pi.py --help` for all options.
+
+            ## Release Contents
+
+            - Complete PyRpiCamController source code
+            - Installation scripts (`tools/install-all-optimized.py`)
+            - Device enrollment tool (`tools/secure_enroll_device.py`)
+            - Fresh Pi provisioning script (`tools/provision_fresh_pi.py`)
+            - All dependencies and configuration templates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

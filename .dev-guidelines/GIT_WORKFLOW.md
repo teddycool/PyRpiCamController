@@ -164,12 +164,28 @@ Examples:
    ```bash
    git push origin main --tags
    ```
-3. **Build distribution packages** (if applicable):
+   
+   When the tag is pushed, **GitHub Actions automatically:**
+   - Creates a tarball from the tagged commit
+   - Uploads it to GitHub Releases
+   - Generates release notes with deployment instructions
+
+3. **Verify release on GitHub:**
+   - Visit [https://github.com/teddycool/PyRpiCamController/releases/](https://github.com/teddycool/PyRpiCamController/releases/)
+   - Confirm tarball is attached and release notes are present
+   - Check that tarball can be downloaded
+
+4. **Deploy to fresh Pis** using the provisioning script:
+   ```bash
+   python3 tools/provision_fresh_pi.py <pi_ip> 1.2.3 "Camera-Name" "Location" --non-interactive
+   ```
+
+5. **Build distribution packages** (if applicable):
    ```bash
    cd build-scripts
    python release_manager.py prepare 1.2.3
    ```
-4. **Archive release notes** (optional):
+6. **Archive release notes** (optional):
    ```bash
    cp RELEASE_NOTES.md releases/v1.2.3-RELEASE_NOTES.md
    ```
@@ -247,4 +263,30 @@ git reset --hard HEAD~1
 - `RELEASE_NOTES.md` — User-facing change summary
 - `ARCHITECTURE.md` — Technical documentation (update if structure changes)
 - `README.md` — Release readiness checklist and smoke test commands
-- `build-scripts/release_manager.py` — Automated release packaging
+- `build-scripts/release_manager.py` — Automated release packaging- `.github/workflows/create-release.yml` — GitHub Actions for automatic tarball creation
+- `tools/provision_fresh_pi.py` — Fresh Pi provisioning from release tarball
+
+## Deploying Releases to Fresh Pis
+
+Once a release is tagged and pushed, the provisioning script makes deployment simple:
+
+```bash
+# Non-interactive (quick, uses defaults for camera/features)
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.2.3 "Camera-Front" "Entryway" --non-interactive
+
+# Interactive (prompts for camera model, display, DS18B20, etc.)
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.2.3 "Camera-Front" "Entryway"
+
+# See all options
+python3 tools/provision_fresh_pi.py --help
+```
+
+**What the provisioning script does:**
+1. Connects to the fresh Pi via SSH
+2. Downloads the release tarball from GitHub
+3. Extracts PyRpiCamController and runs the installer
+4. Enrolls the device with the backend (gets API key)
+5. Verifies all services are running
+6. Reports success or failure
+
+No git, no manual setup—just a Pi with Pi OS and an IP address.
