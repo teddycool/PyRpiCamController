@@ -164,8 +164,8 @@ Releases are created automatically when you push a git tag to GitHub:
 git checkout main
 git pull origin main
 
-# 2. Verify version number (check BUILD_SCRIPTS/VERSION or version_management_new.php)
-cat BUILD_SCRIPTS/VERSION
+# 2. Verify version number (check build-scripts/VERSION or version_management_new.php)
+cat build-scripts/VERSION
 
 # 3. Tag the release
 git tag v1.0.0    # Use format: vX.Y.Z

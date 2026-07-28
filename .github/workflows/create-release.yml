@@ -18,7 +18,9 @@ jobs:
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          VERSION_NO_PREFIX=${VERSION#v}
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_no_prefix=${VERSION_NO_PREFIX}" >> $GITHUB_OUTPUT
           echo "Creating release for ${VERSION}"
 
       - name: Create tarball
@@ -26,18 +28,18 @@ jobs:
           git archive \
             --format tar.gz \
             --prefix PyRpiCamController/ \
-            --output PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz \
+            --output PyRpiCamController-${{ steps.version.outputs.version_no_prefix }}.tar.gz \
             HEAD
 
       - name: Verify tarball
         run: |
-          ls -lh PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz
-          tar -tzf PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz | head -20
+          ls -lh PyRpiCamController-${{ steps.version.outputs.version_no_prefix }}.tar.gz
+          tar -tzf PyRpiCamController-${{ steps.version.outputs.version_no_prefix }}.tar.gz | head -20
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: PyRpiCamController-${{ steps.version.outputs.version }}.tar.gz
+          files: PyRpiCamController-${{ steps.version.outputs.version_no_prefix }}.tar.gz
           body: |
             # PyRpiCamController ${{ steps.version.outputs.version }}
 

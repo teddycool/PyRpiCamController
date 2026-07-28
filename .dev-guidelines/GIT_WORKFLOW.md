@@ -215,7 +215,7 @@ If a release has critical bugs:
    ```
 2. **Create hotfix branch from tag:**
    ```bash
-   git checkout -b hotfix/version -b <good-tag>
+   git checkout -b hotfix/version <good-tag>
    ```
 3. **Fix the issue** and test
 4. **Commit with clear message:**
@@ -263,7 +263,8 @@ git reset --hard HEAD~1
 - `RELEASE_NOTES.md` — User-facing change summary
 - `ARCHITECTURE.md` — Technical documentation (update if structure changes)
 - `README.md` — Release readiness checklist and smoke test commands
-- `build-scripts/release_manager.py` — Automated release packaging- `.github/workflows/create-release.yml` — GitHub Actions for automatic tarball creation
+- `build-scripts/release_manager.py` — Automated release packaging
+- `.github/workflows/create-release.yml` — GitHub Actions for automatic tarball creation
 - `tools/provision_fresh_pi.py` — Fresh Pi provisioning from release tarball
 
 ## Deploying Releases to Fresh Pis

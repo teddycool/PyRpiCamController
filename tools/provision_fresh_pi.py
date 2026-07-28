@@ -26,9 +26,7 @@ Examples:
 import argparse
 import subprocess
 import sys
-import time
 from pathlib import Path
-from urllib.parse import urlparse
 
 
 class ProvisioningError(Exception):
@@ -59,7 +57,8 @@ class ProvisioningManager:
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
-        self.release_version = self._normalize_version(release_version)
+        self.release_tag = self._normalize_version(release_version)
+        self.release_version = self.release_tag.removeprefix("v")
         self.device_name = device_name
         self.location = location
         self.backend_url = backend_url
@@ -72,7 +71,7 @@ class ProvisioningManager:
         self.tarball_filename = f"PyRpiCamController-{self.release_version}.tar.gz"
         self.tarball_url = (
             f"https://github.com/teddycool/PyRpiCamController/releases/"
-            f"download/{self.release_version}/{self.tarball_filename}"
+            f"download/{self.release_tag}/{self.tarball_filename}"
         )
         self.repo_dir = Path(__file__).parent.parent
 
@@ -95,8 +94,14 @@ class ProvisioningManager:
         Returns:
             Completed process object
         """
-        ssh_cmd = ["ssh", "-o", "ConnectTimeout=10", f"{self.pi_user}@{self.pi_ip}"]
-        ssh_cmd.extend(["-o", "StrictHostKeyChecking=no"])
+        ssh_cmd = [
+            "ssh",
+            "-o", "ConnectTimeout=10",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "SendEnv=none",
+            f"{self.pi_user}@{self.pi_ip}",
+        ]
 
         if description:
             print(f"  → {description}...", end=" ", flush=True)
@@ -151,11 +156,16 @@ class ProvisioningManager:
 
     def download_and_extract(self):
         """Download and extract release tarball on Pi."""
-        print("\n[1/5] Downloading and extracting release {{}}...".format(self.release_version))
+        print("\n[1/5] Downloading and extracting release {}...".format(self.release_tag))
 
         commands = [
-            f"cd ~ && wget --quiet {self.tarball_url} -O {self.tarball_filename}",
-            f"tar -xzf ~/{self.tarball_filename}",
+            "command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1",
+            (
+                f"cd ~ && rm -rf PyRpiCamController && "
+                f"(wget --quiet {self.tarball_url} -O {self.tarball_filename} "
+                f"|| curl -fsSL {self.tarball_url} -o {self.tarball_filename})"
+            ),
+            f"cd ~ && tar -xzf {self.tarball_filename}",
             f"rm ~/{self.tarball_filename}",
             "ls -ld ~/PyRpiCamController && echo 'Extraction verified'",
         ]
@@ -194,7 +204,7 @@ class ProvisioningManager:
             )
 
         enroll_cmd = [
-            "python3",
+            sys.executable,
             str(self.repo_dir / "tools" / "secure_enroll_device.py"),
             "--host", self.pi_ip,
             "--name", self.device_name,
@@ -224,7 +234,7 @@ class ProvisioningManager:
             ("sudo systemctl is-active --quiet camcontroller", "Camera controller service"),
             ("sudo systemctl is-active --quiet camcontroller-update", "OTA update daemon"),
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
-            ("[[ -f /home/pi/.camcontroller_ota ]]", "OTA settings file"),
+            (f"[[ -f /home/{self.pi_user}/.camcontroller_ota ]]", "OTA settings file"),
         ]
 
         for cmd, description in checks:
@@ -245,7 +255,7 @@ class ProvisioningManager:
         print(f"\nDevice:        {self.device_name}")
         print(f"Location:      {self.location}")
         print(f"IP Address:    {self.pi_ip}")
-        print(f"Release:       {self.release_version}")
+        print(f"Release:       {self.release_tag}")
         print(f"Enrollment:    {'Skipped' if self.skip_enrollment else 'Complete'}")
         print("\nNext Steps:")
         print("  1. Access the device via SSH:")
@@ -264,7 +274,7 @@ class ProvisioningManager:
             print(f"PyRpiCamController Fresh Pi Provisioning")
             print("=" * 60)
             print(f"Target:   {self.pi_user}@{self.pi_ip}")
-            print(f"Release:  {self.release_version}")
+            print(f"Release:  {self.release_tag}")
             print(f"Device:   {self.device_name}")
             print(f"Location: {self.location}")
             print("=" * 60)
@@ -309,7 +319,7 @@ Examples:
   python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
       --backend-url https://admin.example.com --non-interactive
 
-  # Enroll existing Pi (skip installer)
+    # Reuse an existing hwconfig.py during install
   python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-04" "Garage" \\
       --skip-hwconfig --non-interactive
         """
