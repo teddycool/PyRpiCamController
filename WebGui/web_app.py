@@ -698,6 +698,8 @@ def apply_update():
         
     except Exception as e:
         _set_runtime_setting('OTA.update_status', 'error')
+        _set_runtime_setting('OTA.available_version', '')
+        _set_runtime_setting('OTA.changelog', '')
         return jsonify({'error': f'Failed to apply update: {str(e)}'}), 500
 
 

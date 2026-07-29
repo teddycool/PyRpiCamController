@@ -316,9 +316,24 @@ class UpdateManager:
 
             self.paths['install_path'].mkdir(parents=True, exist_ok=True)
 
+            excluded_names = {
+                '.git',
+                '__pycache__',
+                '.venv',
+                '.pytest_cache',
+                '.mypy_cache',
+            }
+
             for item in source_path.iterdir():
-                # Never touch git metadata during OTA updates
-                if item.name == '.git':
+                # Never copy repository metadata or local bootstrap/cache artifacts
+                name = item.name
+                if (
+                    name in excluded_names
+                    or name.startswith('.py')
+                    or 'bootstrap' in name.lower()
+                    or '(renamed)' in name.lower()
+                ):
+                    self.logger.info(f"Skipping non-deploy artifact in OTA payload: {name}")
                     continue
 
                 destination = self.paths['install_path'] / item.name
