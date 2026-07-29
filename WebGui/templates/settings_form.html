@@ -1566,6 +1566,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (data.success) {
                     showMessage(`Update application started. Backup ID: ${data.backup_id}`, 'success');
                     showUpdateProgress('Update applying - system will restart...', 95);
+                    startApplyStatusPolling();
                 } else {
                     showMessage(data.error || 'Failed to apply update', 'error');
                     hideUpdateProgress();
@@ -1576,6 +1577,39 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 showMessage('Failed to apply update', 'error');
                 hideUpdateProgress();
             });
+        }
+
+        function startApplyStatusPolling() {
+            const startedAt = Date.now();
+            const maxDurationMs = 5 * 60 * 1000;
+            const intervalMs = 5000;
+
+            const poll = () => {
+                fetch(`/api/updates/status?_t=${Date.now()}`, { cache: 'no-store' })
+                    .then(response => response.json())
+                    .then(updateInfo => {
+                        updateUpdateUI(updateInfo);
+
+                        const done = updateInfo.update_status === 'idle' || updateInfo.update_status === 'error';
+                        if (done) {
+                            if (updateInfo.update_status === 'idle' && !updateInfo.has_update) {
+                                showMessage('Update completed successfully', 'success');
+                            }
+                            return;
+                        }
+
+                        if (Date.now() - startedAt < maxDurationMs) {
+                            setTimeout(poll, intervalMs);
+                        }
+                    })
+                    .catch(() => {
+                        if (Date.now() - startedAt < maxDurationMs) {
+                            setTimeout(poll, intervalMs);
+                        }
+                    });
+            };
+
+            setTimeout(poll, intervalMs);
         }
 
         function toggleChangelog() {
