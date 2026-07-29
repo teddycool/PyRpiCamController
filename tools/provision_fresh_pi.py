@@ -336,6 +336,24 @@ class ProvisioningManager:
         )
         print("✓")
 
+    def _install_pubkey_on_pi(self):
+        """Install the operator SSH public key on the Pi (idempotent)."""
+        if not self.ssh_pubkey:
+            return
+        if not self.ssh_pubkey.exists():
+            raise ProvisioningError(f"SSH public key file not found: {self.ssh_pubkey}")
+        pubkey_text = self.ssh_pubkey.read_text(encoding="utf-8").strip()
+        if not pubkey_text.startswith("ssh-"):
+            raise ProvisioningError(f"Invalid SSH public key format in: {self.ssh_pubkey}")
+        quoted_key = shlex.quote(pubkey_text)
+        self.ssh_run(
+            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
+            "touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && "
+            f"grep -qxF {quoted_key} ~/.ssh/authorized_keys || echo {quoted_key} >> ~/.ssh/authorized_keys",
+            "Installing operator SSH public key (pre-enrollment)",
+            check=True,
+        )
+
     def enroll_device(self):
         """Enroll device from dev machine."""
         print("\n[4/5] Enrolling device with backend...")
@@ -345,6 +363,10 @@ class ProvisioningManager:
                 "secure_enroll_device.py not found in tools/ directory"
             )
 
+        # Install SSH key before enrollment so the subprocess can use it
+        # without an interactive password prompt.
+        self._install_pubkey_on_pi()
+
         enroll_cmd = [
             sys.executable,
             str(self.repo_dir / "tools" / "secure_enroll_device.py"),
@@ -353,11 +375,17 @@ class ProvisioningManager:
             "--location", self.location,
         ]
 
+        # Pass private key derived from --ssh-pubkey (strip .pub suffix)
+        if self.ssh_pubkey:
+            privkey = Path(str(self.ssh_pubkey).removesuffix(".pub"))
+            if privkey.exists():
+                enroll_cmd.extend(["--ssh-key", str(privkey)])
+
         if self.backend_url:
             enroll_cmd.extend(["--backend-url", self.backend_url])
 
         try:
-            subprocess.run(enroll_cmd, check=True, timeout=120)
+            subprocess.run(enroll_cmd, check=True, timeout=180)
             print("\n  ✓ Device enrollment successful")
         except subprocess.CalledProcessError as e:
             raise ProvisioningError(
@@ -365,7 +393,7 @@ class ProvisioningManager:
             )
         except subprocess.TimeoutExpired:
             raise ProvisioningError(
-                "Device enrollment timed out (120s)"
+                "Device enrollment timed out (180s)"
             )
 
     def verify_installation(self):
@@ -396,22 +424,9 @@ class ProvisioningManager:
         """Apply v1 security baseline controls after successful provisioning."""
         print("\n[6/6] Applying post-provision hardening...")
 
-        if self.ssh_pubkey:
-            if not self.ssh_pubkey.exists():
-                raise ProvisioningError(f"SSH public key file not found: {self.ssh_pubkey}")
-            pubkey_text = self.ssh_pubkey.read_text(encoding="utf-8").strip()
-            if not pubkey_text.startswith("ssh-"):
-                raise ProvisioningError(
-                    f"Invalid SSH public key format in: {self.ssh_pubkey}"
-                )
-            quoted_key = shlex.quote(pubkey_text)
-            self.ssh_run(
-                "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
-                "touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && "
-                f"grep -qxF {quoted_key} ~/.ssh/authorized_keys || echo {quoted_key} >> ~/.ssh/authorized_keys",
-                "Installing operator SSH public key",
-                check=True,
-            )
+        # Key is already installed by _install_pubkey_on_pi() before enrollment;
+        # idempotent call here is a no-op but ensures correctness if enrollment was skipped.
+        self._install_pubkey_on_pi()
 
         if self.ssh_posture == "key-only":
             has_keys = self.ssh_run("test -s ~/.ssh/authorized_keys", check=False)

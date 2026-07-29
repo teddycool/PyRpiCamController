@@ -56,6 +56,7 @@ class EnrollmentError(RuntimeError):
 
 
 _SSH_CONTROL_PATH: Optional[str] = None
+_SSH_IDENTITY_FILE: Optional[str] = None
 
 
 def run_cmd(cmd: List[str], capture: bool = True, check: bool = True, input_text: Optional[str] = None) -> subprocess.CompletedProcess:
@@ -74,7 +75,11 @@ def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: b
         "-o", "ControlMaster=auto",
         "-o", "ControlPersist=600",
         "-o", "SendEnv=none",       # suppress locale forwarding (avoids LC_ALL warnings on Pi)
+        "-o", "StrictHostKeyChecking=no",
     ]
+
+    if _SSH_IDENTITY_FILE:
+        cmd += ["-i", _SSH_IDENTITY_FILE]
 
     if _SSH_CONTROL_PATH:
         cmd += [
@@ -91,9 +96,12 @@ def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: b
     return run_cmd(cmd, capture=capture, check=True)
 
 
-def setup_ssh_session(host: str, ssh_user: str, ssh_port: int) -> None:
+def setup_ssh_session(host: str, ssh_user: str, ssh_port: int, identity_file: Optional[str] = None) -> None:
     """Initialize SSH ControlMaster so password is asked once and reused for this session."""
-    global _SSH_CONTROL_PATH
+    global _SSH_CONTROL_PATH, _SSH_IDENTITY_FILE
+
+    if identity_file:
+        _SSH_IDENTITY_FILE = identity_file
 
     if _SSH_CONTROL_PATH:
         return
@@ -106,11 +114,13 @@ def setup_ssh_session(host: str, ssh_user: str, ssh_port: int) -> None:
         "-o", "ControlMaster=auto",
         "-o", "ControlPersist=600",
         "-o", "SendEnv=none",       # suppress locale forwarding
+        "-o", "StrictHostKeyChecking=no",
         "-o", f"ControlPath={_SSH_CONTROL_PATH}",
         "-p", str(ssh_port),
-        f"{ssh_user}@{host}",
-        "true",
     ]
+    if _SSH_IDENTITY_FILE:
+        cmd += ["-i", _SSH_IDENTITY_FILE]
+    cmd += [f"{ssh_user}@{host}", "true"]
     run_cmd(cmd, capture=True, check=True)
 
 
@@ -395,6 +405,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", required=True, help="Pi hostname or IP")
     parser.add_argument("--ssh-user", default="pi", help="SSH user on Pi (default: pi)")
     parser.add_argument("--ssh-port", type=int, default=22, help="SSH port (default: 22)")
+    parser.add_argument("--ssh-key", default=None, help="Path to SSH private key file (skips password prompt)")
 
     parser.add_argument("--name", default="", help="Friendly device name")
     parser.add_argument("--location", default="", help="Location/note shown in admin")
@@ -430,7 +441,7 @@ def main() -> int:
 
     try:
         print("[0/7] Opening SSH session (password prompt once)...")
-        setup_ssh_session(args.host, args.ssh_user, args.ssh_port)
+        setup_ssh_session(args.host, args.ssh_user, args.ssh_port, identity_file=args.ssh_key)
 
         print("[1/7] Reading CPU serial from Pi over SSH...")
         cpu_id_raw = get_remote_cpu_serial(args.host, args.ssh_user, args.ssh_port)
