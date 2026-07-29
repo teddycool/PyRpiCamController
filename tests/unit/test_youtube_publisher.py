@@ -29,6 +29,30 @@ class TestYouTubePublisher:
         assert publisher._ffmpeg_process is None
         assert publisher._connection_active is False
 
+    def test_get_stats_snapshot(self):
+        publisher = YouTubePublisher()
+        publisher.enabled = True
+        publisher._connection_active = True
+
+        with publisher._stats_lock:
+            publisher._stats["started_at"] = time.time() - 10.0
+            publisher._stats["frame_attempts"] = 10
+            publisher._stats["frame_published"] = 8
+            publisher._stats["frame_dropped"] = 2
+            publisher._stats["publish_errors"] = 1
+            publisher._stats["total_publish_time_ms"] = 80.0
+            publisher._stats["max_publish_time_ms"] = 15.5
+            publisher._stats["last_publish_time_ms"] = 9.5
+
+        stats = publisher.get_stats()
+
+        assert stats["frame_attempts"] == 10
+        assert stats["frame_published"] == 8
+        assert stats["frame_dropped"] == 2
+        assert stats["published_fps"] > 0
+        assert stats["avg_publish_ms"] == 10.0
+        assert stats["max_publish_ms"] == 15.5
+
     def test_initialize_disabled(self):
         publisher = YouTubePublisher()
         settings = {"Cam": {"publishers": {"youtube": {"publish": {"value": False}}}}}

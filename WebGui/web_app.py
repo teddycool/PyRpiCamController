@@ -181,6 +181,7 @@ def stream_status():
             'ds18b20_available': False,
             'temperature_timestamp': None
         }
+        youtube_data = None
         
         try:
             runtime_status_file = "/tmp/cam_runtime_status.json"
@@ -194,6 +195,7 @@ def stream_status():
                             temperature_data['ds18b20_temperature'] = status_data.get('ds18b20_temperature')
                             temperature_data['ds18b20_available'] = status_data.get('ds18b20_available', False)
                             temperature_data['temperature_timestamp'] = status_data.get('timestamp')
+                            youtube_data = status_data.get('youtube')
                         break  # Success, exit retry loop
                     except (json_module.JSONDecodeError, IOError) as e:
                         if attempt < 2:  # Retry on first two attempts
@@ -257,6 +259,7 @@ def stream_status():
             'stream_clients': stream_clients,
             'stream_capture_mode': stream_capture_mode,
             'stream_idling': stream_idling,
+            'youtube': youtube_data,
         }
         
         # Add temperature data to response

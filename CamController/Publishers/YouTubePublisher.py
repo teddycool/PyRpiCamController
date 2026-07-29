@@ -43,8 +43,80 @@ class YouTubePublisher(PublisherBase):
         self._last_retry_time = 0.0
         self._connection_active = False
         self._lock = threading.Lock()
+        self._stats_lock = threading.Lock()
+        self._stats = {
+            "started_at": None,
+            "frame_attempts": 0,
+            "frame_published": 0,
+            "frame_dropped": 0,
+            "publish_errors": 0,
+            "total_publish_time_ms": 0.0,
+            "max_publish_time_ms": 0.0,
+            "last_publish_time_ms": None,
+            "last_success_time": None,
+            "last_error": None,
+            "last_frame_bytes": 0,
+        }
 
         logger.debug("YouTubePublisher initialized")
+
+    def _reset_stats(self):
+        with self._stats_lock:
+            self._stats = {
+                "started_at": time.time(),
+                "frame_attempts": 0,
+                "frame_published": 0,
+                "frame_dropped": 0,
+                "publish_errors": 0,
+                "total_publish_time_ms": 0.0,
+                "max_publish_time_ms": 0.0,
+                "last_publish_time_ms": None,
+                "last_success_time": None,
+                "last_error": None,
+                "last_frame_bytes": 0,
+            }
+
+    def _note_stat_error(self, message: str):
+        with self._stats_lock:
+            self._stats["frame_dropped"] += 1
+            self._stats["publish_errors"] += 1
+            self._stats["last_error"] = message
+
+    def get_stats(self):
+        """Return a snapshot of YouTube performance metrics."""
+        with self._stats_lock:
+            stats = dict(self._stats)
+
+        now = time.time()
+        started_at = stats.get("started_at")
+        runtime_seconds = max(0.0, now - started_at) if started_at else 0.0
+        published = stats.get("frame_published", 0) or 0
+        attempts = stats.get("frame_attempts", 0) or 0
+        avg_publish_ms = (
+            stats["total_publish_time_ms"] / published if published else 0.0
+        )
+
+        return {
+            "enabled": self.enabled,
+            "connection_active": self._connection_active,
+            "runtime_seconds": round(runtime_seconds, 1),
+            "frame_attempts": attempts,
+            "frame_published": published,
+            "frame_dropped": stats.get("frame_dropped", 0),
+            "publish_errors": stats.get("publish_errors", 0),
+            "published_fps": round(published / runtime_seconds, 2) if runtime_seconds > 0 else 0.0,
+            "attempt_fps": round(attempts / runtime_seconds, 2) if runtime_seconds > 0 else 0.0,
+            "avg_publish_ms": round(avg_publish_ms, 2),
+            "max_publish_ms": round(stats.get("max_publish_time_ms", 0.0), 2),
+            "last_publish_ms": stats.get("last_publish_time_ms"),
+            "last_success_age_s": round(now - stats["last_success_time"], 1) if stats.get("last_success_time") else None,
+            "last_error": stats.get("last_error"),
+            "drop_rate_percent": round((stats.get("frame_dropped", 0) / attempts) * 100.0, 1) if attempts else 0.0,
+            "retry_count": self._retry_count,
+            "retry_delay_s": self._retry_delay,
+            "process_pid": self._ffmpeg_process.pid if self._ffmpeg_process else None,
+            "last_frame_bytes": stats.get("last_frame_bytes", 0),
+        }
 
     def initialize(self, settings):
         """
@@ -96,6 +168,8 @@ class YouTubePublisher(PublisherBase):
             if not self.enabled:
                 logger.info("YouTube publisher is disabled")
                 return
+
+            self._reset_stats()
 
             # Validate protocol - YouTube requires RTMPS (secure), not plain RTMP
             if self.rtmps_url and not self.rtmps_url.startswith('rtmps://'):
@@ -276,11 +350,17 @@ class YouTubePublisher(PublisherBase):
             True if the frame was written successfully, False otherwise
         """
         if not self.enabled or not self._connection_active:
+            with self._stats_lock:
+                self._stats["frame_attempts"] += 1
+            self._note_stat_error("publisher_disabled_or_inactive")
             self._check_and_retry()
             return False
 
         try:
             with self._lock:
+                with self._stats_lock:
+                    self._stats["frame_attempts"] += 1
+
                 if self._ffmpeg_process is None or self._ffmpeg_process.poll() is not None:
                     poll_result = self._ffmpeg_process.poll() if self._ffmpeg_process else None
                     logger.warning(
@@ -288,22 +368,47 @@ class YouTubePublisher(PublisherBase):
                         poll_result
                     )
                     self._connection_active = False
+                    self._note_stat_error(f"ffmpeg_inactive_poll={poll_result}")
                     self._check_and_retry()
                     return False
 
                 frame_data = bytes(jpgimagedata) if isinstance(jpgimagedata, bytearray) else jpgimagedata
+
+                publish_start = time.perf_counter()
                 self._ffmpeg_process.stdin.write(frame_data)
                 self._ffmpeg_process.stdin.flush()
+                publish_ms = (time.perf_counter() - publish_start) * 1000.0
+
+                with self._stats_lock:
+                    self._stats["frame_published"] += 1
+                    self._stats["total_publish_time_ms"] += publish_ms
+                    self._stats["max_publish_time_ms"] = max(
+                        self._stats["max_publish_time_ms"],
+                        publish_ms,
+                    )
+                    self._stats["last_publish_time_ms"] = round(publish_ms, 2)
+                    self._stats["last_success_time"] = time.time()
+                    self._stats["last_error"] = None
+                    self._stats["last_frame_bytes"] = len(frame_data)
+
+                if publish_ms > 100.0:
+                    logger.warning(
+                        "YouTube publish is slow: %.1f ms for %d bytes",
+                        publish_ms,
+                        len(frame_data),
+                    )
                 return True
 
         except BrokenPipeError:
             logger.warning("FFmpeg pipe broken — connection lost")
             self._connection_active = False
+            self._note_stat_error("broken_pipe")
             self._check_and_retry()
             return False
         except Exception as e:
             logger.error("Failed to publish frame to YouTube: %s", e, exc_info=True)
             self._connection_active = False
+            self._note_stat_error(str(e))
             self._check_and_retry()
             return False
 

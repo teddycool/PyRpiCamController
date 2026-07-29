@@ -27,6 +27,11 @@ class StreamState(BaseState.BaseState):
         self._last_youtube_frame = 0.0
         self._youtube_frame_interval = 0.1          # ~10 FPS to YouTube
         self._youtube_frame_interval_with_clients = 0.2  # Relax when local viewers active
+        self._youtube_stats_lock = threading.Lock()
+        self._youtube_forward_frames_seen = 0
+        self._youtube_forward_frames_sent = 0
+        self._youtube_forward_frames_skipped = 0
+        self._youtube_forward_errors = 0
         return
 
     def initialize(self, settings):
@@ -50,6 +55,11 @@ class StreamState(BaseState.BaseState):
 
             # --- YouTube Live publisher ---
             self._last_youtube_frame = 0.0
+            with self._youtube_stats_lock:
+                self._youtube_forward_frames_seen = 0
+                self._youtube_forward_frames_sent = 0
+                self._youtube_forward_frames_skipped = 0
+                self._youtube_forward_errors = 0
             self._youtube_frame_interval = float(settings.get("Stream.youtube_frame_interval", 0.1))
             self._youtube_frame_interval_with_clients = float(
                 settings.get("Stream.youtube_frame_interval_with_clients", 0.2)
@@ -119,6 +129,9 @@ class StreamState(BaseState.BaseState):
                     if frame is None:
                         continue
 
+                    with self._youtube_stats_lock:
+                        self._youtube_forward_frames_seen += 1
+
                     # Throttle frame rate; use relaxed interval when local clients are active
                     now = time.time()
                     has_local_clients = bool(getattr(output, 'clients', 0) > 0)
@@ -129,12 +142,19 @@ class StreamState(BaseState.BaseState):
                     )
 
                     if now - self._last_youtube_frame < target_interval:
+                        with self._youtube_stats_lock:
+                            self._youtube_forward_frames_skipped += 1
                         continue
 
-                    self._youtube_publisher.publish(bytes(frame), metadata={"mode": "stream"})
-                    self._last_youtube_frame = now
+                    published = self._youtube_publisher.publish(bytes(frame), metadata={"mode": "stream"})
+                    if published:
+                        self._last_youtube_frame = now
+                        with self._youtube_stats_lock:
+                            self._youtube_forward_frames_sent += 1
 
                 except Exception as e:
+                    with self._youtube_stats_lock:
+                        self._youtube_forward_errors += 1
                     logger.warning("YouTube forwarder error: %s", e)
                     time.sleep(0.2)
 
@@ -161,6 +181,35 @@ class StreamState(BaseState.BaseState):
             except Exception as e:
                 logger.warning("Error cleaning up YouTube publisher: %s", e)
             self._youtube_publisher = None
+
+    def get_youtube_stats(self):
+        """Return a combined snapshot of YouTube forwarder and publisher performance."""
+        with self._youtube_stats_lock:
+            forwarder_stats = {
+                "forwarder_running": self._youtube_forward_running,
+                "frame_interval": self._youtube_frame_interval,
+                "frame_interval_with_clients": self._youtube_frame_interval_with_clients,
+                "frames_seen": self._youtube_forward_frames_seen,
+                "frames_sent": self._youtube_forward_frames_sent,
+                "frames_skipped": self._youtube_forward_frames_skipped,
+                "forward_errors": self._youtube_forward_errors,
+            }
+
+        publisher_stats = None
+        if self._youtube_publisher and hasattr(self._youtube_publisher, "get_stats"):
+            try:
+                publisher_stats = self._youtube_publisher.get_stats()
+            except Exception as e:
+                logger.debug("Failed to collect YouTube publisher stats: %s", e)
+
+        return {
+            "enabled": bool(self._youtube_publisher and getattr(self._youtube_publisher, "enabled", False)),
+            "running": bool(self._youtube_forward_running and self._youtube_publisher),
+            "frame_interval": self._youtube_frame_interval,
+            "frame_interval_with_clients": self._youtube_frame_interval_with_clients,
+            "forwarder": forwarder_stats,
+            "publisher": publisher_stats,
+        }
 
     def update(self, context):
         """Update streaming state - camera runs in background"""

@@ -817,6 +817,26 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                             <label>Capture Mode:</label>
                             <span id="streamCaptureMode">-</span>
                         </div>
+                        <div class="info-item" id="youtubeStatusItem" style="display: none;">
+                            <label>YouTube Live:</label>
+                            <span id="youtubeStatus">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeForwardFpsItem" style="display: none;">
+                            <label>YouTube Publish FPS:</label>
+                            <span id="youtubeForwardFps">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeAvgPublishItem" style="display: none;">
+                            <label>Avg Publish Time:</label>
+                            <span id="youtubeAvgPublishMs">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeMaxPublishItem" style="display: none;">
+                            <label>Max Publish Time:</label>
+                            <span id="youtubeMaxPublishMs">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeDroppedItem" style="display: none;">
+                            <label>YouTube Dropped:</label>
+                            <span id="youtubeDroppedFrames">-</span>
+                        </div>
                         <div class="info-item">
                             <label>View Stream:</label>
                             <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
@@ -1409,6 +1429,41 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
                 document.getElementById('streamClients').textContent = `${clientCount}`;
                 document.getElementById('streamCaptureMode').textContent = isIdling ? 'Idle' : 'Active';
+
+                const youtube = streamStatus.youtube;
+                const youtubeStatusItem = document.getElementById('youtubeStatusItem');
+                const youtubeForwardFpsItem = document.getElementById('youtubeForwardFpsItem');
+                const youtubeAvgPublishItem = document.getElementById('youtubeAvgPublishItem');
+                const youtubeMaxPublishItem = document.getElementById('youtubeMaxPublishItem');
+                const youtubeDroppedItem = document.getElementById('youtubeDroppedItem');
+                const youtubeStatus = document.getElementById('youtubeStatus');
+                const youtubeForwardFps = document.getElementById('youtubeForwardFps');
+                const youtubeAvgPublishMs = document.getElementById('youtubeAvgPublishMs');
+                const youtubeMaxPublishMs = document.getElementById('youtubeMaxPublishMs');
+                const youtubeDroppedFrames = document.getElementById('youtubeDroppedFrames');
+
+                if (youtube && youtube.enabled) {
+                    const publisher = youtube.publisher || {};
+                    const forwarder = youtube.forwarder || {};
+                    const runningText = youtube.running ? 'Running' : 'Enabled';
+                    if (youtubeStatus) youtubeStatus.textContent = `${runningText}`;
+                    if (youtubeForwardFps) youtubeForwardFps.textContent = `${Number(publisher.published_fps || 0).toFixed(2)} FPS`;
+                    if (youtubeAvgPublishMs) youtubeAvgPublishMs.textContent = `${Number(publisher.avg_publish_ms || 0).toFixed(1)} ms`;
+                    if (youtubeMaxPublishMs) youtubeMaxPublishMs.textContent = `${Number(publisher.max_publish_ms || 0).toFixed(1)} ms`;
+                    if (youtubeDroppedFrames) youtubeDroppedFrames.textContent = `${Number(publisher.frame_dropped || 0)} dropped / ${Number(forwarder.frames_seen || 0)} seen`;
+
+                    if (youtubeStatusItem) youtubeStatusItem.style.display = 'flex';
+                    if (youtubeForwardFpsItem) youtubeForwardFpsItem.style.display = 'flex';
+                    if (youtubeAvgPublishItem) youtubeAvgPublishItem.style.display = 'flex';
+                    if (youtubeMaxPublishItem) youtubeMaxPublishItem.style.display = 'flex';
+                    if (youtubeDroppedItem) youtubeDroppedItem.style.display = 'flex';
+                } else {
+                    if (youtubeStatusItem) youtubeStatusItem.style.display = 'none';
+                    if (youtubeForwardFpsItem) youtubeForwardFpsItem.style.display = 'none';
+                    if (youtubeAvgPublishItem) youtubeAvgPublishItem.style.display = 'none';
+                    if (youtubeMaxPublishItem) youtubeMaxPublishItem.style.display = 'none';
+                    if (youtubeDroppedItem) youtubeDroppedItem.style.display = 'none';
+                }
             } else {
                 statusLight.className = 'status-light stopped';
                 statusText.textContent = 'Streaming Stopped';

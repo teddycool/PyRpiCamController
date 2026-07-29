@@ -258,6 +258,15 @@ class MainLoop:
                 'ds18b20_temperature': self._ds18b20temp,
                 'ds18b20_available': self._ds18b20tempmonitor is not None
             }
+
+            current_state = getattr(self, '_currentstate', None)
+            if current_state and hasattr(current_state, 'get_youtube_stats'):
+                try:
+                    youtube_stats = current_state.get_youtube_stats()
+                    if youtube_stats:
+                        status_data['youtube'] = youtube_stats
+                except Exception as e:
+                    logger.debug("Failed to collect YouTube stats: %s", e)
             
             status_file = "/tmp/cam_runtime_status.json"
             # Write to temporary file first, then rename for atomic operation
