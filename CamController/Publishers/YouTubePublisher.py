@@ -9,6 +9,7 @@ import logging
 import os
 import threading
 import time
+import queue
 from urllib.parse import urlparse, urlunparse
 from .PublisherBase import PublisherBase
 
@@ -33,7 +34,7 @@ class YouTubePublisher(PublisherBase):
     def __init__(self):
         self.rtmps_url = ""
         self.stream_key = ""
-        self.bitrate = "2500k"
+        self.bitrate = "1500k"  # Reduced from 2500k for lower latency on Pi 3B+
         self.enabled = False
 
         self._ffmpeg_process = None
@@ -44,6 +45,12 @@ class YouTubePublisher(PublisherBase):
         self._connection_active = False
         self._lock = threading.Lock()
         self._stats_lock = threading.Lock()
+        
+        # Phase 2: Async frame publishing via queue (always initialized, worker thread started on demand)
+        self._publish_queue = queue.Queue(maxsize=30)  # Drop frames if network/encoder can't keep up
+        self._publish_thread = None
+        self._publish_thread_stop = False
+        
         self._stats = {
             "started_at": None,
             "frame_attempts": 0,
@@ -142,7 +149,7 @@ class YouTubePublisher(PublisherBase):
             self.enabled = bool(_setting_value(youtube_settings, "publish", False))
             self.rtmps_url = str(_setting_value(youtube_settings, "rtmps_url", "") or "").strip()
             self.stream_key = str(_setting_value(youtube_settings, "stream_key", "") or "").strip()
-            self.bitrate = str(_setting_value(youtube_settings, "bitrate", "2500k") or "2500k")
+            self.bitrate = str(_setting_value(youtube_settings, "bitrate", "1500k") or "1500k")
 
             # Normalize known YouTube ingest host variants to canonical host.
             # YouTube ingest is typically a.rtmp.youtube.com for both rtmp:// and rtmps://.
@@ -225,7 +232,8 @@ class YouTubePublisher(PublisherBase):
             #  - Add a silent stereo audio track (YouTube requires audio)
             #  - Encode video as H.264, audio as AAC
             #  - Output as FLV to RTMPS endpoint
-            bitrate_int = int(''.join(filter(str.isdigit, self.bitrate)) or '2500')
+            # Phase 1: ultrafast preset + lower bitrate for Pi 3B+ optimization
+            bitrate_int = int(''.join(filter(str.isdigit, self.bitrate)) or '1500')
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-hide_banner",
@@ -245,7 +253,7 @@ class YouTubePublisher(PublisherBase):
                 "-b:v", self.bitrate,           # Target video bitrate
                 "-maxrate", self.bitrate,
                 "-bufsize", f"{bitrate_int * 4}k",  # Buffer = 4× bitrate for smooth output
-                "-preset", "faster",            # Good quality/CPU tradeoff on Pi 4/5
+                "-preset", "ultrafast",         # Maximum speed for Pi 3B+; faster than 'faster' by ~30-50%
                 "-tune", "zerolatency",         # Low-latency streaming behaviour
                 "-c:a", "aac",                  # Audio codec
                 "-b:a", "96k",                  # Audio bitrate (silent source)
@@ -268,6 +276,9 @@ class YouTubePublisher(PublisherBase):
                 "FFmpeg process started (PID: %d) for YouTube streaming",
                 self._ffmpeg_process.pid
             )
+            
+            # Phase 2: Start background publish thread for async frame delivery
+            self._start_publish_thread()
 
         except FileNotFoundError:
             logger.error("FFmpeg not found — please install the ffmpeg package")
@@ -295,6 +306,89 @@ class YouTubePublisher(PublisherBase):
             )
             self.enabled = False
             self._connection_active = False
+
+    def _start_publish_thread(self):
+        """Start the background thread that publishes frames from queue to FFmpeg."""
+        if self._publish_thread is not None and self._publish_thread.is_alive():
+            return  # Already running
+        
+        # Create frame queue: max 30 frames (3 sec at 10 FPS) to allow burst but drop old frames on overflow
+        self._publish_queue = queue.Queue(maxsize=30)
+        self._publish_thread_stop = False
+        self._publish_thread = threading.Thread(
+            target=self._publish_worker,
+            daemon=False,
+            name="YouTubePublishWorker"
+        )
+        self._publish_thread.start()
+        logger.info("YouTube publish worker thread started")
+
+    def _publish_worker(self):
+        """Background worker thread: consume frames from queue and write to FFmpeg stdin."""
+        logger.debug("YouTube publish worker running")
+        while not self._publish_thread_stop:
+            try:
+                # Block with timeout to allow periodic checks
+                frame_data = self._publish_queue.get(timeout=0.5)
+                if frame_data is None:  # Sentinel to stop
+                    break
+                
+                # Now do the blocking FFmpeg write in background thread (doesn't block capture)
+                if not self._connection_active or self._ffmpeg_process is None:
+                    with self._stats_lock:
+                        self._stats["frame_dropped"] += 1
+                        self._stats["publish_errors"] += 1
+                    continue
+                
+                try:
+                    publish_start = time.perf_counter()
+                    self._ffmpeg_process.stdin.write(frame_data)
+                    self._ffmpeg_process.stdin.flush()
+                    publish_ms = (time.perf_counter() - publish_start) * 1000.0
+                    
+                    with self._stats_lock:
+                        self._stats["frame_published"] += 1
+                        self._stats["total_publish_time_ms"] += publish_ms
+                        self._stats["max_publish_time_ms"] = max(
+                            self._stats["max_publish_time_ms"],
+                            publish_ms,
+                        )
+                        self._stats["last_publish_time_ms"] = round(publish_ms, 2)
+                        self._stats["last_success_time"] = time.time()
+                        self._stats["last_error"] = None
+                        self._stats["last_frame_bytes"] = len(frame_data)
+                    
+                    # Log slow publishes (but less aggressively than before)
+                    if publish_ms > 150.0:
+                        logger.debug(
+                            "YouTube publish slow (async worker): %.1f ms for %d bytes",
+                            publish_ms,
+                            len(frame_data),
+                        )
+                except BrokenPipeError:
+                    logger.warning("FFmpeg pipe broken in publish worker")
+                    with self._stats_lock:
+                        self._stats["frame_dropped"] += 1
+                        self._stats["publish_errors"] += 1
+                        self._stats["last_error"] = "broken_pipe_worker"
+                    self._connection_active = False
+                    self._check_and_retry()
+                except Exception as e:
+                    logger.error("Publish worker error: %s", e)
+                    with self._stats_lock:
+                        self._stats["frame_dropped"] += 1
+                        self._stats["publish_errors"] += 1
+                        self._stats["last_error"] = str(e)
+                    self._connection_active = False
+                    self._check_and_retry()
+            except queue.Empty:
+                # Timeout waiting for frame — loop and check stop flag
+                pass
+            except Exception as e:
+                logger.error("Unexpected error in publish worker: %s", e, exc_info=True)
+                break
+        
+        logger.debug("YouTube publish worker exiting")
 
     def _check_and_retry(self):
         """Check whether FFmpeg is still alive and restart if a retry is due."""
@@ -340,82 +434,81 @@ class YouTubePublisher(PublisherBase):
 
     def publish(self, jpgimagedata, metadata=None):
         """
-        Write one JPEG frame into the FFmpeg stdin pipe.
+        Queue one JPEG frame for async publishing (non-blocking).
+        
+        Phase 2 optimization: This method no longer blocks on FFmpeg writes.
+        Instead, it adds the frame to a queue that a background worker thread
+        consumes. This allows the main capture thread to continue at full speed.
 
         Args:
             jpgimagedata: JPEG image data (bytes or bytearray)
             metadata:     Optional dict — not used for streaming, kept for API compat
 
         Returns:
-            True if the frame was written successfully, False otherwise
+            True if the frame was queued successfully, False otherwise
         """
+        with self._stats_lock:
+            self._stats["frame_attempts"] += 1
+        
         if not self.enabled or not self._connection_active:
-            with self._stats_lock:
-                self._stats["frame_attempts"] += 1
             self._note_stat_error("publisher_disabled_or_inactive")
             self._check_and_retry()
             return False
-
-        try:
-            with self._lock:
-                with self._stats_lock:
-                    self._stats["frame_attempts"] += 1
-
-                if self._ffmpeg_process is None or self._ffmpeg_process.poll() is not None:
-                    poll_result = self._ffmpeg_process.poll() if self._ffmpeg_process else None
-                    logger.warning(
-                        "YouTubePublisher: FFmpeg not active (poll=%s), skipping frame",
-                        poll_result
-                    )
-                    self._connection_active = False
-                    self._note_stat_error(f"ffmpeg_inactive_poll={poll_result}")
-                    self._check_and_retry()
-                    return False
-
-                frame_data = bytes(jpgimagedata) if isinstance(jpgimagedata, bytearray) else jpgimagedata
-
-                publish_start = time.perf_counter()
-                self._ffmpeg_process.stdin.write(frame_data)
-                self._ffmpeg_process.stdin.flush()
-                publish_ms = (time.perf_counter() - publish_start) * 1000.0
-
-                with self._stats_lock:
-                    self._stats["frame_published"] += 1
-                    self._stats["total_publish_time_ms"] += publish_ms
-                    self._stats["max_publish_time_ms"] = max(
-                        self._stats["max_publish_time_ms"],
-                        publish_ms,
-                    )
-                    self._stats["last_publish_time_ms"] = round(publish_ms, 2)
-                    self._stats["last_success_time"] = time.time()
-                    self._stats["last_error"] = None
-                    self._stats["last_frame_bytes"] = len(frame_data)
-
-                if publish_ms > 100.0:
-                    logger.warning(
-                        "YouTube publish is slow: %.1f ms for %d bytes",
-                        publish_ms,
-                        len(frame_data),
-                    )
-                return True
-
-        except BrokenPipeError:
-            logger.warning("FFmpeg pipe broken — connection lost")
+        
+        if self._ffmpeg_process is None or self._ffmpeg_process.poll() is not None:
+            poll_result = self._ffmpeg_process.poll() if self._ffmpeg_process else None
+            logger.debug(
+                "YouTubePublisher: FFmpeg not active (poll=%s), skipping frame",
+                poll_result
+            )
             self._connection_active = False
-            self._note_stat_error("broken_pipe")
+            self._note_stat_error(f"ffmpeg_inactive_poll={poll_result}")
             self._check_and_retry()
             return False
+        
+        # Convert to bytes if needed
+        frame_data = bytes(jpgimagedata) if isinstance(jpgimagedata, bytearray) else jpgimagedata
+        
+        # Try to queue frame without blocking the main thread
+        # If queue is full (backpressure), drop the oldest frame via Full exception
+        try:
+            self._publish_queue.put(frame_data, block=False)
+            return True
+        except queue.Full:
+            # Queue full: network/encoder can't keep up, drop frame
+            with self._stats_lock:
+                self._stats["frame_dropped"] += 1
+                self._stats["publish_errors"] += 1
+                self._stats["last_error"] = "queue_full_dropped"
+            logger.debug("YouTube publish queue full, dropping frame (network congestion)")
+            return False
         except Exception as e:
-            logger.error("Failed to publish frame to YouTube: %s", e, exc_info=True)
+            logger.error("Failed to queue frame to YouTube: %s", e, exc_info=True)
             self._connection_active = False
             self._note_stat_error(str(e))
             self._check_and_retry()
             return False
 
     def cleanup(self):
-        """Stop FFmpeg and release all resources."""
+        """Stop FFmpeg, publish worker thread, and release all resources."""
         logger.info("YouTubePublisher cleanup...")
         try:
+            # Stop the publish worker thread first
+            if self._publish_thread is not None:
+                self._publish_thread_stop = True
+                if self._publish_queue is not None:
+                    try:
+                        self._publish_queue.put(None, block=False)  # Sentinel to wake up worker
+                    except queue.Full:
+                        pass
+                try:
+                    self._publish_thread.join(timeout=2)
+                    logger.info("Publish worker thread stopped")
+                except Exception as e:
+                    logger.warning("Error stopping publish thread: %s", e)
+                self._publish_thread = None
+            
+            # Now stop FFmpeg
             with self._lock:
                 if self._ffmpeg_process is not None:
                     try:

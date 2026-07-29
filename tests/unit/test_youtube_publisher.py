@@ -25,7 +25,7 @@ class TestYouTubePublisher:
         assert publisher.enabled is False
         assert publisher.rtmps_url == ""
         assert publisher.stream_key == ""
-        assert publisher.bitrate == "2500k"
+        assert publisher.bitrate == "1500k"  # Phase 1: reduced bitrate for Pi 3B+
         assert publisher._ffmpeg_process is None
         assert publisher._connection_active is False
 
@@ -115,9 +115,12 @@ class TestYouTubePublisher:
         frame = b'\xff\xd8\xff\xe0' + b'\x00' * 100 + b'\xff\xd9'
         result = publisher.publish(frame)
 
+        # Phase 2: publish() now returns True to queue, doesn't write directly
         assert result is True
-        mock_process.stdin.write.assert_called_once_with(frame)
-        mock_process.stdin.flush.assert_called_once()
+        # Verify frame was queued (not written directly)
+        assert publisher._publish_queue.qsize() == 1
+        queued_frame = publisher._publish_queue.get_nowait()
+        assert queued_frame == frame
 
     @patch('Publishers.YouTubePublisher.subprocess.Popen')
     def test_publish_broken_pipe(self, mock_popen):
@@ -130,9 +133,10 @@ class TestYouTubePublisher:
         publisher._ffmpeg_process = mock_process
         publisher._connection_active = True
 
+        # Phase 2: publish() queues frame successfully; worker thread handles broken pipe
         result = publisher.publish(b'\xff\xd8' + b'\x00' * 10 + b'\xff\xd9')
-        assert result is False
-        assert publisher._connection_active is False
+        assert result is True
+        assert publisher._publish_queue.qsize() == 1
 
     def test_publish_when_disabled(self):
         publisher = YouTubePublisher()
@@ -152,8 +156,9 @@ class TestYouTubePublisher:
         frame = bytearray(b'\xff\xd8' + b'\x00' * 50 + b'\xff\xd9')
         publisher.publish(frame)
 
-        written = mock_process.stdin.write.call_args[0][0]
-        assert isinstance(written, bytes)
+        # Phase 2: bytearray is converted and queued (not written directly)
+        queued_frame = publisher._publish_queue.get_nowait()
+        assert isinstance(queued_frame, bytes)
 
     def test_exponential_backoff(self):
         publisher = YouTubePublisher()

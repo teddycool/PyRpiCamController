@@ -80,15 +80,15 @@ class TestYouTubePublisherIntegration:
                 "publish": {"value": True},
                 "rtmps_url": {"value": "rtmps://a.rtmp.youtube.com/live2"},
                 "stream_key": {"value": "test_key"},
-                # bitrate omitted → should default to 2500k
+                # bitrate omitted → should default to 1500k (Phase 1 optimization for Pi 3B+)
             }}}
         }
         publisher.initialize(settings)
-        assert publisher.bitrate == "2500k"
+        assert publisher.bitrate == "1500k"
 
     @patch('Publishers.YouTubePublisher.subprocess.Popen')
     def test_frame_publishing_flow(self, mock_popen):
-        """Simulate a short frame publishing sequence."""
+        """Simulate a short frame publishing sequence with async queue."""
         mock_process = MagicMock()
         mock_process.pid = 300
         mock_process.poll.return_value = None  # Always running
@@ -97,7 +97,7 @@ class TestYouTubePublisherIntegration:
         publisher = YouTubePublisher()
         publisher.rtmps_url = "rtmps://a.rtmp.youtube.com/live2"
         publisher.stream_key = "xxxx-xxxx-xxxx-xxxx"
-        publisher.bitrate = "2500k"
+        publisher.bitrate = "1500k"  # Phase 1 default
         publisher.enabled = True
         publisher._ffmpeg_process = mock_process
         publisher._connection_active = True
@@ -105,6 +105,8 @@ class TestYouTubePublisherIntegration:
         fake_jpeg = b'\xff\xd8\xff\xe0' + b'\xab' * 500 + b'\xff\xd9'
         for _ in range(10):
             result = publisher.publish(fake_jpeg)
+            # Phase 2: publish returns True when frame queued (not written directly)
             assert result is True
 
-        assert mock_process.stdin.write.call_count == 10
+        # Phase 2: frames are queued, not directly written
+        assert publisher._publish_queue.qsize() == 10
