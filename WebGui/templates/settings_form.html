@@ -869,8 +869,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             </div>
             
             <!-- Software Updates Panel -->
+            {% if current_level == 'basic' %}
             <div class="section updates">
-                <h3 class="section-title">📦 Software Updates</h3>
+                <h3 class="section-title">📦 Updates (OTA)</h3>
                 <div class="section-content">
                     <div class="update-status" id="updateStatus">
                         <div class="version-info">
@@ -926,6 +927,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Apply Changes Panel -->
             <div class="section apply-changes">
