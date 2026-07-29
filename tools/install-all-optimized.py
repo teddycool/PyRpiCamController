@@ -607,6 +607,12 @@ def setup_services():
         run_cmd(f"sudo chmod +x {self_heal_script}", check=False)
     else:
         log_step("WARNING", f"Self-heal script not found: {self_heal_script}")
+
+    wait_network_script = f"{PROJECT_ROOT}/Services/wait_for_real_network.sh"
+    if os.path.exists(wait_network_script):
+        run_cmd(f"sudo chmod +x {wait_network_script}", check=False)
+    else:
+        log_step("WARNING", f"Network wait script not found: {wait_network_script}")
     
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),
