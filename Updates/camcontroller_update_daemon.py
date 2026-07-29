@@ -9,6 +9,7 @@ import threading
 import signal
 import sys
 import os
+import pwd
 from pathlib import Path
 
 OTA_SHARED_DIR = Path('/home/pi/ota')
@@ -52,6 +53,12 @@ class UpdateDaemon:
     def _ensure_command_dir(self):
         """Ensure the shared OTA command directory exists."""
         OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            pi_user = pwd.getpwnam('pi')
+            os.chown(OTA_COMMAND_DIR, pi_user.pw_uid, pi_user.pw_gid)
+            os.chmod(OTA_COMMAND_DIR, 0o775)
+        except Exception as e:
+            self.logger.warning(f"Could not set OTA command dir ownership/permissions: {e}")
 
     def _set_runtime_setting(self, path, value):
         """Persist OTA runtime state, including readonly status fields."""

@@ -30,6 +30,16 @@ def _ensure_ota_command_dir():
     OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _ensure_ota_command_dir_writable():
+    """Validate that the OTA command directory is writable by the web process."""
+    _ensure_ota_command_dir()
+    if not os.access(OTA_COMMAND_DIR, os.W_OK):
+        raise PermissionError(
+            f"OTA command directory is not writable: {OTA_COMMAND_DIR}. "
+            "Fix ownership/permissions (expected writable by web service user)."
+        )
+
+
 def _set_runtime_setting(path, value):
     """Persist OTA runtime state, including readonly status fields."""
     settings_manager.set(path, value, save=True, allow_readonly=True)
@@ -572,6 +582,7 @@ def check_for_updates():
         settings_manager.load_user_settings()
 
         _ensure_ota_command_dir()
+        _ensure_ota_command_dir_writable()
         _set_runtime_setting('OTA.update_status', 'checking')
         now = time.strftime('%Y-%m-%d %H:%M:%S')
         _set_runtime_setting('OTA.last_check', now)
@@ -622,7 +633,7 @@ def check_for_updates():
             _set_runtime_setting('OTA.changelog', changelog)
             _set_runtime_setting('OTA.update_status', 'update_available')
             # Also drop trigger file so daemon can pick it up if running
-            _ensure_ota_command_dir()
+            _ensure_ota_command_dir_writable()
             (OTA_COMMAND_DIR / 'ota_check_trigger').write_text(f"manual check at {time.time()}")
             return jsonify({
                 'success': True,
@@ -656,6 +667,7 @@ def apply_update():
         settings_manager.load_user_settings()
 
         _ensure_ota_command_dir()
+        _ensure_ota_command_dir_writable()
 
         # Check if update is available
         # Use VERSION file as source-of-truth (same as /api/updates/status)

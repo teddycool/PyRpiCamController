@@ -320,8 +320,9 @@ class ProvisioningManager:
         """Reload units and start core services after installation."""
         print("\n  → Ensuring services are started...", end=" ", flush=True)
         self.ssh_run(
-            f"sudo mkdir -p /home/{self.pi_user}/ota /home/{self.pi_user}/shared/logs && "
-            f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}/ota /home/{self.pi_user}/shared",
+            f"sudo mkdir -p /home/{self.pi_user}/ota/commands /home/{self.pi_user}/shared/logs && "
+            f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}/ota /home/{self.pi_user}/shared && "
+            f"sudo chmod 775 /home/{self.pi_user}/ota/commands",
             check=True,
         )
         self.ssh_run("sudo systemctl daemon-reload", check=True)
@@ -494,9 +495,10 @@ class ProvisioningManager:
                 status_text = (status_result.stdout or "") + (status_result.stderr or "")
                 if "status=226/NAMESPACE" in status_text or "Failed to set up mount namespacing" in status_text:
                     self.ssh_run(
-                        f"sudo mkdir -p /home/{self.pi_user}/ota /home/{self.pi_user}/shared/logs && "
+                        f"sudo mkdir -p /home/{self.pi_user}/ota/commands /home/{self.pi_user}/shared/logs && "
                         f"sudo chown -R {self.pi_user}:{self.pi_user} /home/{self.pi_user}/ota /home/{self.pi_user}/shared && "
-                        f"sudo chmod 755 /home/{self.pi_user}/ota",
+                        f"sudo chmod 755 /home/{self.pi_user}/ota && "
+                        f"sudo chmod 775 /home/{self.pi_user}/ota/commands",
                         check=True,
                     )
                     self.ssh_run("sudo systemctl daemon-reload", check=True)

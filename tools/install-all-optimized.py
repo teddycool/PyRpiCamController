@@ -466,6 +466,7 @@ def setup_directories():
         "/home/pi/shared/images", 
         "/home/pi/shared/logs",
         "/home/pi/ota",
+        "/home/pi/ota/commands",
     ]
     
     for directory in directories:
@@ -477,6 +478,7 @@ def setup_directories():
     
     run_cmd("sudo chown -R pi:pi /home/pi/shared")
     run_cmd("sudo chown -R pi:pi /home/pi/ota")
+    run_cmd("sudo chmod 775 /home/pi/ota/commands", check=False)
     
     # Initialize install logging to shared directory now that it exists
     install_logger.set_shared_path("/home/pi/shared")
