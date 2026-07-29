@@ -194,7 +194,7 @@ class UpdateManager:
                 
         except Exception as e:
             self.logger.error(f"Error checking for updates: {e}")
-            return None
+            raise
             
     def download_update(self, update_info):
         """Download and verify update package."""

@@ -132,23 +132,9 @@ class StreamState(BaseState.BaseState):
                     with self._youtube_stats_lock:
                         self._youtube_forward_frames_seen += 1
 
-                    # Throttle frame rate; use relaxed interval when local clients are active
-                    now = time.time()
-                    has_local_clients = bool(getattr(output, 'clients', 0) > 0)
-                    target_interval = (
-                        self._youtube_frame_interval_with_clients
-                        if has_local_clients
-                        else self._youtube_frame_interval
-                    )
-
-                    if now - self._last_youtube_frame < target_interval:
-                        with self._youtube_stats_lock:
-                            self._youtube_forward_frames_skipped += 1
-                        continue
-
                     published = self._youtube_publisher.publish(bytes(frame), metadata={"mode": "stream"})
                     if published:
-                        self._last_youtube_frame = now
+                        self._last_youtube_frame = time.time()
                         with self._youtube_stats_lock:
                             self._youtube_forward_frames_sent += 1
 

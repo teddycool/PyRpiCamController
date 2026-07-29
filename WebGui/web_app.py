@@ -25,6 +25,30 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
 
 
+def _normalize_update_status(update_info: dict) -> dict:
+    """Avoid leaving the UI stuck in 'checking' when the last check is stale."""
+    if update_info.get('update_status') != 'checking':
+        return update_info
+
+    last_check = update_info.get('last_check')
+    if not last_check:
+        return update_info
+
+    try:
+        last_check_dt = datetime.datetime.strptime(last_check, '%Y-%m-%d %H:%M:%S')
+        age_seconds = (datetime.datetime.now() - last_check_dt).total_seconds()
+    except Exception:
+        return update_info
+
+    if age_seconds > 90:
+        normalized = dict(update_info)
+        normalized['update_status'] = 'error'
+        normalized['status_message'] = 'Previous update check appears stuck or failed.'
+        return normalized
+
+    return update_info
+
+
 def _ensure_ota_command_dir():
     """Ensure the OTA command directory exists for web/daemon coordination."""
     OTA_COMMAND_DIR.mkdir(parents=True, exist_ok=True)
@@ -566,6 +590,8 @@ def get_update_status():
             update_info['available_version'] != current_version and
             update_info['available_version'] != ''):
             update_info['has_update'] = True
+
+        update_info = _normalize_update_status(update_info)
             
         response = jsonify(update_info)
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
