@@ -976,17 +976,21 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             setupAutoSave();
             initStreamingControls();
             initApplyControls();
-            initUpdateControls();
             updateStreamStatus();
             updateTemperatureStatus();
             updatePendingChanges();
-            updateUpdateStatus();
+
+            // OTA panel is rendered only on basic tab.
+            if (document.getElementById('checkUpdatesBtn')) {
+                initUpdateControls();
+                updateUpdateStatus();
+                setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
+            }
             
             // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
             setInterval(updateTemperatureStatus, 10000);
             setInterval(updatePendingChanges, 10000);
-            setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
         });
 
         // Auto-save functionality with change tracking
@@ -1485,12 +1489,24 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         // Update Management Functions
         function initUpdateControls() {
             // Set up event listeners for update buttons
-            document.getElementById('checkUpdatesBtn').addEventListener('click', checkForUpdates);
-            document.getElementById('viewChangelogBtn').addEventListener('click', toggleChangelog);
-            document.getElementById('applyUpdateBtn').addEventListener('click', applyUpdate);
+            const checkBtn = document.getElementById('checkUpdatesBtn');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            const applyBtn = document.getElementById('applyUpdateBtn');
+
+            if (!checkBtn || !changelogBtn || !applyBtn) {
+                return;
+            }
+
+            checkBtn.addEventListener('click', checkForUpdates);
+            changelogBtn.addEventListener('click', toggleChangelog);
+            applyBtn.addEventListener('click', applyUpdate);
         }
 
         function updateUpdateStatus() {
+            if (!document.getElementById('checkUpdatesBtn')) {
+                return;
+            }
+
             fetch(`/api/updates/status?_t=${Date.now()}`, { cache: 'no-store' })
                 .then(response => response.json())
                 .then(data => {
