@@ -394,6 +394,58 @@
             "web_editable": true,
             "level": "advanced"
           }
+        },
+        "youtube": {
+          "publish": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "YouTube Live-strömning",
+              "section": "Kamera",
+              "description": "Aktivera YouTube Live-strömning parallellt med lokal MJPEG-stream",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "rtmps_url": {
+            "value": "",
+            "type": "text",
+            "ui": {
+              "name": "YouTube RTMPS URL",
+              "section": "Kamera",
+              "description": "YouTube RTMPS ingest-URL från YouTube Studio (utan stream-nyckel), t.ex. rtmps://a.rtmp.youtube.com/live2",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "stream_key": {
+            "value": "",
+            "type": "password",
+            "ui": {
+              "name": "YouTube Stream-nyckel",
+              "section": "Kamera",
+              "description": "Din unika stream-nyckel från YouTube Studio (visas aldrig i gränssnittet)",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "bitrate": {
+            "value": "2500k",
+            "type": "enum",
+            "options": [
+              "1500k",
+              "2500k",
+              "4000k",
+              "6000k"
+            ],
+            "ui": {
+              "name": "YouTube Bitrate",
+              "section": "Kamera",
+              "description": "Video-bitrate: 1500k (låg/USB), 2500k (standard), 4000k (bra), 6000k (hög, fiber)",
+              "level": "advanced"
+            },
+            "web_editable": true
+          }
         }
       },
       "format": {

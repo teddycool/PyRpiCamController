@@ -99,7 +99,7 @@ Use this as the default production setup path. Run from your dev machine and pro
    Example:
 
    ```bash
-      python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" \
+      python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.3 "Camera-Front" "Entryway" \
          --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
    ```
 
