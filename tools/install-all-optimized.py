@@ -457,6 +457,53 @@ enable_nuke: 0
     log_step("COMITUP", "ComitUp setup completed - WiFi unblocked and will start when no network is available")
     return True
 
+def setup_os_security_updates():
+    """Configure unattended OS security updates for production devices."""
+    log_step("SECURITY", "Configuring unattended OS security updates...")
+
+    if not run_apt_command("install -y unattended-upgrades apt-listchanges", retries=3, timeout=1800):
+        log_step("WARNING", "Failed to install unattended-upgrades packages")
+        return False
+
+    auto_upgrades_conf = """APT::Periodic::Update-Package-Lists \"1\";
+APT::Periodic::Download-Upgradeable-Packages \"1\";
+APT::Periodic::Unattended-Upgrade \"1\";
+APT::Periodic::AutocleanInterval \"7\";
+"""
+
+    unattended_conf = """Unattended-Upgrade::Origins-Pattern {
+        \"origin=Debian,codename=${distro_codename}-security,label=Debian-Security\";
+        \"origin=Raspberry Pi Foundation,codename=${distro_codename},label=Raspberry Pi Foundation\";
+        \"origin=Raspbian,codename=${distro_codename},label=Raspbian\";
+};
+
+Unattended-Upgrade::Package-Blacklist {
+};
+
+Unattended-Upgrade::Remove-Unused-Dependencies \"true\";
+Unattended-Upgrade::Automatic-Reboot \"false\";
+Unattended-Upgrade::Automatic-Reboot-Time \"03:30\";
+Unattended-Upgrade::SyslogEnable \"true\";
+"""
+
+    with open('/tmp/20auto-upgrades', 'w', encoding='utf-8') as f:
+        f.write(auto_upgrades_conf)
+    with open('/tmp/52camcontroller-unattended-upgrades', 'w', encoding='utf-8') as f:
+        f.write(unattended_conf)
+
+    run_cmd("sudo mv /tmp/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades")
+    run_cmd("sudo mv /tmp/52camcontroller-unattended-upgrades /etc/apt/apt.conf.d/52camcontroller-unattended-upgrades")
+    run_cmd("sudo chown root:root /etc/apt/apt.conf.d/20auto-upgrades /etc/apt/apt.conf.d/52camcontroller-unattended-upgrades")
+    run_cmd("sudo chmod 644 /etc/apt/apt.conf.d/20auto-upgrades /etc/apt/apt.conf.d/52camcontroller-unattended-upgrades")
+
+    run_cmd("sudo systemctl enable apt-daily.timer apt-daily-upgrade.timer", check=False)
+    run_cmd("sudo systemctl restart apt-daily.timer apt-daily-upgrade.timer", check=False)
+    run_cmd("sudo systemctl enable unattended-upgrades.service", check=False)
+    run_cmd("sudo systemctl restart unattended-upgrades.service", check=False)
+
+    log_step("SECURITY", "Unattended OS security updates configured")
+    return True
+
 def setup_directories():
     """Create all needed directories"""
     log_step("DIRS", "Creating directory structure...")
@@ -860,6 +907,9 @@ def main():
         
         # ComitUp setup (WiFi management)
         setup_comitup()
+
+        # OS security patching (unattended-upgrades)
+        setup_os_security_updates()
         
         # Directory structure
         setup_directories()
