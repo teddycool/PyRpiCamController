@@ -270,7 +270,7 @@ class UpdateManager:
             self.logger.error(f"Error creating backup: {e}")
             raise
             
-    def install_update(self, update_package_path):
+    def install_update(self, update_package_path, target_version=None):
         """Install the downloaded update package."""
         try:
             # Extract to temporary location
@@ -347,17 +347,21 @@ class UpdateManager:
             self._set_permissions()
 
             # Ensure VERSION file exists and matches target version
-            target_version = None
-            try:
-                match = re.search(r"(\d+\.\d+\.\d+)", update_package_path.name)
-                if match:
-                    target_version = match.group(1)
-            except Exception:
-                target_version = None
+            # Prefer the backend-reported version, fall back to archive filename.
+            if not target_version:
+                try:
+                    match = re.search(r"(\d+\.\d+\.\d+)", update_package_path.name)
+                    if match:
+                        target_version = match.group(1)
+                except Exception:
+                    target_version = None
 
             version_file = self.paths['install_path'] / 'VERSION'
-            if not version_file.exists() and target_version:
+            if target_version:
                 version_file.write_text(f"{target_version}\n")
+                self.logger.info(f"VERSION updated to {target_version}")
+            else:
+                self.logger.warning("Could not determine target version; VERSION file left unchanged")
             
             self.logger.info("Update installation completed")
             
@@ -461,7 +465,7 @@ class UpdateManager:
             package_path = self.download_update(update_info)
             
             # Install update
-            self.install_update(package_path)
+            self.install_update(package_path, update_info.get('version'))
             
             # Verify installation
             if self.verify_update():
