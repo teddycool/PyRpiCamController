@@ -1,11 +1,9 @@
 [Unit]
 Description=CamController service
-After=network-online.target
-Wants=network-online.target
+After=network.target
+Wants=network.target
 After=pigpiod.service
 Wants=pigpiod.service
-# Ensure ComitUp has had chance to provide network connectivity
-After=comitup.service
 
 [Service]
 Type=simple

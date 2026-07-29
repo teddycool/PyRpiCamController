@@ -1,10 +1,8 @@
 # /etc/systemd/system/camcontroller-web.service
 [Unit]
 Description=CamController Web Interface - Gunicorn-instans for att servera Flask kamerainstallningar
-After=network-online.target camcontroller.service
-Wants=network-online.target
-# Start after main controller service and ensure ComitUp has had chance to provide network
-After=comitup.service
+After=network.target camcontroller.service
+Wants=network.target
 [Service]
 User=pi
 Group=pi
