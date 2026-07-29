@@ -1,0 +1,64 @@
+name: Provisioning Security Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature-*
+
+jobs:
+  cli-security-policy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fail insecure production invocation
+        run: |
+          set +e
+          python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab --production --validate-only > /tmp/out.txt 2> /tmp/err.txt
+          exit_code=$?
+          set -e
+
+          if [ "$exit_code" -eq 0 ]; then
+            echo "Expected failure for insecure production invocation, but command succeeded"
+            cat /tmp/out.txt
+            cat /tmp/err.txt
+            exit 1
+          fi
+
+          grep -q -- "--production requires --ssh-posture key-only or --ssh-posture disable" /tmp/err.txt
+
+      - name: Pass secure production invocation (key-only)
+        run: |
+          python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab \
+            --production --ssh-posture key-only --validate-only
+
+      - name: Fail production invocation without password lock
+        run: |
+          set +e
+          python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab \
+            --production --ssh-posture disable --no-lock-password --validate-only > /tmp/out2.txt 2> /tmp/err2.txt
+          exit_code=$?
+          set -e
+
+          if [ "$exit_code" -eq 0 ]; then
+            echo "Expected failure when disabling password lock in production, but command succeeded"
+            cat /tmp/out2.txt
+            cat /tmp/err2.txt
+            exit 1
+          fi
+
+          grep -q -- "--production does not allow --no-lock-password" /tmp/err2.txt
+
+      - name: Pass secure production invocation (disable SSH)
+        run: |
+          python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab \
+            --production --ssh-posture disable --validate-only

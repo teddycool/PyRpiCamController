@@ -1,14 +1,13 @@
 # /etc/systemd/system/camcontroller-web.service
 [Unit]
 Description=CamController Web Interface - Gunicorn-instans for att servera Flask kamerainstallningar
-After=network-online.target camcontroller.service
-Wants=network-online.target
-# Start after main controller service and ensure ComitUp has had chance to provide network
-After=comitup.service
+After=network.target camcontroller.service
+Wants=network.target
 [Service]
 User=pi
 Group=pi
 WorkingDirectory=/home/pi/PyRpiCamController/WebGui
+ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/wait_for_real_network.sh
 # If installed via apt:
 ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 web_app:app
 # Uses port 80 when ComitUp is not running (network available)

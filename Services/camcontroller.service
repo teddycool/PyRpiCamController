@@ -1,15 +1,14 @@
 [Unit]
 Description=CamController service
-After=network-online.target
-Wants=network-online.target
+After=network.target
+Wants=network.target
 After=pigpiod.service
 Wants=pigpiod.service
-# Ensure ComitUp has had chance to provide network connectivity
-After=comitup.service
 
 [Service]
 Type=simple
 ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/self_heal_shared.sh
+ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/wait_for_real_network.sh
 ExecStartPre=/bin/bash -c 'chown pi:pi /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'chmod 664 /home/pi/PyRpiCamController/Settings/user_settings.json 2>/dev/null || true'
 ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/CamController/Main.py

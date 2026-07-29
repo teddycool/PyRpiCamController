@@ -316,9 +316,24 @@ class UpdateManager:
 
             self.paths['install_path'].mkdir(parents=True, exist_ok=True)
 
+            excluded_names = {
+                '.git',
+                '__pycache__',
+                '.venv',
+                '.pytest_cache',
+                '.mypy_cache',
+            }
+
             for item in source_path.iterdir():
-                # Never touch git metadata during OTA updates
-                if item.name == '.git':
+                # Never copy repository metadata or local bootstrap/cache artifacts
+                name = item.name
+                if (
+                    name in excluded_names
+                    or name.startswith('.py')
+                    or 'bootstrap' in name.lower()
+                    or '(renamed)' in name.lower()
+                ):
+                    self.logger.info(f"Skipping non-deploy artifact in OTA payload: {name}")
                     continue
 
                 destination = self.paths['install_path'] / item.name
@@ -453,11 +468,14 @@ class UpdateManager:
                 self.logger.info("=== OTA Update Completed Successfully ===")
                 self._report_update_status('success', update_info)
                 
-                # Optional: Reboot system
+                # Reload systemd in case service unit files changed
+                subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=False)
+
+                # Only reboot when the backend explicitly requires it (e.g. boot config changes)
                 if update_info.get('requires_reboot', False):
                     self.logger.info("Update requires reboot - rebooting in 30 seconds")
                     time.sleep(30)
-                    subprocess.run(['systemctl', 'reboot'], check=False)
+                    subprocess.run(['sudo', 'systemctl', 'reboot'], check=False)
                 
                 return True
             else:

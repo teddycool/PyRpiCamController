@@ -466,6 +466,7 @@ def setup_directories():
         "/home/pi/shared/images", 
         "/home/pi/shared/logs",
         "/home/pi/ota",
+        "/home/pi/ota/commands",
     ]
     
     for directory in directories:
@@ -477,6 +478,7 @@ def setup_directories():
     
     run_cmd("sudo chown -R pi:pi /home/pi/shared")
     run_cmd("sudo chown -R pi:pi /home/pi/ota")
+    run_cmd("sudo chmod 775 /home/pi/ota/commands", check=False)
     
     # Initialize install logging to shared directory now that it exists
     install_logger.set_shared_path("/home/pi/shared")
@@ -525,6 +527,24 @@ def setup_samba():
     run_cmd("sudo find /home/pi/shared -type f -exec chmod 666 {} +", check=False)
     
     return True
+
+def setup_camera_boot_config():
+    """Ensure gpu_mem is sufficient for PiCam3 DMA allocation."""
+    log_step("CAMERA", "Checking GPU memory allocation...")
+
+    config_paths = ["/boot/firmware/config.txt", "/boot/config.txt"]
+    config_path = next((p for p in config_paths if os.path.exists(p)), None)
+    if not config_path:
+        log_step("WARNING", "Boot config not found - gpu_mem not set")
+        return
+
+    existing = run_cmd(f"grep -E '^gpu_mem' {config_path} || true", capture=True, check=False)
+    if existing:
+        log_step("CAMERA", f"gpu_mem already set ({existing.strip()}) - skipping")
+    else:
+        run_cmd(f"sudo sed -i '/\\[all\\]/a gpu_mem=256' {config_path}")
+        log_step("CAMERA", "gpu_mem=256 added to boot config (reboot required)")
+
 
 def setup_ds18b20_hardware():
     """Configure DS18B20 1-wire temperature sensor hardware support"""
@@ -587,6 +607,12 @@ def setup_services():
         run_cmd(f"sudo chmod +x {self_heal_script}", check=False)
     else:
         log_step("WARNING", f"Self-heal script not found: {self_heal_script}")
+
+    wait_network_script = f"{PROJECT_ROOT}/Services/wait_for_real_network.sh"
+    if os.path.exists(wait_network_script):
+        run_cmd(f"sudo chmod +x {wait_network_script}", check=False)
+    else:
+        log_step("WARNING", f"Network wait script not found: {wait_network_script}")
     
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),
@@ -846,6 +872,9 @@ def main():
             log_step("HWCONFIG", "Skipping hwconfig generation (--skip-hwconfig)")
         else:
             configure_hwconfig(interactive=(not args.non_interactive and sys.stdin.isatty()))
+
+        # GPU memory for camera DMA allocation
+        setup_camera_boot_config()
 
         # DS18B20 temperature sensor hardware setup
         setup_ds18b20_hardware()

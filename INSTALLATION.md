@@ -46,6 +46,10 @@ python3 tools/provision_fresh_pi.py <pi_ip> <release_version> "<device_name>" "<
 
 # Example:
 python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" --non-interactive
+
+# Production-hardened example (install key + disable password SSH)
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" \
+    --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
 ```
 
 **What this does automatically:**
@@ -55,7 +59,8 @@ python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway"
 3. Runs the installer with `--non-interactive` (uses default hardware config)
 4. Enrolls the device with the backend and gets an API key
 5. Verifies all services are running
-6. Returns success/failure summary
+6. Optionally hardens SSH posture (`--ssh-posture key-only|disable`)
+7. Returns success/failure summary
 
 **For interactive hardware configuration** (prompts for camera, display, features):
 
