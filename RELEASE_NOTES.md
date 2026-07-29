@@ -35,15 +35,15 @@ YouTube Live streaming support — runs alongside the local MJPEG stream.
   - `rtmps_url` (text) — RTMPS ingest URL from YouTube Studio.
   - `stream_key` (password) — stream key, never displayed in the Web GUI.
   - `bitrate` (enum: 1500k / 2500k / 4000k / 6000k) — video bitrate.
-- All settings are editable in the Web GUI under **Kamera → Advanced**.
+- All settings are editable in the Web GUI under **Camera → Advanced**.
 - `ffmpeg` system package already installed by `install-all-optimized.py`; no extra install step required.
 - No changes to OTA, provisioning, or local streaming behaviour.
 
 ### Configuration
 
 1. Set up a live event in YouTube Studio and copy the **RTMPS ingest URL** and **Stream key**.
-2. In the Web GUI → Settings → Kamera (Advanced):
-   - Enable **YouTube Live-strömning**.
+2. In the Web GUI → Settings → Camera (Advanced):
+   - Enable **YouTube Live Streaming**.
    - Paste the RTMPS URL (e.g. `rtmps://a.rtmp.youtube.com/live2`).
    - Paste your stream key (stored securely, shown as `●●●●`).
    - Choose a bitrate matching your upload bandwidth.

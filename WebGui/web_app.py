@@ -27,11 +27,11 @@ app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
 
 SECTION_ORDER = [
     'System',
-    'Kamera',
+    'Camera',
     'Stream',
     'YouTube Live',
     'Updates (OTA)',
-    'Lagring',
+    'Storage',
     'Vision',
 ]
 

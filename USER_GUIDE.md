@@ -180,13 +180,13 @@ YouTube Live publishing is currently available when the camera is running in Str
 
 Open the Web UI and go to:
 
-- **Settings → Kamera → Advanced**
+- **Settings → Camera → Advanced**
 
 There you can configure:
 
-- **YouTube Live-strömning** — enable or disable publishing
+- **YouTube Live Streaming** — enable or disable publishing
 - **YouTube RTMPS URL** — ingest endpoint from YouTube Studio
-- **YouTube Stream-nyckel** — your stream key
+- **YouTube Stream Key** — your stream key
 - **YouTube Bitrate** — choose a bitrate that fits your upload speed
 - **YouTube FPS** — choose 5, 10, 15, or 20 frames per second
 

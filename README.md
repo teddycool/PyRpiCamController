@@ -84,7 +84,7 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 ### YouTube Live Summary
 
-YouTube Live is configured under **Kamera → Advanced** in the Web GUI.
+YouTube Live is configured under **Camera → Advanced** in the Web GUI.
 
 YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
 
