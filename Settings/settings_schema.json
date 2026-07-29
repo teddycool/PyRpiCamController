@@ -445,6 +445,23 @@
               "level": "advanced"
             },
             "web_editable": true
+          },
+          "fps": {
+            "value": 10,
+            "type": "int",
+            "options": [
+              5,
+              10,
+              15,
+              20
+            ],
+            "ui": {
+              "name": "YouTube FPS",
+              "section": "Kamera",
+              "description": "Målfrekvens för YouTube Live (bilder per sekund)",
+              "level": "advanced"
+            },
+            "web_editable": true
           }
         }
       },
