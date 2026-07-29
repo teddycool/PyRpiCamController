@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide installs PyRpiCamController on Raspberry Pi and verifies core services.
+This guide covers the release-based production install first, then the manual path for development and debugging.
 
 ## Which Installation Path Should I Use?
 
@@ -27,15 +27,15 @@ This guide installs PyRpiCamController on Raspberry Pi and verifies core service
 
 ## Recommended: Fresh Pi Provisioning (Release-Based)
 
-For a completely fresh Raspberry Pi, use the **automated provisioning script** from your dev machine. This is the fastest and most reliable method.
+For a completely fresh Raspberry Pi, use the **automated provisioning script** from your dev machine. This is the default and most reliable production method.
 
 **Important:** This is the default production path and it assumes a working OTA backend (including secure enrollment endpoints).
 
 ### Prerequisites
 
 - Fresh Pi running Pi OS with SSH enabled
-- Pi OS should have a static or known IP address on your network
-- Development machine has SSH access to the Pi
+- Pi OS with a static or known IP address on your network
+- Development machine with SSH access to the Pi
 - Reachable OTA backend and valid admin enrollment credentials
 
 ### Provisioning from Dev Machine
@@ -45,10 +45,10 @@ For a completely fresh Raspberry Pi, use the **automated provisioning script** f
 python3 tools/provision_fresh_pi.py <pi_ip> <release_version> "<device_name>" "<location>" --non-interactive
 
 # Example:
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" --non-interactive
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" --non-interactive
 
 # Production-hardened example (install key + disable password SSH)
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" \
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" \
     --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
 ```
 
@@ -65,20 +65,20 @@ python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway"
 **For interactive hardware configuration** (prompts for camera, display, features):
 
 ```bash
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway"
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway"
 ```
 
 **For custom backend URL** (non-standard OTA server):
 
 ```bash
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" \
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" \
     --backend-url https://myserver.com/ota --non-interactive
 ```
 
 **To skip enrollment** (manual enrollment later):
 
 ```bash
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" \
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" \
     --skip-enrollment --non-interactive
 ```
 

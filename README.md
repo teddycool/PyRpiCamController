@@ -2,7 +2,7 @@
 
 A modern Python camera control system for Raspberry Pi with a web interface, designed for research, time-lapse photography, and automated image collection.
 
-**First Release**: This release provides a stable baseline for Raspberry Pi camera deployments, including capture, streaming, web-based configuration, and network file sharing.
+**Production Baseline**: This release provides secure provisioning, OTA support, capture, streaming, web-based configuration, and network file sharing for Raspberry Pi deployments.
 
 [![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://python.org)
 [![Raspberry Pi](https://img.shields.io/badge/platform-raspberry%20pi-red.svg)](https://raspberrypi.org)
@@ -88,7 +88,7 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 Use this as the default production setup path. Run from your dev machine and provision a fresh Pi over SSH.
 
-**Important:** This path requires a working OTA backend and enrollment endpoints because provisioning includes secure device enrollment.
+**Important:** This path requires a working OTA backend and enrollment endpoint because provisioning includes secure device enrollment.
 
 1. **Provision fresh Pi from a release**
 
@@ -99,7 +99,7 @@ Use this as the default production setup path. Run from your dev machine and pro
    Example:
 
    ```bash
-      python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" \
+      python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" \
          --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
    ```
 
@@ -200,7 +200,7 @@ journalctl -u camcontroller.service -n 100 --no-pager
 
 ## Release Notes
 
-- Draft release notes: [RELEASE_NOTES.md](RELEASE_NOTES.md)
+- Current release notes: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## Documentation
 

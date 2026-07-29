@@ -1,8 +1,27 @@
 # Release Notes
 
+## v1.1.2
+
+Production baseline release for secure provisioning, OTA, and release-based deployment.
+
+### Highlights
+
+- Fresh Pi provisioning from the dev machine using release tarballs.
+- Secure OTA onboarding with key-based SSH and backend enrollment.
+- OTA apply/check flow fixed so the installed version and GUI state update correctly.
+- Camera and web services now wait for a real client network instead of starting in ComitUp AP mode.
+- Unattended OS security updates enabled in the release flow.
+- Removed legacy device registration/provisioning helpers that are no longer part of the supported flow.
+
+### Validation
+
+- Verified on fresh Raspberry Pi hardware.
+- Confirmed provisioning, reboot, OTA apply, and service startup behavior.
+- Confirmed the Web UI reflects the installed version after OTA.
+
 ## v1.0.6
 
-OTA is now production-ready and validated on Raspberry Pi hardware.
+OTA became production-ready and was validated on Raspberry Pi hardware.
 
 ### Highlights
 
@@ -30,34 +49,6 @@ OTA is now production-ready and validated on Raspberry Pi hardware.
 - Hardware validation completed for OTA path from older versions to `1.0.6`.
 - Production endpoint check returns authorized responses with correct device identity.
 - Device shows `1.0.6` in Web GUI after successful update.
-
-## v1.0.0 (Draft)
-
-First stable baseline release of PyRpiCamController for Raspberry Pi camera deployments.
-
-### Highlights
-
-- Web-based camera configuration with auto-save and apply/restart workflow.
-- Dual operating modes:
-  - Camera mode for scheduled image capture and file publishing.
-  - Stream mode for live video streaming.
-- Built-in SMB file sharing for captured images and logs.
-- Unified JSON schema settings system.
-- Temperature monitoring and system status visibility in the Web UI.
-- Support for Raspberry Pi Camera Module 2, Camera Module 3, and HQ Camera.
-- Stream mode uses native encoded MJPEG on Raspberry Pi camera modules with client-aware idle framerate throttling.
-
-### Included in this release
-
-- Core camera controller runtime and state handling.
-- Web GUI with settings management and status panels.
-- Streaming server integration and stream status API.
-- SMB and network service files for deployment.
-- Installation, troubleshooting, and user documentation updates.
-
-### Production scope
-
-- Supported production scope: camera runtime, web UI, SMB sharing, and WiFi setup.
 - OTA update paths are present in the repository but are not supported for production use in this release.
 
 ### Known limitations

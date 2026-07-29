@@ -181,16 +181,14 @@ git push origin v1.0.0
 
 ### Deployment to Fresh Pi
 
-Once a release is published, deploy it to any fresh Pi using the provisioning script:
-
-This default deployment path assumes a working OTA backend and enrollment API.
+Once a release is published, deploy it to a fresh Pi with the provisioning script. This is the default production path and assumes a working OTA backend and enrollment API.
 
 ```bash
 # From your dev machine
 python3 tools/provision_fresh_pi.py <pi_ip> <version> "<device_name>" "<location>" --non-interactive
 
 # Example
-python3 tools/provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-Front" "Entryway" --non-interactive
+python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.2 "Camera-Front" "Entryway" --non-interactive
 ```
 
 See INSTALLATION.md for full provisioning details.
