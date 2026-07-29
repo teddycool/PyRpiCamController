@@ -119,13 +119,14 @@
       "api_key": {
         "value": "",
         "type": "password",
+        "readonly": true,
         "ui": {
           "name": "OTA API-nyckel",
           "section": "System",
           "description": "API-nyckel för OTA-serverautentisering",
           "level": "advanced"
         },
-        "web_editable": true
+        "web_editable": false
       },
       "service_name": {
         "value": "camcontroller.service",
