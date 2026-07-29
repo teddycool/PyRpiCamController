@@ -164,6 +164,44 @@ In the web interface:
 - If no update appears, confirm server URL, API key, and registered device entry.
 - After successful update, current version in UI should match installed release.
 
+## 📺 YouTube Live Streaming
+
+If your device has YouTube Live enabled, the camera can publish to YouTube in parallel with the local MJPEG stream.
+
+### What you need
+
+- A YouTube Live event in YouTube Studio
+- RTMPS ingest URL
+- Stream key
+
+### Where to configure it
+
+Open the Web UI and go to:
+
+- **Settings → Kamera → Advanced**
+
+There you can configure:
+
+- **YouTube Live-strömning** — enable or disable publishing
+- **YouTube RTMPS URL** — ingest endpoint from YouTube Studio
+- **YouTube Stream-nyckel** — your stream key
+- **YouTube Bitrate** — choose a bitrate that fits your upload speed
+- **YouTube FPS** — choose 5, 10, 15, or 20 frames per second
+
+### Recommended starting values
+
+- Bitrate: `1500k`
+- FPS: `10`
+
+If the stream is unstable, lower FPS first, then lower bitrate.
+
+### How it works
+
+- Frames are queued before being sent to FFmpeg.
+- The stream uses RTMPS and a silent audio track so YouTube accepts it.
+- The current production path uses software H.264 encoding (`libx264`) for reliability on Raspberry Pi.
+- YouTube publishing no longer slows down when local viewers connect to the camera.
+
 ---
 
 ## 🆘 Need Help?

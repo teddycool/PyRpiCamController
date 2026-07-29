@@ -36,6 +36,15 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 - Stream server uses camera-native encoded MJPEG output for Raspberry Pi camera modules and serves MJPEG over HTTP.
 - Stream framerate is client-aware: active framerate with connected viewers and reduced `idle_framerate` when no clients are connected.
 
+## YouTube Live Publisher Architecture
+
+- `CamController/Publishers/YouTubePublisher.py` streams MJPEG frames to YouTube Live through FFmpeg + RTMPS.
+- The publisher uses an async queue so capture never blocks on FFmpeg stdin writes.
+- Video encoding currently uses `libx264` with `ultrafast` and low-latency settings for reliability on Raspberry Pi.
+- YouTube publish FPS is configurable in the schema and is currently limited to 5, 10, 15, or 20 FPS.
+- The YouTube pipeline is independent from local MJPEG viewer count; local viewers no longer throttle publish FPS.
+- Hardware H.264 acceleration can be revisited later, but the production path currently favors the known-stable software encoder path.
+
 ## Hardware IO and PWM Policy
 
 - Light control uses PWM with backend priority:

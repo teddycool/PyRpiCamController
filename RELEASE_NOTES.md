@@ -9,13 +9,14 @@ YouTube Live release — performance metrics, async publishing, and Pi 3B+ optim
 - **YouTube performance metrics** — publish FPS, average/max publish time, frame counts, and drop rate are now exposed in the runtime status and Web GUI.
 - **Async publishing pipeline** — the main capture path now queues frames and never blocks on FFmpeg stdin writes.
 - **Lower-latency streaming defaults** — default bitrate reduced to 1500k and FFmpeg preset tuned for speed.
+- **Configurable YouTube FPS** — publish FPS can now be selected from 5/10/15/20 in the Web GUI.
 - **Throttling removed** — YouTube publishing no longer slows down when local viewers are connected.
 - **OTA status hardening** — stale update checks no longer leave the Web GUI stuck in "checking".
 
 ### Validation
 
 - Verified on Raspberry Pi 3B+ hardware.
-- Confirmed YouTube publishing remains near 10 FPS with no frame skipping under normal load.
+- Confirmed YouTube publishing remains near the configured FPS with no frame skipping under normal load.
 - Confirmed the Web GUI shows live YouTube publisher stats.
 
 ## v1.1.3

@@ -43,6 +43,24 @@ This is a restart-only apply model.
 - `settings_manager.get("Light")`
 - `settings_manager.set(path, value, save=True)`
 
+## YouTube Live Settings
+
+The YouTube settings live under `Cam.publishers.youtube` and are web-editable in the Advanced tab.
+
+Current fields:
+
+- `publish` — enable or disable YouTube Live publishing
+- `rtmps_url` — YouTube RTMPS ingest URL
+- `stream_key` — hidden password field for the stream key
+- `bitrate` — `1500k`, `2500k`, `4000k`, `6000k`
+- `fps` — `5`, `10`, `15`, `20`
+
+Notes:
+
+- `fps` is validated in the publisher and falls back to `10` if the stored value is invalid.
+- The current streaming pipeline uses software H.264 encoding for stability.
+- Local MJPEG viewer activity does not throttle YouTube publishing anymore.
+
 ## Reset to Defaults
 
 To reset user overrides, remove `Settings/user_settings.json` and restart services.
