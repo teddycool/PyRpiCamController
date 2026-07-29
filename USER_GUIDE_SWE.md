@@ -170,6 +170,8 @@ I webbgränssnittet:
 
 Om enheten har YouTube Live aktiverat kan kameran publicera till YouTube parallellt med den lokala MJPEG-strömmen.
 
+YouTube Live-publicering är för närvarande tillgänglig när kameran körs i Stream-läge; i Cam-läge hålls publiceringen inaktiv.
+
 ### Det du behöver
 
 - Ett YouTube Live-event i YouTube Studio

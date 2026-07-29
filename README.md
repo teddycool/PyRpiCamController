@@ -86,6 +86,8 @@ Defaults are defined in `Settings/settings_schema.json`.
 
 YouTube Live is configured under **Kamera → Advanced** in the Web GUI.
 
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
+
 - `publish` enables or disables publishing
 - `rtmps_url` stores the YouTube RTMPS ingest URL
 - `stream_key` is stored as a hidden password field

@@ -224,6 +224,8 @@ journalctl -u "$UNIT" -n 120 --no-pager | grep 'cam.light'
 
 YouTube Live settings are exposed in the Web GUI under **Kamera → Advanced**.
 
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
+
 Available settings:
 
 - `Cam.publishers.youtube.publish` — enable/disable publishing

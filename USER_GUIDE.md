@@ -8,8 +8,8 @@ This guide explains how to set up and use your camera system.
 
 Click the image to open full size:
 
-<a href="_doc/Setup-and-operation-flow.png">
-  <img src="_doc/Setup-and-operation-flow.png" alt="PyRpiCamController setup and operation flow" width="560">
+<a href="_doc/Setup-and-operation-flow-v2.png">
+  <img src="_doc/Setup-and-operation-flow-v2.png" alt="PyRpiCamController setup and operation flow" width="560">
 </a>
 
 ## 🚀 First Setup (WiFi Configuration)
@@ -167,6 +167,8 @@ In the web interface:
 ## 📺 YouTube Live Streaming
 
 If your device has YouTube Live enabled, the camera can publish to YouTube in parallel with the local MJPEG stream.
+
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
 
 ### What you need
 
