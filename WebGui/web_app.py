@@ -631,7 +631,7 @@ def check_for_updates():
             changelog = data.get('release_notes', '') or ''
             _set_runtime_setting('OTA.available_version', new_ver)
             _set_runtime_setting('OTA.changelog', changelog)
-            _set_runtime_setting('OTA.update_status', 'update_available')
+            _set_runtime_setting('OTA.update_status', 'available')
             # Also drop trigger file so daemon can pick it up if running
             _ensure_ota_command_dir_writable()
             (OTA_COMMAND_DIR / 'ota_check_trigger').write_text(f"manual check at {time.time()}")
@@ -645,7 +645,7 @@ def check_for_updates():
             })
         else:
             _set_runtime_setting('OTA.changelog', '')
-            _set_runtime_setting('OTA.update_status', 'up_to_date')
+            _set_runtime_setting('OTA.update_status', 'idle')
             return jsonify({
                 'success': True,
                 'message': 'Already up to date',
