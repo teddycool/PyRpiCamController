@@ -526,6 +526,24 @@ def setup_samba():
     
     return True
 
+def setup_camera_boot_config():
+    """Ensure gpu_mem is sufficient for PiCam3 DMA allocation."""
+    log_step("CAMERA", "Checking GPU memory allocation...")
+
+    config_paths = ["/boot/firmware/config.txt", "/boot/config.txt"]
+    config_path = next((p for p in config_paths if os.path.exists(p)), None)
+    if not config_path:
+        log_step("WARNING", "Boot config not found - gpu_mem not set")
+        return
+
+    existing = run_cmd(f"grep -E '^gpu_mem' {config_path} || true", capture=True, check=False)
+    if existing:
+        log_step("CAMERA", f"gpu_mem already set ({existing.strip()}) - skipping")
+    else:
+        run_cmd(f"sudo sed -i '/\\[all\\]/a gpu_mem=256' {config_path}")
+        log_step("CAMERA", "gpu_mem=256 added to boot config (reboot required)")
+
+
 def setup_ds18b20_hardware():
     """Configure DS18B20 1-wire temperature sensor hardware support"""
     log_step("DS18B20", "Configuring DS18B20 temperature sensor hardware...")
@@ -846,6 +864,9 @@ def main():
             log_step("HWCONFIG", "Skipping hwconfig generation (--skip-hwconfig)")
         else:
             configure_hwconfig(interactive=(not args.non_interactive and sys.stdin.isatty()))
+
+        # GPU memory for camera DMA allocation
+        setup_camera_boot_config()
 
         # DS18B20 temperature sensor hardware setup
         setup_ds18b20_hardware()
