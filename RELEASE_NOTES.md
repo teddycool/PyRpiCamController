@@ -1,5 +1,24 @@
 # Release Notes
 
+## v1.2.1
+
+Web GUI polish release — clearer settings layout, configurable YouTube FPS, English UI labels, and refreshed documentation.
+
+### Highlights
+
+- **Settings UI reorganized** — the Web GUI now groups settings into clearer sections, including dedicated **YouTube Live** and **Updates (OTA)** areas.
+- **Configurable YouTube FPS** — YouTube publish FPS can now be selected from `5`, `10`, `15`, or `20` in the Web GUI.
+- **English-only Web GUI** — settings labels, section names, helper text, and related schema-backed descriptions are now consistently in English.
+- **Advanced tab fix** — OTA controls are now guarded correctly so the Advanced tab loads cleanly without update-panel JS errors.
+- **Documentation refresh** — guides and architecture notes now describe the current YouTube Live flow, Stream-mode behavior, and the stable `libx264` software encode path.
+- **Updated flow diagram** — setup/operation flow image refreshed to match the current system and YouTube Live documentation.
+
+### Validation
+
+- Verified targeted YouTube unit and integration tests pass.
+- Verified Web GUI and camera services restart cleanly after deployment.
+- Verified Web GUI loads with English labels and updated settings sections on Raspberry Pi hardware.
+
 ## v1.2.0
 
 YouTube Live release — performance metrics, async publishing, and Pi 3B+ optimizations.
