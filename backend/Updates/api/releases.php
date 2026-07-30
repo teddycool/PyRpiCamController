@@ -44,14 +44,36 @@ if (!is_dir(CAM_RELEASES_DIR)) {
 // GET — list releases
 // ---------------------------------------------------------------------------
 if ($method === 'GET') {
-    $rows = $pdo->query("
-        SELECT r.*, a.username AS uploaded_by_name
-        FROM   cam_releases r
-        LEFT   JOIN cam_admins a ON a.id = r.uploaded_by
-        ORDER  BY r.created_at DESC
-    ")->fetchAll();
-
-    json_ok($rows);
+    try {
+        $stmt = $pdo->query("
+            SELECT r.*, a.username AS uploaded_by_name
+            FROM   cam_releases r
+            LEFT   JOIN cam_admins a ON a.id = r.uploaded_by
+            ORDER  BY r.created_at DESC
+        ");
+        $rows = $stmt->fetchAll();
+        
+        // PHP 8.3: Ensure all string values are valid UTF-8 for JSON encoding
+        $rows = array_map(function($row) {
+            foreach ($row as $key => $value) {
+                if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
+                    // Fix invalid UTF-8 by removing or replacing bad bytes
+                    $row[$key] = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+                }
+            }
+            return $row;
+        }, $rows);
+        
+        json_ok($rows);
+    } catch (PDOException $e) {
+        error_log('Releases GET query failed: ' . $e->getMessage());
+        // Check if table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'cam_releases'");
+        if (!$stmt->fetch()) {
+            json_error('Database not initialized. Missing cam_releases table.');
+        }
+        json_error('Database query failed: ' . $e->getMessage());
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Invalid username or password.';
             }
         } catch (Exception $e) {
+            // Log the actual error for debugging
+            error_log('Admin login database error: ' . $e->getMessage());
             $error = 'Database error. Please try again.';
         }
     } else {

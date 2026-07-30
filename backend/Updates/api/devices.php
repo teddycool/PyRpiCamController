@@ -38,6 +38,16 @@ if ($method === 'GET') {
         ORDER  BY name, device_id
     ")->fetchAll();
 
+    // PHP 8.3: Ensure all string values are valid UTF-8 for JSON encoding
+    $rows = array_map(function($row) {
+        foreach ($row as $key => $value) {
+            if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
+                $row[$key] = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+        }
+        return $row;
+    }, $rows);
+
     json_ok($rows);
 }
 

@@ -57,8 +57,20 @@ define('CAM_SESSION_NAME', 'cam_ota_admin');
 // Timezone for all timestamps
 date_default_timezone_set('UTC');
 
+// PHP 8.0+ session cookie settings (strict SameSite for security)
+if (PHP_VERSION_ID >= 80000) {
+    ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', empty($_SERVER['HTTPS']) ? '0' : '1');
+}
+
+// Error logging for debugging (logs to PHP error log, not displayed to users)
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
 /**
  * Return a singleton PDO connection.
+ * PHP 8.3 compatible with fallback for shared hosting with limited charset support.
  *
  * @throws RuntimeException on connection failure
  */
@@ -66,13 +78,33 @@ function cam_db(): PDO
 {
     static $pdo = null;
     if ($pdo === null) {
-        $dsn = 'mysql:host=' . CAM_DB_HOST . ';dbname=' . CAM_DB_NAME . ';charset=utf8mb4';
-        $options = [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ];
-        $pdo = new PDO($dsn, CAM_DB_USER, CAM_DB_PASS, $options);
+        try {
+            // Try with utf8mb4 first (recommended)
+            $dsn = 'mysql:host=' . CAM_DB_HOST . ';dbname=' . CAM_DB_NAME . ';charset=utf8mb4';
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ];
+            $pdo = new PDO($dsn, CAM_DB_USER, CAM_DB_PASS, $options);
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'utf8mb4') !== false || 
+                strpos($e->getMessage(), 'character set') !== false) {
+                // Fallback: Try without charset in DSN (let server auto-detect)
+                // This works on shared hosting with limited charset support
+                try {
+                    $dsn = 'mysql:host=' . CAM_DB_HOST . ';dbname=' . CAM_DB_NAME;
+                    $pdo = new PDO($dsn, CAM_DB_USER, CAM_DB_PASS, $options);
+                    error_log('PDO: Connected with server default charset (utf8mb4 unavailable)');
+                } catch (PDOException $e2) {
+                    error_log('PDO Connection Error: ' . $e2->getMessage() . ' Code: ' . $e2->getCode());
+                    throw new RuntimeException('Database connection failed. Check error log.');
+                }
+            } else {
+                error_log('PDO Connection Error: ' . $e->getMessage() . ' Code: ' . $e->getCode());
+                throw new RuntimeException('Database connection failed. Check error log.');
+            }
+        }
     }
     return $pdo;
 }
