@@ -62,6 +62,7 @@ If you want to support the project, consider donating via [PayPal](https://www.p
 - Multi-destination logging (console/file/HTTP)
 - Hardware control for light and status LEDs
 - WiFi onboarding via captive portal flow
+- YouTube Live publishing via RTMPS with configurable bitrate and FPS
 - Systemd service integration for production operation
 
 ### Default Settings in This Release
@@ -79,6 +80,26 @@ Defaults are defined in `Settings/settings_schema.json`.
 - Concurrent streaming and service-based deployment
 - Restart-safe settings persistence
 - All-Python implementation with clear structure
+- YouTube Live uses an async frame queue and a stable libx264 software encode path on Raspberry Pi
+
+### YouTube Live Summary
+
+YouTube Live is configured under **Camera → Advanced** in the Web GUI.
+
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
+
+- `publish` enables or disables publishing
+- `rtmps_url` stores the YouTube RTMPS ingest URL
+- `stream_key` is stored as a hidden password field
+- `bitrate` supports `1500k`, `2500k`, `4000k`, and `6000k`
+- `fps` supports `5`, `10`, `15`, and `20`
+
+Recommended starting values for Raspberry Pi 3B+:
+
+- bitrate: `1500k`
+- fps: `10`
+
+The production stream path currently uses FFmpeg + RTMPS with `libx264` and `ultrafast` for reliability. Hardware H.264 acceleration is not required for normal operation.
 
 ## Quick Start
 
@@ -99,7 +120,7 @@ Use this as the default production setup path. Run from your dev machine and pro
    Example:
 
    ```bash
-      python3 tools/provision_fresh_pi.py 192.168.1.50 1.1.3 "Camera-Front" "Entryway" \
+      python3 tools/provision_fresh_pi.py 192.168.1.50 1.2.0 "Camera-Front" "Entryway" \
          --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only
    ```
 

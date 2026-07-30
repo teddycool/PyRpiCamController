@@ -8,9 +8,9 @@
       "max": 100,
       "readonly": true,
       "ui": {
-        "name": "Versionsnummer",
+        "name": "Schema Version",
         "section": "System",
-        "description": "Version av inställningsschemat",
+        "description": "Settings schema version",
         "level": "advanced"
       },
       "web_editable": false
@@ -23,9 +23,9 @@
         "Stream"
       ],
       "ui": {
-        "name": "Kameraläge",
+        "name": "Camera Mode",
         "section": "System",
-        "description": "Kamerans driftläge",
+        "description": "Camera operating mode",
         "level": "basic"
       },
       "web_editable": true
@@ -34,9 +34,9 @@
       "value": false,
       "type": "bool",
       "ui": {
-        "name": "OTA-uppdatering",
+        "name": "OTA Updates",
         "section": "System",
-        "description": "Aktivera trådlösa uppdateringar över luften",
+        "description": "Enable wireless over-the-air updates",
         "level": "advanced"
       },
       "web_editable": true
@@ -45,9 +45,9 @@
       "value": "",
       "type": "text",
       "ui": {
-        "name": "Enhetsnamn",
+        "name": "Device Name",
         "section": "System",
-        "description": "Beskrivande namn för denna kamera (t.ex. 'Kök-kamera', 'Vardagsrum')",
+        "description": "Descriptive name for this camera (e.g. 'Kitchen Camera', 'Living Room')",
         "level": "basic"
       },
       "web_editable": true
@@ -56,9 +56,9 @@
       "value": false,
       "type": "bool",
       "ui": {
-        "name": "Testenhet",
+        "name": "Test Device",
         "section": "System",
-        "description": "Aktivera testläge för utveckling och avancerade uppdateringskanaler (endast för testutrustning)",
+        "description": "Enable test mode for development and advanced update channels (test equipment only)",
         "level": "advanced"
       },
       "web_editable": false
@@ -84,9 +84,9 @@
         }
       },
       "ui": {
-        "name": "Uppdateringsgrupp",
+        "name": "Update Group",
         "section": "System",
-        "description": "Välj uppdateringskanal: Production (stabil), Beta (förhandsversion), eller Development (endast testenheter)",
+        "description": "Choose update channel: Production (stable), Beta (preview), or Development (test devices only)",
         "level": "advanced"
       },
       "web_editable": false
@@ -98,7 +98,7 @@
         "ui": {
           "name": "OTA Server URL",
           "section": "System",
-          "description": "Server-URL för OTA-uppdateringar",
+          "description": "Server URL for OTA updates",
           "level": "advanced"
         },
         "web_editable": true
@@ -109,9 +109,9 @@
         "min": 300,
         "max": 86400,
         "ui": {
-          "name": "Uppdateringsintervall (s)",
+          "name": "Update Interval (s)",
           "section": "System",
-          "description": "Hur ofta uppdateringar ska kontrolleras i sekunder",
+          "description": "How often updates should be checked in seconds",
           "level": "advanced"
         },
         "web_editable": true
@@ -121,9 +121,9 @@
         "type": "password",
         "readonly": true,
         "ui": {
-          "name": "OTA API-nyckel",
+          "name": "OTA API Key",
           "section": "System",
-          "description": "API-nyckel för OTA-serverautentisering",
+          "description": "API key for OTA server authentication",
           "level": "advanced"
         },
         "web_editable": false
@@ -132,7 +132,7 @@
         "value": "camcontroller.service",
         "type": "text",
         "ui": {
-          "name": "Tjänstnamn",
+          "name": "Service Name",
           "section": "System",
           "description": "Systemd service name for camera application",
           "level": "advanced"
@@ -143,9 +143,9 @@
         "value": "/home/pi/PyRpiCamController",
         "type": "text",
         "ui": {
-          "name": "Installationssökväg",
+          "name": "Installation Path",
           "section": "System",
-          "description": "Lokal sökväg för installation",
+          "description": "Local installation path",
           "level": "advanced"
         },
         "web_editable": false
@@ -156,9 +156,9 @@
         "min": 1,
         "max": 10,
         "ui": {
-          "name": "Antal backup-versioner",
+          "name": "Backup Version Count",
           "section": "System",
-          "description": "Antal backup-versioner att behålla",
+          "description": "Number of backup versions to keep",
           "level": "advanced"
         },
         "web_editable": false
@@ -169,9 +169,9 @@
         "min": 30,
         "max": 300,
         "ui": {
-          "name": "Hälsokontroll timeout (s)",
+          "name": "Health Check Timeout (s)",
           "section": "System",
-          "description": "Tid att vänta på att tjänsten ska bli frisk efter uppdatering",
+          "description": "Time to wait for the service to become healthy after an update",
           "level": "advanced"
         },
         "web_editable": false
@@ -182,9 +182,9 @@
         "min": 60,
         "max": 1800,
         "ui": {
-          "name": "Nedladdning timeout (s)",
+          "name": "Download Timeout (s)",
           "section": "System",
-          "description": "Maximal tid att vänta på nedladdning av uppdatering",
+          "description": "Maximum time to wait for an update download",
           "level": "advanced"
         },
         "web_editable": false
@@ -195,7 +195,7 @@
         "ui": {
           "name": "Auto-apply updates",
           "section": "Updates",
-          "description": "Tillämpa uppdateringar automatiskt när de hittas (rekommenderas inte)",
+          "description": "Apply updates automatically when found (not recommended)",
           "level": "advanced"
         },
         "web_editable": true
@@ -204,9 +204,9 @@
         "value": true,
         "type": "bool",
         "ui": {
-          "name": "Visa notifikation när uppdateringar finns",
+          "name": "Show notification when updates are available",
           "section": "Updates",
-          "description": "Visa notifikation när nya uppdateringar upptäcks",
+          "description": "Show a notification when new updates are detected",
           "level": "basic"
         },
         "web_editable": true
@@ -216,9 +216,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Aktuell version",
+          "name": "Current Version",
           "section": "Updates",
-          "description": "Installerad programvaruversion",
+          "description": "Installed software version",
           "level": "basic"
         },
         "web_editable": false
@@ -228,9 +228,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Tillgänglig version",
+          "name": "Available Version",
           "section": "Updates",
-          "description": "Senast tillgängliga programvaruversion",
+          "description": "Most recently available software version",
           "level": "basic"
         },
         "web_editable": false
@@ -240,9 +240,9 @@
         "type": "text",
         "readonly": true,
         "ui": {
-          "name": "Senast kontrollerad",
+          "name": "Last Checked",
           "section": "Updates",
-          "description": "När uppdateringar senast kontrollerades",
+          "description": "When updates were last checked",
           "level": "basic"
         },
         "web_editable": false
@@ -260,9 +260,9 @@
         ],
         "readonly": true,
         "ui": {
-          "name": "Uppdateringsstatus",
+          "name": "Update Status",
           "section": "Updates",
-          "description": "Aktuell status för uppdateringsprocessen",
+          "description": "Current status of the update process",
           "level": "basic"
         },
         "web_editable": false
@@ -302,9 +302,9 @@
           ]
         ],
         "ui": {
-          "name": "Bildupplösning",
-          "section": "Kamera",
-          "description": "Kameraupplösning (bredd x höjd)",
+          "name": "Image Resolution",
+          "section": "Camera",
+          "description": "Camera resolution (width x height)",
           "level": "basic"
         },
         "web_editable": true
@@ -315,9 +315,9 @@
         "min": 1,
         "max": 3600,
         "ui": {
-          "name": "Bildintervall (s)",
-          "section": "Kamera",
-          "description": "Tid mellan bilder i sekunder",
+          "name": "Capture Interval (s)",
+          "section": "Camera",
+          "description": "Time between captures in seconds",
           "level": "basic"
         },
         "web_editable": true
@@ -326,9 +326,9 @@
         "value": false,
         "type": "bool",
         "ui": {
-          "name": "Spara metadata som JSON",
-          "section": "Kamera",
-          "description": "Spara/publicera bildmetadata i JSON-format för alla publishers",
+          "name": "Save metadata as JSON",
+          "section": "Camera",
+          "description": "Save/publish image metadata in JSON format for all publishers",
           "level": "advanced"
         },
         "web_editable": false,
@@ -340,9 +340,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "Publicera till URL",
-              "section": "Kamera",
-              "description": "Aktivera URL-publicering",
+              "name": "Publish to URL",
+              "section": "Camera",
+              "description": "Enable URL publishing",
               "level": "advanced"
             },
             "web_editable": true
@@ -351,9 +351,9 @@
             "value": "your_server/your_endpoint",
             "type": "text",
             "ui": {
-              "name": "URL för publicering",
-              "section": "Kamera",
-              "description": "URL-slutpunkt för bildpublicering",
+              "name": "Publish URL",
+              "section": "Camera",
+              "description": "URL endpoint for image publishing",
               "level": "advanced"
             },
             "web_editable": true
@@ -362,9 +362,9 @@
             "value": "_your unique api key_",
             "type": "text",
             "ui": {
-              "name": "API-nyckel",
-              "section": "Kamera",
-              "description": "API-nyckel för URL-publicering",
+              "name": "API Key",
+              "section": "Camera",
+              "description": "API key for URL publishing",
               "level": "advanced"
             },
             "web_editable": true
@@ -375,9 +375,9 @@
             "value": true,
             "type": "bool",
             "ui": {
-              "name": "Spara till fil",
-              "section": "Kamera",
-              "description": "Aktivera filpublicering till nätverksresurs",
+              "name": "Save to File",
+              "section": "Camera",
+              "description": "Enable file publishing to a network share",
               "level": "advanced"
             },
             "web_editable": true
@@ -386,9 +386,9 @@
             "value": "/home/pi/shared/images/",
             "type": "text",
             "ui": {
-              "name": "Sökväg för bilder",
-              "section": "Kamera",
-              "description": "Lokal sökväg för bildlagring",
+              "name": "Image Path",
+              "section": "Camera",
+              "description": "Local path for image storage",
               "level": "advanced"
             },
             "web_editable": true,
@@ -400,9 +400,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "YouTube Live-strömning",
-              "section": "Kamera",
-              "description": "Aktivera YouTube Live-strömning parallellt med lokal MJPEG-stream",
+              "name": "YouTube Live Streaming",
+              "section": "Camera",
+              "description": "Enable YouTube Live streaming in parallel with the local MJPEG stream",
               "level": "advanced"
             },
             "web_editable": true
@@ -412,8 +412,8 @@
             "type": "text",
             "ui": {
               "name": "YouTube RTMPS URL",
-              "section": "Kamera",
-              "description": "YouTube RTMPS ingest-URL från YouTube Studio (utan stream-nyckel), t.ex. rtmps://a.rtmp.youtube.com/live2",
+              "section": "Camera",
+              "description": "YouTube RTMPS ingest URL from YouTube Studio (without the stream key), e.g. rtmps://a.rtmp.youtube.com/live2",
               "level": "advanced"
             },
             "web_editable": true
@@ -422,9 +422,9 @@
             "value": "",
             "type": "password",
             "ui": {
-              "name": "YouTube Stream-nyckel",
-              "section": "Kamera",
-              "description": "Din unika stream-nyckel från YouTube Studio (visas aldrig i gränssnittet)",
+              "name": "YouTube Stream Key",
+              "section": "Camera",
+              "description": "Your unique stream key from YouTube Studio (never shown in the interface)",
               "level": "advanced"
             },
             "web_editable": true
@@ -440,8 +440,25 @@
             ],
             "ui": {
               "name": "YouTube Bitrate",
-              "section": "Kamera",
-              "description": "Video-bitrate: 1500k (låg/USB), 2500k (standard), 4000k (bra), 6000k (hög, fiber)",
+              "section": "Camera",
+              "description": "Video bitrate: 1500k (low/USB), 2500k (standard), 4000k (good), 6000k (high/fiber)",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "fps": {
+            "value": 10,
+            "type": "int",
+            "options": [
+              5,
+              10,
+              15,
+              20
+            ],
+            "ui": {
+              "name": "YouTube FPS",
+              "section": "Camera",
+              "description": "Target frame rate for YouTube Live (frames per second)",
               "level": "advanced"
             },
             "web_editable": true
@@ -455,9 +472,9 @@
           "jpg"
         ],
         "ui": {
-          "name": "Bildformat",
-          "section": "Kamera",
-          "description": "Bildfilformat för alla publishers",
+          "name": "Image Format",
+          "section": "Camera",
+          "description": "Image file format for all publishers",
           "level": "advanced"
         },
         "web_editable": false,
@@ -470,9 +487,9 @@
         "min": -1.0,
         "max": 1.0,
         "ui": {
-          "name": "Exponeringskompensation",
-          "section": "Kamera",
-          "description": "Justering av kamerans exponeringsnivå",
+          "name": "Exposure Compensation",
+          "section": "Camera",
+          "description": "Adjustment of the camera exposure level",
           "level": "advanced"
         },
         "web_editable": true,
@@ -485,9 +502,9 @@
         ],
         "type": "tuple",
         "ui": {
-          "name": "Tidschema (start, stopp)",
-          "section": "Kamera",
-          "description": "Aktiva timmar (start, stopp)",
+          "name": "Schedule (start, stop)",
+          "section": "Camera",
+          "description": "Active hours (start, stop)",
           "level": "advanced"
         },
         "web_editable": false,
@@ -498,9 +515,9 @@
           "value": false,
           "type": "bool",
           "ui": {
-            "name": "Rörelsedetektor aktiv",
-            "section": "Kamera",
-            "description": "Aktivera rörelsedetektering",
+            "name": "Motion Detector Active",
+            "section": "Camera",
+            "description": "Enable motion detection",
             "level": "advanced"
           },
           "web_editable": false,
@@ -512,9 +529,9 @@
           "min": 1,
           "max": 10000,
           "ui": {
-            "name": "Rörelsedetektor antal",
-            "section": "Kamera",
-            "description": "Tröskel för rörelsedetektering",
+            "name": "Motion Detector Count",
+            "section": "Camera",
+            "description": "Threshold for motion detection",
             "level": "advanced"
           },
           "web_editable": false,
@@ -526,9 +543,9 @@
           "min": 1,
           "max": 1000,
           "ui": {
-            "name": "Rörelsedetektor historik",
-            "section": "Kamera",
-            "description": "Historik för rörelsedetektering",
+            "name": "Motion Detector History",
+            "section": "Camera",
+            "description": "History for motion detection",
             "level": "advanced"
           },
           "web_editable": false,
@@ -566,9 +583,9 @@
           ]
         ],
         "ui": {
-          "name": "Streamupplösning",
+          "name": "Stream Resolution",
           "section": "Stream",
-          "description": "Streamupplösning (bredd x höjd)",
+          "description": "Stream resolution (width x height)",
           "level": "basic"
         },
         "web_editable": true,
@@ -580,9 +597,9 @@
         "min": 1,
         "max": 60,
         "ui": {
-          "name": "Stream framerate",
+          "name": "Stream Framerate",
           "section": "Stream",
-          "description": "Bildrutor per sekund för streaming",
+          "description": "Frames per second for streaming",
           "level": "advanced"
         },
         "web_editable": true,
@@ -594,9 +611,9 @@
         "min": 1,
         "max": 10,
         "ui": {
-          "name": "Idle stream framerate",
+          "name": "Idle Stream Framerate",
           "section": "Stream",
-          "description": "Bildrutor per sekund när ingen klient tittar på streamen",
+          "description": "Frames per second when no client is viewing the stream",
           "level": "advanced"
         },
         "web_editable": true,
@@ -608,9 +625,9 @@
         "min": 40,
         "max": 95,
         "ui": {
-          "name": "JPEG-kvalitet",
+          "name": "JPEG Quality",
           "section": "Stream",
-          "description": "JPEG-kvalitet för MJPEG-stream (högre värde ger bättre kvalitet och högre CPU-belastning)",
+          "description": "JPEG quality for the MJPEG stream (higher values improve quality but increase CPU load)",
           "level": "advanced"
         },
         "web_editable": true,
@@ -622,9 +639,9 @@
         "min": 1024,
         "max": 65535,
         "ui": {
-          "name": "Stream-port",
+          "name": "Stream Port",
           "section": "Stream",
-          "description": "Port för streamingserver",
+          "description": "Port for the streaming server",
           "level": "advanced"
         },
         "web_editable": true,
@@ -634,9 +651,9 @@
         "value": "Camera Stream",
         "type": "text",
         "ui": {
-          "name": "Webbsidans titel",
+          "name": "Page Title",
           "section": "Stream",
-          "description": "Webbsidans titel för stream",
+          "description": "Page title for the stream",
           "level": "advanced"
         },
         "web_editable": true,
@@ -646,9 +663,9 @@
         "value": "Live Camera Stream",
         "type": "text",
         "ui": {
-          "name": "Webbsidans huvudrubrik",
+          "name": "Page Heading",
           "section": "Stream",
-          "description": "Huvudrubrik för stream-sidan",
+          "description": "Heading for the stream page",
           "level": "basic"
         },
         "web_editable": true,
@@ -662,9 +679,9 @@
         "min": 50,
         "max": 100,
         "ui": {
-          "name": "Max CPU-temp",
+          "name": "Max CPU Temp",
           "section": "System",
-          "description": "Maximal CPU-temperatur innan avstängning",
+          "description": "Maximum CPU temperature before shutdown",
           "level": "advanced"
         },
         "web_editable": false
@@ -675,9 +692,9 @@
         "min": 40,
         "max": 90,
         "ui": {
-          "name": "Varning CPU-temp",
+          "name": "Warning CPU Temp",
           "section": "System",
-          "description": "Tröskel för varning av CPU-temperatur",
+          "description": "Threshold for CPU temperature warning",
           "level": "advanced"
         },
         "web_editable": true,
@@ -690,9 +707,9 @@
       "min": 0,
       "max": 100,
       "ui": {
-        "name": "Ljusnivå (%)",
+        "name": "Light Level (%)",
         "section": "System",
-        "description": "Ljusintensitet i procent",
+        "description": "Light intensity in percent",
         "level": "advanced"
       },
       "web_editable": true,
@@ -704,9 +721,9 @@
       "min": 100,
       "max": 10000,
       "ui": {
-        "name": "PWM-frekvens (Hz)",
+        "name": "PWM Frequency (Hz)",
         "section": "System",
-        "description": "PWM-frekvens för ljusstyrning (högre värde = mindre flimmer)",
+        "description": "PWM frequency for lighting control (higher value = less flicker)",
         "level": "advanced"
       },
       "web_editable": true,
@@ -723,9 +740,9 @@
         "critical"
       ],
       "ui": {
-        "name": "Loggnivå",
+        "name": "Log Level",
         "section": "System",
-        "description": "Detaljeringsgrad för loggning",
+        "description": "Detail level for logging",
         "level": "advanced"
       },
       "web_editable": true,
@@ -735,9 +752,9 @@
       "value": true,
       "type": "bool",
       "ui": {
-        "name": "Logga till fil",
+        "name": "Log to File",
         "section": "System",
-        "description": "Aktivera loggning till fil",
+        "description": "Enable logging to file",
         "level": "advanced"
       },
       "web_editable": true,
@@ -747,9 +764,9 @@
       "value": "/home/pi/shared/logs/cam.log",
       "type": "text",
       "ui": {
-        "name": "Lokal sökväg till loggfiler",
+        "name": "Local Log File Path",
         "section": "System",
-        "description": "Sökväg till loggfil",
+        "description": "Path to the log file",
         "level": "advanced"
       },
       "web_editable": true,
@@ -761,9 +778,9 @@
       "min": 10000,
       "max": 10000000,
       "ui": {
-        "name": "Max loggfilstorlek (bytes)",
+        "name": "Max Log File Size (bytes)",
         "section": "System",
-        "description": "Maximal loggfilstorlek innan rotation",
+        "description": "Maximum log file size before rotation",
         "level": "advanced"
       },
       "web_editable": true,
@@ -775,9 +792,9 @@
       "min": 1,
       "max": 20,
       "ui": {
-        "name": "Antal logg-backuper",
+        "name": "Log Backup Count",
         "section": "System",
-        "description": "Antal backup-loggfiler att behålla efter rotation",
+        "description": "Number of backup log files to retain after rotation",
         "level": "advanced"
       },
       "web_editable": true,
@@ -787,9 +804,9 @@
       "value": false,
       "type": "bool",
       "ui": {
-        "name": "Logga till server",
+        "name": "Log to Server",
         "section": "System",
-        "description": "Aktivera loggning till server",
+        "description": "Enable logging to server",
         "level": "advanced"
       },
       "web_editable": false,
@@ -799,9 +816,9 @@
       "value": "your server",
       "type": "text",
       "ui": {
-        "name": "Loggserver",
+        "name": "Log Server",
         "section": "System",
-        "description": "Hostname för remote loggserver",
+        "description": "Hostname for remote log server",
         "level": "advanced"
       },
       "web_editable": false,
@@ -811,9 +828,9 @@
       "value": "/your script",
       "type": "text",
       "ui": {
-        "name": "Loggserver-URL",
+        "name": "Log Server URL",
         "section": "System",
-        "description": "URL för remote loggserver",
+        "description": "URL for remote log server",
         "level": "advanced"
       },
       "web_editable": false,
@@ -825,9 +842,9 @@
       "min": 60,
       "max": 86400,
       "ui": {
-        "name": "Kolla nya inställningar (s)",
+        "name": "Check New Settings (s)",
         "section": "System",
-        "description": "Intervall för att kolla nya inställningar",
+        "description": "Interval for checking new settings",
         "level": "basic"
       },
       "web_editable": false
@@ -838,9 +855,9 @@
       "min": 10,
       "max": 3600,
       "ui": {
-        "name": "Kolla CPU-temp (s)",
+        "name": "Check CPU Temp (s)",
         "section": "System",
-        "description": "Intervall för att kolla CPU-temperatur",
+        "description": "Interval for checking CPU temperature",
         "level": "advanced"
       },
       "web_editable": false
@@ -850,9 +867,9 @@
         "value": "http://www.google.com",
         "type": "text",
         "ui": {
-          "name": "URL för internetdetektering",
+          "name": "Internet Detection URL",
           "section": "System",
-          "description": "URL för internetanslutningstester",
+          "description": "URL for internet connection tests",
           "level": "advanced"
         },
         "web_editable": false
@@ -863,9 +880,9 @@
         "value": true,
         "type": "bool",
         "ui": {
-          "name": "Bildanalys aktiverad",
+          "name": "Image Analysis Enabled",
           "section": "Vision",
-          "description": "Aktivera bildanalys-pipeline",
+          "description": "Enable the image analysis pipeline",
           "level": "advanced"
         },
         "web_editable": false,
@@ -877,9 +894,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "Rörelsedetektering aktiverad",
+              "name": "Motion Detection Enabled",
               "section": "Vision",
-              "description": "Aktivera rörelsedetekteringsprocessor",
+              "description": "Enable the motion detection processor",
               "level": "advanced"
             },
             "web_editable": false,
@@ -891,9 +908,9 @@
             "min": 1,
             "max": 10000,
             "ui": {
-              "name": "Rörelsetröskel",
+              "name": "Motion Threshold",
               "section": "Vision",
-              "description": "Minsta antal förändrade pixlar för rörelsedetektering",
+              "description": "Minimum number of changed pixels for motion detection",
               "level": "advanced"
             },
             "web_editable": false,
@@ -905,9 +922,9 @@
             "min": 1,
             "max": 1000,
             "ui": {
-              "name": "Bakgrundshistorik",
+              "name": "Background History",
               "section": "Vision",
-              "description": "Antal bakgrundsramar att behålla",
+              "description": "Number of background frames to keep",
               "level": "advanced"
             },
             "web_editable": false,
@@ -917,9 +934,9 @@
             "value": true,
             "type": "bool",
             "ui": {
-              "name": "Detektera rörelseområden",
+              "name": "Detect Motion Areas",
               "section": "Vision",
-              "description": "Hitta och rapportera individuella rörelseområden",
+              "description": "Find and report individual motion areas",
               "level": "advanced"
             },
             "web_editable": false,
@@ -931,9 +948,9 @@
             "min": 10,
             "max": 10000,
             "ui": {
-              "name": "Minsta rörelseområde",
+              "name": "Minimum Motion Area",
               "section": "Vision",
-              "description": "Minsta area i pixlar för att betraktas som rörelse",
+              "description": "Minimum area in pixels to be considered motion",
               "level": "advanced"
             },
             "web_editable": false,
@@ -943,9 +960,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "Inkludera rörelsemask",
+              "name": "Include Motion Mask",
               "section": "Vision",
-              "description": "Inkludera rörelsemask i metadata (för felsökning)",
+              "description": "Include the motion mask in metadata (for debugging)",
               "level": "advanced"
             },
             "web_editable": false,
@@ -959,9 +976,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "Ansiktsigenkänning",
+              "name": "Face Detection",
               "section": "Vision",
-              "description": "Aktivera ansiktsigenkänning (framtida funktion)",
+              "description": "Enable face detection (future feature)",
               "level": "advanced"
             },
             "web_editable": false,
@@ -973,9 +990,9 @@
             "min": 0.1,
             "max": 1.0,
             "ui": {
-              "name": "Ansiktsdetektering säkerhet",
+              "name": "Face Detection Confidence",
               "section": "Vision",
-              "description": "Säkerhetströskel för ansiktsdetektering",
+              "description": "Confidence threshold for face detection",
               "level": "advanced"
             },
             "web_editable": false,
@@ -987,9 +1004,9 @@
             "value": false,
             "type": "bool",
             "ui": {
-              "name": "Objektdetektering",
+              "name": "Object Detection",
               "section": "Vision",
-              "description": "Aktivera objektdetektering (framtida funktion)",
+              "description": "Enable object detection (future feature)",
               "level": "advanced"
             },
             "web_editable": false,
@@ -1003,9 +1020,9 @@
         "value": true,
         "type": "bool",
         "ui": {
-          "name": "Aktivera diskhantering",
-          "section": "Lagring",
-          "description": "Aktivera automatisk diskutrymmehantering",
+          "name": "Enable Storage Management",
+          "section": "Storage",
+          "description": "Enable automatic disk space management",
           "level": "basic"
         },
         "web_editable": true
@@ -1018,9 +1035,9 @@
           "delete_old"
         ],
         "ui": {
-          "name": "Hanteringsläge",
-          "section": "Lagring",
-          "description": "stop_saving: Sluta spara när utrymmet tar slut, delete_old: Radera gamla filer automatiskt",
+          "name": "Management Mode",
+          "section": "Storage",
+          "description": "stop_saving: stop saving when space runs out, delete_old: automatically delete old files",
           "level": "advanced"
         },
         "web_editable": true
@@ -1031,9 +1048,9 @@
         "min": 50,
         "max": 10000,
         "ui": {
-          "name": "Tröskelvärde",
-          "section": "Lagring",
-          "description": "Tröskelvärde för fri diskplats (MB)",
+          "name": "Threshold Value",
+          "section": "Storage",
+          "description": "Threshold value for free disk space (MB)",
           "level": "advanced"
         },
         "web_editable": true
@@ -1045,9 +1062,9 @@
           "MB"
         ],
         "ui": {
-          "name": "Enhet för tröskelvärde",
-          "section": "Lagring",
-          "description": "MB: Absolut värde i megabyte",
+          "name": "Threshold Unit",
+          "section": "Storage",
+          "description": "MB: absolute value in megabytes",
           "level": "advanced"
         },
         "web_editable": true

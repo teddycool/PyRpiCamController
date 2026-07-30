@@ -5,11 +5,11 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 -->
 
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kamerainställningar</title>
+    <title>Camera Settings</title>
     <style>
         /* Sensorwebben Brand Colors and Typography */
         :root {
@@ -646,7 +646,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 </head>
 <body>
     <div class="container">
-        <h1>Kamerakontroller Inställningar</h1>
+        <h1>Camera Controller Settings</h1>
         
         <!-- Temperature Status Header -->
         <div class="temperature-header">
@@ -672,20 +672,20 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         
         <!-- Basic/Advanced Tabs -->
         <div class="tabs">
-            <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Grundinställningar</a>
-            <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Avancerade inställningar</a>
+            <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Basic Settings</a>
+            <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Advanced Settings</a>
         </div>
         
         <div style="background-color: {% if current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
                     color: {% if current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
                     padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <strong>{% if current_level == 'basic' %}Grundinställningar{% else %}Avancerade inställningar{% endif %}:</strong> 
+            <strong>{% if current_level == 'basic' %}Basic Settings{% else %}Advanced Settings{% endif %}:</strong> 
             {% if current_level == 'basic' %}
-                Viktiga kamerainställningar för normal drift. 
-                <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Behöver du fler alternativ?</a>
+                Essential camera settings for normal operation. 
+                <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Need more options?</a>
             {% else %}
-                Avancerade konfigurationsalternativ för erfarna användare.
-                <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Tillbaka till grundinställningar</a>
+                Advanced configuration options for experienced users.
+                <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Back to Basic Settings</a>
             {% endif %}
         </div>
         
@@ -748,8 +748,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                                    name="{{ field_path }}" 
                                    value="{{ current_value|join(', ') if current_value else '' }}"
                                    {% if is_readonly %}readonly class="readonly-field"{% endif %}
-                                   placeholder="Ange kommaseparerade värden">
-                            <div class="validation-info">Ange värden separerade med kommatecken (t.ex. 640, 480)</div>
+                                placeholder="Enter comma-separated values">
+                            <div class="validation-info">Enter values separated by commas (e.g. 640, 480)</div>
                         
                         {% else %}
                             <input type="{% if field_info.type == 'password' %}password{% elif field_info.type == 'int' or field_info.type == 'float' %}number{% else %}text{% endif %}" 
@@ -869,8 +869,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             </div>
             
             <!-- Software Updates Panel -->
+            {% if current_level == 'basic' %}
             <div class="section updates">
-                <h3 class="section-title">📦 Software Updates</h3>
+                <h3 class="section-title">📦 Updates (OTA)</h3>
                 <div class="section-content">
                     <div class="update-status" id="updateStatus">
                         <div class="version-info">
@@ -926,6 +927,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Apply Changes Panel -->
             <div class="section apply-changes">
@@ -974,17 +976,21 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             setupAutoSave();
             initStreamingControls();
             initApplyControls();
-            initUpdateControls();
             updateStreamStatus();
             updateTemperatureStatus();
             updatePendingChanges();
-            updateUpdateStatus();
+
+            // OTA panel is rendered only on basic tab.
+            if (document.getElementById('checkUpdatesBtn')) {
+                initUpdateControls();
+                updateUpdateStatus();
+                setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
+            }
             
             // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
             setInterval(updateTemperatureStatus, 10000);
             setInterval(updatePendingChanges, 10000);
-            setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
         });
 
         // Auto-save functionality with change tracking
@@ -1483,12 +1489,24 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         // Update Management Functions
         function initUpdateControls() {
             // Set up event listeners for update buttons
-            document.getElementById('checkUpdatesBtn').addEventListener('click', checkForUpdates);
-            document.getElementById('viewChangelogBtn').addEventListener('click', toggleChangelog);
-            document.getElementById('applyUpdateBtn').addEventListener('click', applyUpdate);
+            const checkBtn = document.getElementById('checkUpdatesBtn');
+            const changelogBtn = document.getElementById('viewChangelogBtn');
+            const applyBtn = document.getElementById('applyUpdateBtn');
+
+            if (!checkBtn || !changelogBtn || !applyBtn) {
+                return;
+            }
+
+            checkBtn.addEventListener('click', checkForUpdates);
+            changelogBtn.addEventListener('click', toggleChangelog);
+            applyBtn.addEventListener('click', applyUpdate);
         }
 
         function updateUpdateStatus() {
+            if (!document.getElementById('checkUpdatesBtn')) {
+                return;
+            }
+
             fetch(`/api/updates/status?_t=${Date.now()}`, { cache: 'no-store' })
                 .then(response => response.json())
                 .then(data => {

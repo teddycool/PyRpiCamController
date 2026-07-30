@@ -8,8 +8,8 @@ This guide explains how to set up and use your camera system.
 
 Click the image to open full size:
 
-<a href="_doc/Setup-and-operation-flow.png">
-  <img src="_doc/Setup-and-operation-flow.png" alt="PyRpiCamController setup and operation flow" width="560">
+<a href="_doc/Setup-and-operation-flow-v2.png">
+  <img src="_doc/Setup-and-operation-flow-v2.png" alt="PyRpiCamController setup and operation flow" width="560">
 </a>
 
 ## 🚀 First Setup (WiFi Configuration)
@@ -163,6 +163,46 @@ In the web interface:
 - Device identity is tied to CPU serial + API key in OTA backend.
 - If no update appears, confirm server URL, API key, and registered device entry.
 - After successful update, current version in UI should match installed release.
+
+## 📺 YouTube Live Streaming
+
+If your device has YouTube Live enabled, the camera can publish to YouTube in parallel with the local MJPEG stream.
+
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
+
+### What you need
+
+- A YouTube Live event in YouTube Studio
+- RTMPS ingest URL
+- Stream key
+
+### Where to configure it
+
+Open the Web UI and go to:
+
+- **Settings → Camera → Advanced**
+
+There you can configure:
+
+- **YouTube Live Streaming** — enable or disable publishing
+- **YouTube RTMPS URL** — ingest endpoint from YouTube Studio
+- **YouTube Stream Key** — your stream key
+- **YouTube Bitrate** — choose a bitrate that fits your upload speed
+- **YouTube FPS** — choose 5, 10, 15, or 20 frames per second
+
+### Recommended starting values
+
+- Bitrate: `1500k`
+- FPS: `10`
+
+If the stream is unstable, lower FPS first, then lower bitrate.
+
+### How it works
+
+- Frames are queued before being sent to FFmpeg.
+- The stream uses RTMPS and a silent audio track so YouTube accepts it.
+- The current production path uses software H.264 encoding (`libx264`) for reliability on Raspberry Pi.
+- YouTube publishing no longer slows down when local viewers connect to the camera.
 
 ---
 

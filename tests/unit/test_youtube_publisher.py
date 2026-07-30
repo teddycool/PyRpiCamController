@@ -26,6 +26,7 @@ class TestYouTubePublisher:
         assert publisher.rtmps_url == ""
         assert publisher.stream_key == ""
         assert publisher.bitrate == "1500k"  # Phase 1: reduced bitrate for Pi 3B+
+        assert publisher.fps == 10
         assert publisher._ffmpeg_process is None
         assert publisher._connection_active is False
 
@@ -84,13 +85,34 @@ class TestYouTubePublisher:
                 "rtmps_url": {"value": "rtmps://a.rtmp.youtube.com/live2"},
                 "stream_key": {"value": "xxxx-xxxx-xxxx-xxxx"},
                 "bitrate": {"value": "2500k"},
+                "fps": {"value": 15},
             }}}
         }
         publisher.initialize(settings)
 
         assert publisher.enabled is True
         assert publisher.bitrate == "2500k"
+        assert publisher.fps == 15
         mock_popen.assert_called_once()
+
+    @patch('Publishers.YouTubePublisher.subprocess.Popen')
+    def test_initialize_invalid_fps_falls_back_to_default(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.pid = 1234
+        mock_popen.return_value = mock_process
+
+        publisher = YouTubePublisher()
+        settings = {
+            "Cam": {"publishers": {"youtube": {
+                "publish": {"value": True},
+                "rtmps_url": {"value": "rtmps://a.rtmp.youtube.com/live2"},
+                "stream_key": {"value": "xxxx-xxxx-xxxx-xxxx"},
+                "fps": {"value": 17},
+            }}}
+        }
+
+        publisher.initialize(settings)
+        assert publisher.fps == 10
 
     def test_start_ffmpeg_not_found(self):
         with patch('Publishers.YouTubePublisher.subprocess.Popen', side_effect=FileNotFoundError):

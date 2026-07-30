@@ -166,6 +166,46 @@ I webbgränssnittet:
 - Om ingen uppdatering visas, kontrollera server-URL, API-nyckel och registrerad enhet i backend.
 - Efter lyckad uppdatering ska versionsnumret i UI matcha installerad release.
 
+## 📺 YouTube Live-strömning
+
+Om enheten har YouTube Live aktiverat kan kameran publicera till YouTube parallellt med den lokala MJPEG-strömmen.
+
+YouTube Live-publicering är för närvarande tillgänglig när kameran körs i Stream-läge; i Cam-läge hålls publiceringen inaktiv.
+
+### Det du behöver
+
+- Ett YouTube Live-event i YouTube Studio
+- RTMPS ingest-URL
+- Stream-nyckel
+
+### Var du ställer in det
+
+Öppna webbgränssnittet och gå till:
+
+- **Inställningar → Kamera → Avancerat**
+
+Där kan du konfigurera:
+
+- **YouTube Live-strömning** — aktivera eller stäng av publicering
+- **YouTube RTMPS URL** — ingest-endpoint från YouTube Studio
+- **YouTube Stream-nyckel** — din stream-nyckel
+- **YouTube Bitrate** — välj en bitrate som passar din uppladdning
+- **YouTube FPS** — välj 5, 10, 15 eller 20 bildrutor per sekund
+
+### Rekommenderade startvärden
+
+- Bitrate: `1500k`
+- FPS: `10`
+
+Om strömmen blir instabil, sänk FPS först och sedan bitrate.
+
+### Så fungerar det
+
+- Bilder köas innan de skickas till FFmpeg.
+- Strömmen använder RTMPS och ett tyst ljudspår så att YouTube accepterar den.
+- Produktionsvägen använder idag mjukvaru-H.264 (`libx264`) för tillförlitlighet på Raspberry Pi.
+- YouTube-publiceringen saktas inte längre ned när lokala tittare ansluter till kameran.
+
 ---
 
 ## 🆘 Behöver du hjälp?

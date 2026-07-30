@@ -22,6 +22,7 @@ This guide covers the release-based production install first, then the manual pa
 - Raspberry Pi OS (64-bit recommended)
 - Camera module supported by the project
 - Network access for package installation
+- `ffmpeg` for YouTube Live publishing (installed automatically by `tools/install-all-optimized.py` and the release package flow)
 
 ---
 
@@ -140,6 +141,14 @@ Installer responsibilities include:
 - Shared directories and permissions
 - SMB-related setup (if enabled)
 - Pigpio daemon setup for hardware PWM path
+- `ffmpeg` installation for YouTube Live streaming
+
+### YouTube Live and Hardware Acceleration Notes
+
+- YouTube Live uses the MJPEG camera stream and re-encodes it with FFmpeg before pushing over RTMPS.
+- The current production path uses `libx264` with `ultrafast` for reliability and lower CPU latency on Raspberry Pi.
+- Hardware H.264 encoders are not required for normal operation and are not the default path in this release.
+- If you tune YouTube Live FPS, keep bitrate and network upload capacity in mind.
 
 ### 3) Verify Services
 
@@ -210,6 +219,27 @@ Backend check:
 UNIT='camcontroller.service'
 journalctl -u "$UNIT" -n 120 --no-pager | grep 'cam.light'
 ```
+
+### YouTube Live Configuration
+
+YouTube Live settings are exposed in the Web GUI under **Camera → Advanced**.
+
+YouTube Live publishing is currently available when the camera is running in Stream mode; in Cam mode the publisher stays inactive.
+
+Available settings:
+
+- `Cam.publishers.youtube.publish` — enable/disable publishing
+- `Cam.publishers.youtube.rtmps_url` — YouTube RTMPS ingest URL
+- `Cam.publishers.youtube.stream_key` — stream key
+- `Cam.publishers.youtube.bitrate` — 1500k / 2500k / 4000k / 6000k
+- `Cam.publishers.youtube.fps` — 5 / 10 / 15 / 20
+
+Recommended defaults for Raspberry Pi 3B+:
+
+- bitrate: `1500k`
+- FPS: `10`
+
+If the stream falls behind, lower the FPS first, then reduce bitrate if needed.
 
 ### 7) Smoke Test Commands
 

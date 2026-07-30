@@ -26,15 +26,16 @@ class TestYouTubePublisherIntegration:
         schema = settings_manager.get_web_editable_schema()
         youtube_fields = [k for k in schema.keys() if 'Cam.publishers.youtube' in k]
 
-        assert len(youtube_fields) >= 4, (
-            f"Expected at least 4 YouTube settings in schema, found: {youtube_fields}"
+        assert len(youtube_fields) >= 5, (
+            f"Expected at least 5 YouTube settings in schema, found: {youtube_fields}"
         )
-        # Verify the four required keys exist
+        # Verify required keys exist
         paths = set(youtube_fields)
         assert any('publish' in p for p in paths), "Missing 'publish' toggle"
         assert any('rtmps_url' in p for p in paths), "Missing 'rtmps_url'"
         assert any('stream_key' in p for p in paths), "Missing 'stream_key'"
         assert any('bitrate' in p for p in paths), "Missing 'bitrate'"
+        assert any('fps' in p for p in paths), "Missing 'fps'"
 
     def test_stream_key_is_password_type(self):
         """stream_key field should be of type 'password' so the Web GUI hides it."""
@@ -85,6 +86,26 @@ class TestYouTubePublisherIntegration:
         }
         publisher.initialize(settings)
         assert publisher.bitrate == "1500k"
+
+    @patch('Publishers.YouTubePublisher.subprocess.Popen')
+    def test_all_fps_options_initialize(self, mock_popen):
+        """All supported FPS options should produce a valid publisher."""
+        mock_process = MagicMock()
+        mock_process.pid = 201
+        mock_popen.return_value = mock_process
+
+        for fps in (5, 10, 15, 20):
+            publisher = YouTubePublisher()
+            settings = {
+                "Cam": {"publishers": {"youtube": {
+                    "publish": {"value": True},
+                    "rtmps_url": {"value": "rtmps://a.rtmp.youtube.com/live2"},
+                    "stream_key": {"value": "test_key"},
+                    "fps": {"value": fps},
+                }}}
+            }
+            publisher.initialize(settings)
+            assert publisher.fps == fps, f"FPS mismatch for {fps}"
 
     @patch('Publishers.YouTubePublisher.subprocess.Popen')
     def test_frame_publishing_flow(self, mock_popen):

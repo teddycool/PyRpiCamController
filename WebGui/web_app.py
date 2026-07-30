@@ -25,6 +25,44 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
 
 
+SECTION_ORDER = [
+    'System',
+    'Camera',
+    'Stream',
+    'YouTube Live',
+    'Updates (OTA)',
+    'Storage',
+    'Vision',
+]
+
+
+def _get_display_section(field_path: str, schema_info: dict) -> str:
+    """Map raw schema sections to clearer Web GUI sections."""
+    if field_path.startswith('Cam.publishers.youtube.'):
+        return 'YouTube Live'
+
+    if field_path == 'OtaEnable' or field_path.startswith('OTA.'):
+        return 'Updates (OTA)'
+
+    return schema_info.get('section', 'General')
+
+
+def _order_grouped_sections(section_map: dict) -> dict:
+    """Return grouped sections in a stable, user-friendly order."""
+    ordered = {}
+
+    for section_name in SECTION_ORDER:
+        fields = section_map.get(section_name)
+        if fields:
+            ordered[section_name] = fields
+
+    for section_name in sorted(section_map.keys()):
+        if section_name not in ordered:
+            ordered[section_name] = section_map[section_name]
+
+    return ordered
+
+
 def _normalize_update_status(update_info: dict) -> dict:
     """Avoid leaving the UI stuck in 'checking' when the last check is stale."""
     if update_info.get('update_status') != 'checking':
@@ -77,7 +115,7 @@ def index():
     ui_schema = settings_manager.get_web_editable_schema()
     
     # Filter by level and group by section
-    filtered_schema = {}
+    grouped_by_section = {}
     current_values = {}
     
     for field, schema_info in ui_schema.items():
@@ -87,12 +125,14 @@ def index():
         if setting_level != level:
             continue
             
-        section = schema_info['section']
-        if section not in filtered_schema:
-            filtered_schema[section] = []
+        section = _get_display_section(field, schema_info)
+        if section not in grouped_by_section:
+            grouped_by_section[section] = []
         
-        filtered_schema[section].append((field, schema_info))
+        grouped_by_section[section].append((field, schema_info))
         current_values[field] = settings_manager.get(field)
+
+    filtered_schema = _order_grouped_sections(grouped_by_section)
     
     return render_template(
         "settings_form.html",

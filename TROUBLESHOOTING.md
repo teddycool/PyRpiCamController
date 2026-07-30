@@ -195,6 +195,43 @@ export PYTHONPATH=/home/pi/PyRpiCamController
 python3 web_app.py
 ```
 
+## YouTube Live Streaming Issues
+
+### YouTube stream does not start
+
+Check the Web GUI settings first:
+
+- `Cam.publishers.youtube.publish` must be enabled
+- `Cam.publishers.youtube.rtmps_url` must be a valid RTMPS URL
+- `Cam.publishers.youtube.stream_key` must be set
+- `Cam.publishers.youtube.fps` must be one of 5, 10, 15, or 20
+
+Then inspect the runtime logs:
+
+```bash
+sudo journalctl -u camcontroller.service -n 200 --no-pager | grep -i youtube
+```
+
+### Stream is unstable or too slow
+
+Current production behavior uses FFmpeg with `libx264` and `ultrafast` for stability. If YouTube ingest is lagging:
+
+1. Lower YouTube FPS to 5 or 10.
+2. Lower bitrate to 1500k.
+3. Check uplink bandwidth and WiFi strength.
+4. Confirm FFmpeg is installed.
+
+### No YouTube data after enabling the setting
+
+Verify the service is active and the publisher has initialized:
+
+```bash
+sudo systemctl status camcontroller.service --no-pager
+sudo journalctl -u camcontroller.service -n 200 --no-pager | grep -Ei "youtube|ffmpeg|rtmps"
+```
+
+If FFmpeg exits immediately, the log usually shows whether the ingest URL, stream key, or encoder setup is invalid.
+
 ## OTA Update Issues
 
 ### 401 Unauthorized during OTA check (`cpu_id=unknown`)

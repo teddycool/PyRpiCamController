@@ -35,6 +35,7 @@ class YouTubePublisher(PublisherBase):
         self.rtmps_url = ""
         self.stream_key = ""
         self.bitrate = "1500k"  # Reduced from 2500k for lower latency on Pi 3B+
+        self.fps = 10
         self.enabled = False
 
         self._ffmpeg_process = None
@@ -150,6 +151,21 @@ class YouTubePublisher(PublisherBase):
             self.rtmps_url = str(_setting_value(youtube_settings, "rtmps_url", "") or "").strip()
             self.stream_key = str(_setting_value(youtube_settings, "stream_key", "") or "").strip()
             self.bitrate = str(_setting_value(youtube_settings, "bitrate", "1500k") or "1500k")
+            requested_fps = _setting_value(youtube_settings, "fps", 10)
+
+            try:
+                requested_fps = int(requested_fps)
+            except (TypeError, ValueError):
+                requested_fps = 10
+
+            allowed_fps = {5, 10, 15, 20}
+            if requested_fps not in allowed_fps:
+                logger.warning(
+                    "Unsupported YouTube FPS '%s'; falling back to 10",
+                    requested_fps,
+                )
+                requested_fps = 10
+            self.fps = requested_fps
 
             # Normalize known YouTube ingest host variants to canonical host.
             # YouTube ingest is typically a.rtmp.youtube.com for both rtmp:// and rtmps://.
@@ -165,11 +181,12 @@ class YouTubePublisher(PublisherBase):
 
             stream_key_mask = "set" if self.stream_key else "empty"
             logger.info(
-                "YouTube settings loaded: enabled=%s, url=%s, stream_key=%s, bitrate=%s",
+                "YouTube settings loaded: enabled=%s, url=%s, stream_key=%s, bitrate=%s, fps=%s",
                 self.enabled,
                 self.rtmps_url,
                 stream_key_mask,
                 self.bitrate,
+                self.fps,
             )
 
             if not self.enabled:
@@ -192,7 +209,7 @@ class YouTubePublisher(PublisherBase):
                 self.enabled = False
                 return
 
-            logger.info("YouTube publisher configured with bitrate: %s", self.bitrate)
+            logger.info("YouTube publisher configured with bitrate=%s fps=%s", self.bitrate, self.fps)
             self._retry_count = 0
             self._start_ffmpeg_process()
 
@@ -228,32 +245,36 @@ class YouTubePublisher(PublisherBase):
             logger.info("YouTube FFmpeg target endpoint: %s/[stream_key]", base_url)
 
             # FFmpeg command:
-            #  - Read MJPEG frames from stdin at ~10 fps
+            #  - Read MJPEG frames from stdin at configured fps
             #  - Add a silent stereo audio track (YouTube requires audio)
             #  - Encode video as H.264, audio as AAC
             #  - Output as FLV to RTMPS endpoint
             # Phase 1: ultrafast preset + lower bitrate for Pi 3B+ optimization
+            # Keep the known-working libx264 path for reliability; hardware encoders can be revisited later.
             bitrate_int = int(''.join(filter(str.isdigit, self.bitrate)) or '1500')
+            gop_size = max(10, self.fps * 2)
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-hide_banner",
                 "-loglevel", "warning",
                 "-re",                          # Read input at native framerate
                 "-f", "mjpeg",                  # Input format: MJPEG
-                "-r", "10",                     # Input framerate (~10 FPS)
+                "-r", str(self.fps),             # Input framerate (FPS setting)
+                "-thread_queue_size", "512",   # Avoid blocking the MJPEG input queue
                 "-i", "pipe:0",                 # Read from stdin
                 "-f", "lavfi",
+                "-thread_queue_size", "64",    # Keep the audio side buffered too
                 "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",  # Silent audio
-                "-c:v", "libx264",              # Video codec: H.264
+                "-c:v", "libx264",              # Video codec: H.264 (software fallback)
                 "-pix_fmt", "yuv420p",          # YouTube-compatible pixel format
                 "-profile:v", "main",
-                "-g", "20",                     # 2 s GOP at 10 fps
-                "-keyint_min", "20",
+                "-g", str(gop_size),             # 2 s GOP at configured fps
+                "-keyint_min", str(gop_size),
                 "-sc_threshold", "0",
                 "-b:v", self.bitrate,           # Target video bitrate
                 "-maxrate", self.bitrate,
                 "-bufsize", f"{bitrate_int * 4}k",  # Buffer = 4× bitrate for smooth output
-                "-preset", "ultrafast",         # Maximum speed for Pi 3B+; faster than 'faster' by ~30-50%
+                "-preset", "ultrafast",         # Maximum speed for Pi 3B+
                 "-tune", "zerolatency",         # Low-latency streaming behaviour
                 "-c:a", "aac",                  # Audio codec
                 "-b:a", "96k",                  # Audio bitrate (silent source)
@@ -273,7 +294,7 @@ class YouTubePublisher(PublisherBase):
             self._connection_active = True
             self._retry_count = 0
             logger.info(
-                "FFmpeg process started (PID: %d) for YouTube streaming",
+                "FFmpeg process started (PID: %d) for YouTube streaming using libx264 (ultrafast)",
                 self._ffmpeg_process.pid
             )
             
