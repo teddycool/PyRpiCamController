@@ -41,7 +41,7 @@ If you want to support the project, consider donating via [PayPal](https://www.p
 
 ## Setup and Operation Flow
 
-[![PyRpiCamController setup and operation flow](_doc/Setup-and-operation-flow.png)](_doc/Setup-and-operation-flow.png)
+[![PyRpiCamController setup and operation flow](_doc/Setup-and-operation-flow-v2.png)](_doc/Setup-and-operation-flow--v2.png)
 
 ## Features
 
