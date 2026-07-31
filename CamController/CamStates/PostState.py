@@ -4,16 +4,13 @@
 
 __author__ = 'teddycool'
 
-import os
 import time
 from CamStates import BaseState
 from Cam import CamBase
 import cv2
 #from Vision import MotionDetector
 import logging
-from hwconfig import hwconfig1 as hwconfig
 import sys
-from Settings.settings_manager import settings_manager
 # Import vision pipeline components
 from Vision.pipeline.ImageProcessor import ImageProcessor
 from Vision.pipeline.processors.MotionDetectionProcessor import MotionDetectionProcessor
@@ -23,27 +20,31 @@ logger = logging.getLogger("cam.state.poststate")
 class PostState(BaseState.BaseState):
     def __init__(self):
         super(PostState, self).__init__()
+        self._cam = None
+        self._image_processor = None
+        self._publishers = []
+        self._lastsent = 0
         return
 
     def initialize(self, settings):
+        super().initialize(settings)
         logger.debug ("PostState initialize..")
          #Setup Cam
         self._lastsent = 0 #Force first image
         self._cam = CamBase.get_cam(settings["CamChip"])
         logger.debug ("CamType: " + str(self._cam))
         self._cam.start(settings)
-        self._refresh_publish_settings()
-        
         # Initialize vision pipeline
         self._image_processor = ImageProcessor()
         
         # Configure motion detection processor if enabled
-        if settings_manager.get("Cam.MotionDetector.active"):
+        motion_config = settings.get("Cam", {}).get("MotionDetector", {})
+        if motion_config.get("active"):
             motion_processor = MotionDetectionProcessor()
             motion_settings = {
                 'enabled': True,
-                'motion_threshold': settings_manager.get("Cam.MotionDetector.motioncount"),
-                'history': settings_manager.get("Cam.MotionDetector.history"),
+                'motion_threshold': motion_config.get("motioncount"),
+                'history': motion_config.get("history"),
                 'detect_motion_areas': True,
                 'min_motion_area': 100
             }
@@ -70,17 +71,10 @@ class PostState(BaseState.BaseState):
         logger.info(f"Vision pipeline configured with {len(self._image_processor)} processors")
         return
 
-    def _refresh_publish_settings(self):
-        try:
-            settings_manager.load_user_settings()
-        except Exception as e:
-            logger.warning("Could not reload user settings before publish refresh: %s", e)
-
     def update(self, context):        
         #Don't care about motion detection right now...
         #TODO: add support for schedule
-        if time.time() - self._lastsent > settings_manager.get("Cam.timeslot"):     
-            self._refresh_publish_settings()
+        if time.time() - self._lastsent > self._settings.get("Cam", {}).get("timeslot", 60):
             logger.debug ("PostState will try to update and send new image..")       
             currentImage = None
             camupdated = False
@@ -129,8 +123,17 @@ class PostState(BaseState.BaseState):
 
                             # Publish one shared encoding to all publishers.
                             for publisher in self._publishers:
-                                publisher.publish(encoded_image, final_metadata)
-                                logger.debug("Posted %s image-data to %s", encode_ext, type(publisher).__name__)
+                                if publisher.publish(encoded_image, final_metadata):
+                                    logger.debug(
+                                        "Posted %s image-data to %s",
+                                        encode_ext,
+                                        type(publisher).__name__,
+                                    )
+                                else:
+                                    logger.error(
+                                        "Publisher %s failed to publish image",
+                                        type(publisher).__name__,
+                                    )
                         except Exception as e:
                             logger.error(f"Open-cv imencode failed. Cam will try to continue. Exception: {e}", exc_info=True)
                 else:
@@ -151,10 +154,13 @@ class PostState(BaseState.BaseState):
             if hasattr(self, '_cam') and self._cam:
                 logger.info("Stopping camera for settings reload")
                 self._cam.stop()
+                self._cam = None
+            for publisher in getattr(self, "_publishers", []):
+                publisher.cleanup()
+            self._publishers = []
         except Exception as e:
             logger.error(f"Error during PostState cleanup: {e}")
 
     def dispose(self):
-        #self._cam.
-        logger.debug ("PostState resources disposed..")
-        #TODO: dispose resources correctly...
+        """Release all resources during final shutdown."""
+        self.cleanup()

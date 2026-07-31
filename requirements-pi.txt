@@ -1,0 +1,16 @@
+# Python packages not supplied by Raspberry Pi OS.
+#
+# NumPy, OpenCV, simplejpeg, picamera, and picamera2 are intentionally absent.
+# They form one ABI-sensitive camera stack and must be installed together by APT.
+requests>=2.28
+flask>=2.2
+pyserial>=3.5
+paho-mqtt>=1.6
+
+# Test and verification dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+mock>=4.0.0
+jsonschema>=4.0.0
+coverage>=7.0.0

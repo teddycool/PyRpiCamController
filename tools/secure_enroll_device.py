@@ -359,15 +359,21 @@ from Settings.settings_manager import settings_manager
 
 payload = json.loads(base64.b64decode('{payload_b64}').decode('utf-8'))
 
-settings_manager.set('OtaEnable', True)
-settings_manager.set('OTA.server_url', payload['server_url'])
-settings_manager.set('OTA.api_key', payload['api_key'])
-settings_manager.set('UpdateGroup', payload['update_group'])
-settings_manager.set('TestDevice', bool(payload['test_device']))
+settings_manager.set('OtaEnable', True, save=False)
+settings_manager.set('OTA.server_url', payload['server_url'], save=False)
+settings_manager.set(
+    'OTA.api_key',
+    payload['api_key'],
+    save=False,
+    allow_readonly=True,
+)
+settings_manager.set('UpdateGroup', payload['update_group'], save=False)
+settings_manager.set('TestDevice', bool(payload['test_device']), save=False)
 
 if payload.get('device_name'):
-    settings_manager.set('DeviceName', payload['device_name'])
+    settings_manager.set('DeviceName', payload['device_name'], save=False)
 
+settings_manager.save_user_settings()
 print('OK: settings updated')
 PY"""
 
@@ -518,7 +524,10 @@ def main() -> int:
         close_ssh_session(args.host, args.ssh_user, args.ssh_port)
         stderr = (exc.stderr or "").strip()
         suffix = f"\n{stderr}" if stderr else ""
-        print(f"❌ Command failed: {' '.join(exc.cmd)}{suffix}", file=sys.stderr)
+        print(
+            f"❌ Remote enrollment command failed with exit code {exc.returncode}{suffix}",
+            file=sys.stderr,
+        )
         return 1
     except requests.RequestException as exc:
         close_ssh_session(args.host, args.ssh_user, args.ssh_port)

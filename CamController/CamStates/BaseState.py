@@ -4,21 +4,35 @@
 
 __author__ = 'teddycool'
 
-#Parent-class for all state-loops
-#https://en.wikipedia.org/wiki/State_pattern
-import time
+"""Common lifecycle contract for camera-controller states."""
 
-class BaseState(object):
+from abc import ABC, abstractmethod
+from typing import Any
 
-    def __init__(self):
-        return
 
-    def initialize(self):
-        self.lastUpdate= time.time()
-        return
+class BaseState(ABC):
+    """Base class for states managed by :class:`MainLoop`."""
 
-    def update(self, context):
-        return
+    def __init__(self) -> None:
+        self._settings: dict[str, Any] = {}
 
-    def dispose(self):
-        return
+    @abstractmethod
+    def initialize(self, settings: dict[str, Any]) -> None:
+        """Allocate state resources using one consistent settings snapshot."""
+        self._settings = settings
+
+    @abstractmethod
+    def update(self, context: Any) -> None:
+        """Perform one state update."""
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        """Release resources when leaving or reloading the state."""
+
+    @abstractmethod
+    def dispose(self) -> None:
+        """Release resources during final shutdown."""
+
+    def get_runtime_status(self) -> dict[str, Any]:
+        """Return state-owned runtime status for the generic status writer."""
+        return {}

@@ -137,11 +137,17 @@ python3 tools/install-all-optimized.py
 Installer responsibilities include:
 
 - OS/package dependencies
+- APT-managed camera stack (`picamera2`, NumPy, OpenCV, and `simplejpeg`)
 - Service files and enablement
 - Shared directories and permissions
 - SMB-related setup (if enabled)
 - Pigpio daemon setup for hardware PWM path
 - `ffmpeg` installation for YouTube Live streaming
+
+The installer intentionally does not install NumPy, OpenCV, `simplejpeg`, or
+camera libraries from pip. These binary packages must come from the same
+Raspberry Pi OS/APT stack to remain ABI-compatible. The installation fails
+early if they cannot be imported together.
 
 ### YouTube Live and Hardware Acceleration Notes
 

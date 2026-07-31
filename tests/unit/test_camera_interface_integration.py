@@ -49,6 +49,10 @@ class _DummyPublisher:
 
     def publish(self, image, metadata):
         self.calls.append((image, metadata))
+        return True
+
+    def cleanup(self):
+        return None
 
 
 class _DummyEncodedImage:
@@ -56,10 +60,17 @@ class _DummyEncodedImage:
 
 
 class TestPostStateCameraInterface:
+    def test_constructor_initializes_safe_resource_defaults(self):
+        state = PostState()
+
+        assert state._cam is None
+        assert state._image_processor is None
+        assert state._publishers == []
+
     def test_update_uses_camera_interface_properties(self, monkeypatch):
         state = PostState()
         state._lastsent = 0
-        state._refresh_publish_settings = lambda: None
+        state._settings = {"Cam": {"timeslot": 0}}
 
         image_object = object()
         camera_metadata = {"ExposureTime": 100}
@@ -71,7 +82,6 @@ class TestPostStateCameraInterface:
         publisher = _DummyPublisher()
         state._publishers = [publisher]
 
-        monkeypatch.setattr('CamStates.PostState.settings_manager.get', lambda key: 0 if key == 'Cam.timeslot' else None)
         monkeypatch.setattr('CamStates.PostState.cv2.imencode', lambda ext, img: (True, _DummyEncodedImage()))
 
         context = SimpleNamespace(_display=_DummyDisplay())
@@ -88,14 +98,12 @@ class TestPostStateCameraInterface:
     def test_update_skips_publish_when_no_image(self, monkeypatch):
         state = PostState()
         state._lastsent = 0
-        state._refresh_publish_settings = lambda: None
+        state._settings = {"Cam": {"timeslot": 0}}
         state._cam = _DummyCam(image=None, metadata={"ExposureTime": 200})
         state._image_processor = SimpleNamespace(process=lambda img, meta: (img, {}))
 
         publisher = _DummyPublisher()
         state._publishers = [publisher]
-
-        monkeypatch.setattr('CamStates.PostState.settings_manager.get', lambda key: 0 if key == 'Cam.timeslot' else None)
 
         context = SimpleNamespace(_display=_DummyDisplay())
 

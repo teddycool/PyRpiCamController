@@ -326,7 +326,7 @@ def package_install(with_opencv=False):
 
     # Install APT packages in staged groups so interrupted runs can resume more cleanly.
     core_packages = [
-        "python3-pip", "python3-picamera2", "libcamera-apps", "python3-libcamera",
+        "python3-pip", "python3-picamera2", "python3-simplejpeg", "libcamera-apps", "python3-libcamera",
         "python3-lgpio", "python3-rpi.gpio", "python3-numpy",
         "python3-pigpio", "pigpio",
         "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
@@ -353,8 +353,10 @@ def package_install(with_opencv=False):
             log_step("ERROR", f"Failed to install {group_name}")
             return False
     
-    # Install Python packages from requirements file
-    requirements_file = Path(PROJECT_ROOT) / "requirements.txt"
+    # Keep the ABI-sensitive camera stack under APT ownership. Installing
+    # NumPy/OpenCV/simplejpeg with system-wide pip can make Debian's picamera2
+    # extensions unloadable after a NumPy ABI upgrade.
+    requirements_file = Path(PROJECT_ROOT) / "requirements-pi.txt"
     if not requirements_file.exists():
         log_step("ERROR", f"Requirements file not found: {requirements_file}")
         return False
@@ -363,6 +365,19 @@ def package_install(with_opencv=False):
     pip_cmd = f"sudo pip3 install --break-system-packages -r {requirements_file}"
     if not run_cmd_with_retry(pip_cmd, check=False, retries=3, timeout=3600):
         log_step("WARNING", "pip requirements installation reported errors")
+
+    camera_import_check = (
+        "/usr/bin/python3 -c "
+        "'import numpy, cv2, simplejpeg; from picamera2 import Picamera2; "
+        "print(\"Camera Python stack OK\", numpy.__version__, cv2.__version__)'"
+    )
+    if not run_cmd(camera_import_check, capture=False, check=False):
+        log_step(
+            "ERROR",
+            "Camera Python stack import failed. "
+            "Do not mix pip NumPy/OpenCV/simplejpeg with Raspberry Pi OS picamera2 packages.",
+        )
+        return False
 
     setup_led_dependency()
     
