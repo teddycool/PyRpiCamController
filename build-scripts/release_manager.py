@@ -216,8 +216,10 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
             "Updates/",
             "_doc/",
             "VERSION",
+            "requirements-pi.txt",
+            "requirements.txt",
             "LICENSE", 
-            "readme.adoc"
+            "README.md"
         ]
         
         # Files to exclude
