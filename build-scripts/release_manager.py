@@ -11,7 +11,8 @@ Usage:
     python3 release_manager.py prepare minor     # Prepare minor release  
     python3 release_manager.py prepare major     # Prepare major release
     python3 release_manager.py build             # Build release package
-    python3 release_manager.py release           # Full release pipeline
+    python3 release_manager.py release           # Full release pipeline (auto patch bump)
+    python3 release_manager.py release minor     # Full release pipeline (minor bump)
 """
 
 import os
@@ -84,6 +85,31 @@ class ReleaseManager:
             return len(result.stdout.strip()) == 0
         except:
             return False
+
+    def get_git_status_entries(self):
+        """Return parsed git status --porcelain entries"""
+        try:
+            result = subprocess.run(['git', 'status', '--porcelain'],
+                                  capture_output=True, text=True, cwd=PROJECT_ROOT)
+            if result.returncode != 0:
+                return []
+            entries = []
+            for line in result.stdout.splitlines():
+                if not line.strip():
+                    continue
+                status = line[:2]
+                path = line[3:].strip()
+                entries.append((status, path))
+            return entries
+        except Exception:
+            return []
+
+    def has_only_version_change(self):
+        """True if only VERSION file is modified/staged"""
+        entries = self.get_git_status_entries()
+        if not entries:
+            return False
+        return all(path == "VERSION" for _, path in entries)
     
     def run_cmd(self, cmd, check=True):
         """Run command and return success/output"""
@@ -246,10 +272,6 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
     
     def git_commit_and_tag(self, version):
         """Commit version changes and create git tag"""
-        if not self.git_clean:
-            self.log("Git repository has uncommitted changes", "ERROR") 
-            return False
-            
         commands = [
             f"git add {VERSION_FILE}",
             f"git commit -m 'Bump version to {version}'",
@@ -310,11 +332,20 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
         
         return True
     
-    def full_release(self):
+    def full_release(self, bump_type="patch"):
         """Complete release pipeline"""
         self.log("=== Full Release Pipeline ===")
-        
-        version = self.get_current_version()
+
+        if self.check_git_status():
+            version = self.bump_version(bump_type)
+            self.current_version = version
+            self.log(f"Version bumped for release: {version}")
+        elif self.has_only_version_change():
+            version = self.get_current_version()
+            self.log(f"Detected prepared release VERSION={version}; continuing without additional bump")
+        else:
+            self.log("Git repository must be clean or only have VERSION changed for release", "ERROR")
+            return False
         
         # Final tests
         if not self.run_tests():
@@ -366,7 +397,13 @@ def main():
     elif command == "build":
         success = manager.build_release()
     elif command == "release":
-        success = manager.full_release()
+        bump_type = "patch"
+        if len(sys.argv) >= 3:
+            bump_type = sys.argv[2]
+        if bump_type not in {"major", "minor", "patch"}:
+            print("Usage: python3 release_manager.py release [major|minor|patch]")
+            return
+        success = manager.full_release(bump_type)
     else:
         print(f"Unknown command: {command}")
         print(__doc__)
