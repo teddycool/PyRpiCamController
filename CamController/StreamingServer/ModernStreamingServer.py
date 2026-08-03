@@ -544,6 +544,11 @@ class CameraStreamer:
         self._idle_framerate = 2
         self._current_stream_framerate = None
         self._framerate_monitor_thread = None
+        self._force_active_framerate = False
+
+    def set_force_active_framerate(self, enabled: bool) -> None:
+        """Force active stream framerate regardless of local client count."""
+        self._force_active_framerate = bool(enabled)
         
     def initialize(self, settings: Dict[str, Any]) -> bool:
         """Initialize camera and streaming server with settings"""
@@ -630,14 +635,16 @@ class CameraStreamer:
             while self.running and self._encoded_stream:
                 try:
                     has_clients = bool(self.output and self.output.clients > 0)
-                    target_fps = self._active_framerate if has_clients else self._idle_framerate
+                    force_active = bool(self._force_active_framerate)
+                    target_fps = self._active_framerate if (has_clients or force_active) else self._idle_framerate
 
                     if target_fps != self._current_stream_framerate and self.cam is not None:
                         if self.cam.set_stream_framerate(target_fps):
                             logger.info(
-                                "Encoded stream framerate updated to %s fps (clients=%s)",
+                                "Encoded stream framerate updated to %s fps (clients=%s, force_active=%s)",
                                 target_fps,
                                 int(has_clients),
+                                int(force_active),
                             )
                             self._current_stream_framerate = target_fps
                         else:

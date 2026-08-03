@@ -83,6 +83,8 @@ class StreamState(BaseState.BaseState):
                     self._youtube_publisher = YouTubePublisher()
                     self._youtube_publisher.initialize(settings)
                     if getattr(self._youtube_publisher, "enabled", False):
+                        if self._streaming_server and hasattr(self._streaming_server, "set_force_active_framerate"):
+                            self._streaming_server.set_force_active_framerate(True)
                         logger.info(
                             "YouTube Live publisher active — frame_interval=%.3fs, "
                             "frame_interval_with_clients=%.3fs",
@@ -168,6 +170,9 @@ class StreamState(BaseState.BaseState):
             except Exception as e:
                 logger.warning("Error cleaning up YouTube publisher: %s", e)
             self._youtube_publisher = None
+
+        if self._streaming_server and hasattr(self._streaming_server, "set_force_active_framerate"):
+            self._streaming_server.set_force_active_framerate(False)
 
     def get_youtube_stats(self):
         """Return a combined snapshot of YouTube forwarder and publisher performance."""
