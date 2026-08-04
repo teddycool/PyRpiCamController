@@ -4,19 +4,23 @@
 
 __author__ = 'teddycool'
 
-#Parent-class for all publishers
+"""Common lifecycle contract for image publishers."""
+
+from abc import ABC, abstractmethod
+from typing import Any
 
 
-class PublisherBase(object):
+class PublisherBase(ABC):
+    """Interface implemented by all image publishers."""
 
-    def __init__(self):
-        raise NotImplementedError 
-    
-    def __del__(self):
-        return
-    
-    def initialize(self, settings):  #Init publisher with current settings from config
-        raise NotImplementedError   
-    
-    def publish(self, jpgimagedata, metadata): #Publish the image and metadata 
-        raise NotImplementedError
+    @abstractmethod
+    def initialize(self, settings: dict[str, Any]) -> None:
+        """Initialize the publisher from a settings snapshot."""
+
+    @abstractmethod
+    def publish(self, jpgimagedata: Any, metadata: dict[str, Any] | None = None) -> bool:
+        """Publish an image and return whether it succeeded."""
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        """Release publisher resources."""

@@ -9,7 +9,7 @@ import logging
 
 from Connectivity import cpuserial
 
-from PublisherBase import PublisherBase
+from .PublisherBase import PublisherBase
 
 logger = logging.getLogger("cam.publisher.http")
 
@@ -23,19 +23,22 @@ class HttpPublisher(PublisherBase):
         # Update URL from unified settings schema
         self.url = settings.get("Cam", {}).get("publishers", {}).get("url", {}).get("location", self.url)
 
-    def publish(self, jpgimagedata, metadata):
+    def publish(self, jpgimagedata, metadata=None) -> bool:
         try:        
             if not self.url:
                 logger.error("HttpPublisher URL is not configured")
-                return None
+                return False
 
             data = jpgimagedata.tobytes()
             files = {'media': data}
             url = self.url + '?cpu=' + self.cpuid
-            r = requests.post(url, files=files)
+            r = requests.post(url, files=files, timeout=30)
             logger.debug("Posted image-data to " + url)
             logger.debug("Received http-status: " + str(r.status_code))
-            return r.status_code
+            return 200 <= r.status_code < 300
         except Exception as e:
             logger.error(f"HttpPublisher failed. Exception: {e}", exc_info=True)
-            return None            # ...existing code...
+            return False
+
+    def cleanup(self) -> None:
+        """Release publisher resources."""

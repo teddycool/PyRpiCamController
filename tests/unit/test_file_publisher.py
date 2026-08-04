@@ -254,7 +254,7 @@ class TestFilePublisherDiskManagement:
         image_data = bytearray([0xFF, 0xD8, 0xFF, 0xE0] + [0x00] * 100 + [0xFF, 0xD9])
         metadata = {"timestamp": int(time.time())}
         
-        self.publisher.publish(image_data, metadata)
+        result = self.publisher.publish(image_data, metadata)
         
         # Should create files
         jpg_files = _collect_files_recursive(self.temp_dir, '.jpg')
@@ -262,6 +262,7 @@ class TestFilePublisherDiskManagement:
         
         assert len(jpg_files) == 1
         assert len(json_files) == 0
+        assert result is True
 
     @patch('shutil.disk_usage')
     @patch('CamController.Publishers.FilePublisher.logger')
@@ -276,14 +277,33 @@ class TestFilePublisherDiskManagement:
         image_data = bytearray([0xFF, 0xD8, 0xFF, 0xE0] + [0x00] * 100 + [0xFF, 0xD9])
         metadata = {"timestamp": int(time.time())}
         
-        self.publisher.publish(image_data, metadata)
+        result = self.publisher.publish(image_data, metadata)
         
         # Should not create files
         files = os.listdir(self.temp_dir)
         assert len(files) == 0
+        assert result is False
         
         # Should log error
         mock_logger.error.assert_called()
+
+    @patch('shutil.disk_usage')
+    def test_publish_syncs_parent_directory(self, mock_disk_usage):
+        """A successful atomic rename must also sync its parent directory."""
+        mock_disk_usage.return_value = (
+            1000 * 1024 * 1024,
+            850 * 1024 * 1024,
+            150 * 1024 * 1024,
+        )
+        self.test_settings["Cam"]["save_metadata_json"] = True
+        self.publisher.initialize(self.test_settings)
+        image_data = bytearray([0xFF, 0xD8, 0xFF, 0xD9])
+
+        with patch.object(self.publisher, "_sync_parent_directory") as sync_parent:
+            result = self.publisher.publish(image_data, {"frame": 1})
+
+        assert result is True
+        assert sync_parent.call_count == 2
 
     @patch('shutil.disk_usage')
     @patch('CamController.Publishers.FilePublisher.logger')

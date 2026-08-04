@@ -174,3 +174,4 @@ cython_debug/
 #.idea/
 tools/pycam_cache.tar.gz
 backend/cam_ota_template.php
+tools/smoke_test_pi.env

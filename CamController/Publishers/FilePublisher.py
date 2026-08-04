@@ -17,8 +17,6 @@ from datetime import datetime
 from typing import Tuple, List
 
 from .PublisherBase import PublisherBase
-from Settings.settings_manager import settings_manager
-
 logger = logging.getLogger("cam.publisher.file")
 
 class FilePublisher(PublisherBase):
@@ -31,6 +29,7 @@ class FilePublisher(PublisherBase):
         self.storage_mode = "delete_old"  # "stop_saving" or "delete_old"
         self.threshold_value = 500
         self.threshold_unit = "MB"  # "MB" or "percent"
+        self.save_metadata_json = False
         
         logger.debug("Init FilePublisher")
 
@@ -85,6 +84,7 @@ class FilePublisher(PublisherBase):
         if requested_format not in supported_formats:
             raise ValueError(f"Unsupported image format: {requested_format}")
         self.img_format = requested_format
+        self.save_metadata_json = bool(settings.get("Cam", {}).get("save_metadata_json", False))
         
         # Initialize storage management settings
         storage_settings = settings.get("Cam", {}).get("storage_management", {})
@@ -232,21 +232,24 @@ class FilePublisher(PublisherBase):
         
         return False
 
-    def publish(self, jpgimagedata, metadata):
+    @staticmethod
+    def _sync_parent_directory(path: str) -> None:
+        """Make a completed rename durable across sudden power loss."""
+        parent_fd = os.open(os.path.dirname(path), os.O_RDONLY)
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+
+    def publish(self, jpgimagedata, metadata=None) -> bool:
         temp_img_filename = None
         temp_meta_filename = None
         date_dir = None
         try:
-            # Keep runtime behavior in sync with latest persisted settings.
-            try:
-                settings_manager.load_user_settings()
-            except Exception as e:
-                logger.warning(f"Could not reload user settings before publish: {e}")
-
             # Check and manage storage space before saving
             if not self.manage_storage_space():
                 logger.error("Cannot save image: insufficient disk space and unable to free space.")
-                return
+                return False
             
             timestamp = int(time.time())
 
@@ -271,11 +274,11 @@ class FilePublisher(PublisherBase):
                 os.fsync(img_file.fileno())
 
             os.replace(temp_img_filename, img_filename)
+            self._sync_parent_directory(img_filename)
             self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
 
-            save_metadata_json = bool(settings_manager.get("Cam.save_metadata_json", False))
-            if save_metadata_json and metadata is not None:
+            if self.save_metadata_json and metadata is not None:
                 meta_filename = os.path.join(date_dir, f"{timestamp}.json")
                 temp_meta_filename = meta_filename + ".tmp"
                 with open(temp_meta_filename, "w") as meta_file:
@@ -283,6 +286,7 @@ class FilePublisher(PublisherBase):
                     meta_file.flush()
                     os.fsync(meta_file.fileno())
                 os.replace(temp_meta_filename, meta_filename)
+                self._sync_parent_directory(meta_filename)
                 self._ensure_smb_permissions(meta_filename, is_directory=False)
                 logger.debug(f"Saved metadata to {meta_filename}")
             
@@ -292,7 +296,8 @@ class FilePublisher(PublisherBase):
                 free_mb = free / (1024 * 1024)
                 used_percent = (used / total) * 100
                 logger.info(f"Disk usage: {used_percent:.1f}% used, {free_mb:.1f} MB free")
-                
+            return True
+
         except Exception as e:
             if temp_img_filename and os.path.exists(temp_img_filename):
                 try:
@@ -307,6 +312,10 @@ class FilePublisher(PublisherBase):
                     pass
 
             logger.error(f"FilePublisher failed to save image or metadata: {e}", exc_info=True)
+            return False
+
+    def cleanup(self) -> None:
+        """Release publisher resources."""
 
 
 sys.modules.setdefault("Publishers.FilePublisher", sys.modules[__name__])

@@ -121,6 +121,27 @@ python3 -c "from picamera2 import Picamera2; print('ok')"
 libcamera-hello --list-cameras
 ```
 
+1. NumPy and `simplejpeg` binary incompatibility
+
+Typical log message:
+
+```text
+ValueError: numpy.dtype size changed, may indicate binary incompatibility
+```
+
+This means pip replaced part of the Raspberry Pi OS camera stack. Restore the
+APT-owned packages and verify that they import together:
+
+```bash
+sudo /usr/bin/python3 -m pip uninstall --break-system-packages -y numpy opencv-python simplejpeg
+sudo apt-get update
+sudo apt-get install --reinstall python3-numpy python3-opencv python3-simplejpeg python3-picamera2
+/usr/bin/python3 -c "import numpy, cv2, simplejpeg; from picamera2 import Picamera2; print('camera stack ok')"
+sudo systemctl restart camcontroller.service
+```
+
+Do not install system-wide NumPy, OpenCV, or `simplejpeg` with pip on the Pi.
+
 1. Broken settings JSON or invalid values
 
 ```bash

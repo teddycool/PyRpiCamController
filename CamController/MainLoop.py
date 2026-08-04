@@ -8,8 +8,8 @@ __author__ = 'teddycool'
 from hwconfig import hwconfig1 as hwconfig
 
 import logging
-import time
 import os
+import time
 from typing import Any
 
 import RPi.GPIO as GPIO
@@ -25,7 +25,6 @@ from IO import CpuTempMonitor
 from IO import DS18B20TempMonitor
 from Settings.settings_manager import settings_manager
 import json
-import os
 
 logger = logging.getLogger("cam.mainloop")
 
@@ -260,20 +259,25 @@ class MainLoop:
             }
 
             current_state = getattr(self, '_currentstate', None)
-            if current_state and hasattr(current_state, 'get_youtube_stats'):
+            if current_state:
                 try:
-                    youtube_stats = current_state.get_youtube_stats()
-                    if youtube_stats:
-                        status_data['youtube'] = youtube_stats
+                    status_data.update(current_state.get_runtime_status())
                 except Exception as e:
-                    logger.debug("Failed to collect YouTube stats: %s", e)
+                    logger.debug("Failed to collect state runtime status: %s", e)
             
             status_file = "/tmp/cam_runtime_status.json"
             # Write to temporary file first, then rename for atomic operation
             temp_file = status_file + ".tmp"
             with open(temp_file, 'w') as f:
                 json.dump(status_data, f)
-            os.rename(temp_file, status_file)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_file, status_file)
+            parent_fd = os.open(os.path.dirname(status_file), os.O_RDONLY)
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
                 
         except Exception as e:
             logger.debug("Failed to write runtime status: %s", str(e))      
@@ -306,37 +310,62 @@ class MainLoop:
         if isinstance(state_name, str):
             state_name = StateName(state_name)
 
-        logger.info("State changed to: %s", state_name.value)
+        logger.info("Changing state to: %s", state_name.value)
         previous_state = getattr(self, "_currentstate", None)
+        target_state = self.states[state_name]
 
         # Stop/cleanup previous state resources before switching.
         if previous_state is not None:
-            if hasattr(previous_state, 'stop_streaming'):
-                try:
-                    previous_state.stop_streaming()
-                except Exception as e:
-                    logger.warning("Failed to stop previous streaming state cleanly: %s", e)
-            elif hasattr(previous_state, 'cleanup'):
-                try:
-                    previous_state.cleanup()
-                except Exception as e:
-                    logger.warning("Failed to cleanup previous state cleanly: %s", e)
+            try:
+                previous_state.cleanup()
+            except Exception as e:
+                logger.warning("Failed to cleanup previous state cleanly: %s", e)
 
-        self._currentstate = self.states[state_name]
-        
         # Merge hardware config with settings manager data
         settings_dict = dict(self._settings.get_dict())  # Convert SettingsDict to regular dict
         settings_dict.update(self._hardware_config)  # Add hardware configuration to settings
-        
-        self._currentstate.initialize(settings_dict)
+
+        try:
+            target_state.initialize(settings_dict)
+        except Exception:
+            logger.exception("Failed to initialize state %s", state_name.value)
+            fallback_state = previous_state
+            if fallback_state is None and target_state is not self._initState:
+                fallback_state = self._initState
+
+            if fallback_state is not None and fallback_state is not target_state:
+                try:
+                    fallback_state.initialize(settings_dict)
+                    self._currentstate = fallback_state
+                    logger.warning(
+                        "Restored state %s after %s initialization failed",
+                        type(fallback_state).__name__,
+                        state_name.value,
+                    )
+                except Exception:
+                    logger.exception("Failed to restore previous state")
+            raise
+
+        self._currentstate = target_state
+        logger.info("State changed to: %s", state_name.value)
 
 
     def stop(self):
         logger.info("Mainloop stopped")
+        current_state = getattr(self, "_currentstate", None)
+        if current_state is not None:
+            try:
+                current_state.dispose()
+            except Exception:
+                logger.exception("Failed to dispose active state")
         self._display.off()
         if self._lightbox is not None:
             logger.info("Lightbox stopped")
             self._lightbox.stop()
+        try:
+            GPIO.cleanup()
+        except Exception:
+            logger.exception("Failed to clean up GPIO")
 
 
 

@@ -36,6 +36,7 @@ class StreamState(BaseState.BaseState):
 
     def initialize(self, settings):
         """Initialize streaming state with camera and server"""
+        super().initialize(settings)
         logger.info("StreamState initialize...")
         self._last_health_check = 0.0
         self._health_check_interval = float(settings.get("Stream.health_check_interval", 3.0))
@@ -82,6 +83,8 @@ class StreamState(BaseState.BaseState):
                     self._youtube_publisher = YouTubePublisher()
                     self._youtube_publisher.initialize(settings)
                     if getattr(self._youtube_publisher, "enabled", False):
+                        if self._streaming_server and hasattr(self._streaming_server, "set_force_active_framerate"):
+                            self._streaming_server.set_force_active_framerate(True)
                         logger.info(
                             "YouTube Live publisher active — frame_interval=%.3fs, "
                             "frame_interval_with_clients=%.3fs",
@@ -168,6 +171,9 @@ class StreamState(BaseState.BaseState):
                 logger.warning("Error cleaning up YouTube publisher: %s", e)
             self._youtube_publisher = None
 
+        if self._streaming_server and hasattr(self._streaming_server, "set_force_active_framerate"):
+            self._streaming_server.set_force_active_framerate(False)
+
     def get_youtube_stats(self):
         """Return a combined snapshot of YouTube forwarder and publisher performance."""
         with self._youtube_stats_lock:
@@ -197,6 +203,11 @@ class StreamState(BaseState.BaseState):
             "publisher": publisher_stats,
         }
 
+    def get_runtime_status(self):
+        """Return StreamState-owned status without coupling MainLoop to YouTube."""
+        youtube_stats = self.get_youtube_stats()
+        return {"youtube": youtube_stats} if youtube_stats else {}
+
     def update(self, context):
         """Update streaming state - camera runs in background"""
         now = time.time()
@@ -211,17 +222,9 @@ class StreamState(BaseState.BaseState):
         return
     
     def cleanup(self):
-        """Clean up streaming resources for settings reload"""
+        """Release streaming resources before reload or state transition."""
         logger.info("StreamState cleanup for settings reload...")
-        try:
-            self._stop_youtube()
-            # Don't fully stop streaming — re-initialization will restart it
-            if self._streaming_server:
-                was_running = ModernStreamingServer.is_streaming()
-                if was_running:
-                    logger.info("Temporarily pausing streaming for settings reload")
-        except Exception as e:
-            logger.error(f"Error during StreamState cleanup: {e}")
+        self.stop_streaming()
     
     def stop_streaming(self):
         """Completely stop streaming (for state changes)"""
@@ -233,6 +236,10 @@ class StreamState(BaseState.BaseState):
             logger.info("Streaming server stopped completely")
         except Exception as e:
             logger.error(f"Error stopping streaming server: {e}")
+
+    def dispose(self):
+        """Release streaming resources during final shutdown."""
+        self.stop_streaming()
     
     def __del__(self):
         """Ensure cleanup on deletion"""

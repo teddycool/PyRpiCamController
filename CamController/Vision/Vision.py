@@ -25,19 +25,19 @@ except:
 class Vision(object):
 
     def __init__(self):
-        print "Vision object started..."
+        print("Vision object started...")
         self._seqno = 0
         self._recording= False
 
 
     def initialize(self):
-        print "Vision initialised"
-        print "Starting streamer..."
+        print("Vision initialised")
+        print("Starting streamer...")
 
         
-        print os.system('sudo LD_LIBRARY_PATH=/home/pi/mjpg-streamer/mjpg-streamer  /home/pi/mjpg-streamer/mjpg-streamer/mjpg_streamer -i "input_file.so -f /ram/stream -n pic.jpg" -o "output_http.so -w /home/pi/mjpg-streamer/mjpg-streamer/www" &')
+        print(os.system('sudo LD_LIBRARY_PATH=/home/pi/mjpg-streamer/mjpg-streamer  /home/pi/mjpg-streamer/mjpg-streamer/mjpg_streamer -i "input_file.so -f /ram/stream -n pic.jpg" -o "output_http.so -w /home/pi/mjpg-streamer/mjpg-streamer/www" &'))
 
-        print "CAM init..."
+        print("CAM init...")
 
         self._resolution = birdcam["Cam"]["Res"]
         self._cam = picamera.PiCamera()
@@ -49,7 +49,7 @@ class Vision(object):
         self._cam.framerate = birdcam["Cam"]["FrameRate"]
         #Rotate the camera-view
         self._cam.rotation = 270
-        print "Wait for the automatic gain control to settle"
+        print("Wait for the automatic gain control to settle")
         time.sleep(2)
       #  print "Setting cam fix values"
         # Now fix the values
@@ -59,15 +59,15 @@ class Vision(object):
         self._cam.awb_mode = 'auto'
         self._cam.sharpness = 10
       # self._cam.awb_gains = g
-        print "Starting image-generator..."
+        print("Starting image-generator...")
         self._lastframetime = time.time()
         self._rawCapture = PiRGBArray(self._cam, size= self._resolution)
         self._imagegenerator = self._cam.capture_continuous(self._rawCapture, format="bgr", use_video_port=True)
-        print "getting first frame"
+        print("getting first frame")
         frame = self.update()
 
     def update(self):
-        rawframe = self._imagegenerator.next()
+        rawframe = next(self._imagegenerator)
         self._rawCapture.truncate()
         self._rawCapture.seek(0)
         frame = rawframe.array
@@ -83,23 +83,23 @@ class Vision(object):
 
 
     def __del__(self):
-        print "Vision object deleted..."
+        print("Vision object deleted...")
         self._cam.close()
 
 
 if __name__ == '__main__':
-    print "Testcode for Vision"
+    print("Testcode for Vision")
 
     vision= Vision()
     frame = vision.initialize()
-    print "Running...... waiting for ctrl-c...."
-    print vision._imagegenerator
-    print "Start of try"
+    print("Running...... waiting for ctrl-c....")
+    print(vision._imagegenerator)
+    print("Start of try")
     frames = 0
     rotation = 0
     framer = 0
     while 1:
-        print "Vision update"
+        print("Vision update")
         start = time.time()
         frame = vision.update()
         "Vision draw"

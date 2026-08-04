@@ -24,6 +24,7 @@ import argparse
 import logging
 import json
 import shutil
+import secrets
 from datetime import datetime
 from pathlib import Path
 
@@ -326,7 +327,7 @@ def package_install(with_opencv=False):
 
     # Install APT packages in staged groups so interrupted runs can resume more cleanly.
     core_packages = [
-        "python3-pip", "python3-picamera2", "libcamera-apps", "python3-libcamera",
+        "python3-pip", "python3-picamera2", "python3-simplejpeg", "libcamera-apps", "python3-libcamera",
         "python3-lgpio", "python3-rpi.gpio", "python3-numpy",
         "python3-pigpio", "pigpio",
         "gunicorn", "python3-setuptools", "python3-wheel", "python3-dev", "build-essential"
@@ -353,8 +354,10 @@ def package_install(with_opencv=False):
             log_step("ERROR", f"Failed to install {group_name}")
             return False
     
-    # Install Python packages from requirements file
-    requirements_file = Path(PROJECT_ROOT) / "requirements.txt"
+    # Keep the ABI-sensitive camera stack under APT ownership. Installing
+    # NumPy/OpenCV/simplejpeg with system-wide pip can make Debian's picamera2
+    # extensions unloadable after a NumPy ABI upgrade.
+    requirements_file = Path(PROJECT_ROOT) / "requirements-pi.txt"
     if not requirements_file.exists():
         log_step("ERROR", f"Requirements file not found: {requirements_file}")
         return False
@@ -363,6 +366,19 @@ def package_install(with_opencv=False):
     pip_cmd = f"sudo pip3 install --break-system-packages -r {requirements_file}"
     if not run_cmd_with_retry(pip_cmd, check=False, retries=3, timeout=3600):
         log_step("WARNING", "pip requirements installation reported errors")
+
+    camera_import_check = (
+        "/usr/bin/python3 -c "
+        "'import numpy, cv2, simplejpeg; from picamera2 import Picamera2; "
+        "print(\"Camera Python stack OK\", numpy.__version__, cv2.__version__)'"
+    )
+    if not run_cmd(camera_import_check, capture=False, check=False):
+        log_step(
+            "ERROR",
+            "Camera Python stack import failed. "
+            "Do not mix pip NumPy/OpenCV/simplejpeg with Raspberry Pi OS picamera2 packages.",
+        )
+        return False
 
     setup_led_dependency()
     
@@ -534,23 +550,106 @@ def setup_directories():
 def setup_samba():
     """Setup Samba file sharing"""
     log_step("SAMBA", "Setting up Samba file sharing...")
-    
-    # Install Samba packages only when this feature is enabled.
-    if not run_cmd("sudo apt-get install -y --no-install-recommends samba samba-common-bin smbclient avahi-daemon libnss-mdns avahi-utils", check=False):
+
+    hostname = get_serial()
+    smb_username = f"{hostname}_admin"
+    password_chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+    smb_password = "".join(secrets.choice(password_chars) for _ in range(8))
+
+    # Install Samba packages using the apt recovery/retry path to survive transient dpkg locks.
+    samba_packages = [
+        "samba",
+        "samba-common",
+        "samba-common-bin",
+        "smbclient",
+        "avahi-daemon",
+        "libnss-mdns",
+        "avahi-utils",
+    ]
+    if not install_package_group("Samba packages", samba_packages, retries=5, timeout=3600):
         log_step("WARNING", "Samba packages failed to install")
         return False
 
     # wsdd improves SMB discovery on modern Windows systems when available.
-    run_cmd("sudo apt-get install -y --no-install-recommends wsdd", check=False)
+    if not run_apt_command("install -y --no-install-recommends wsdd", retries=5, timeout=1800):
+        log_step("WARNING", "wsdd install failed - SMB discovery may be limited")
 
-    # Copy Samba configuration
-    smb_conf_source = f"{PROJECT_ROOT}/Services/smb.conf"
-    if os.path.exists(smb_conf_source):
-        run_cmd(f"sudo cp {smb_conf_source} /etc/samba/smb.conf")
-        log_step("SAMBA", "Samba configuration installed")
-    else:
-        log_step("WARNING", "Samba config not found - using default configuration")
+    # Ensure dedicated SMB user exists (new installs only, no guest access).
+    user_exists = run_cmd(f"id -u '{smb_username}' >/dev/null 2>&1", check=False)
+    if not user_exists:
+        run_cmd(
+            f"sudo useradd --no-create-home --shell /usr/sbin/nologin --user-group '{smb_username}'",
+            check=False,
+        )
+
+    # Configure Samba credentials for the device user.
+    set_password_cmd = (
+        f"printf '%s\\n%s\\n' '{smb_password}' '{smb_password}' "
+        f"| sudo smbpasswd -a -s '{smb_username}'"
+    )
+    if not run_cmd(set_password_cmd, check=False):
+        log_step("WARNING", "Failed to create Samba user credentials")
         return False
+    run_cmd(f"sudo smbpasswd -e '{smb_username}'", check=False)
+
+    smb_config_text = f"""[global]
+   workgroup = WORKGROUP
+   server string = Camera File Share
+   security = user
+   map to guest = Never
+   name resolve order = bcast host lmhosts wins
+   wins support = yes
+   local master = yes
+   domain master = yes
+   preferred master = yes
+   os level = 65
+   disable spoolss = yes
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   min protocol = SMB3_11
+   server min protocol = SMB3_11
+   client min protocol = SMB3_11
+   unix extensions = no
+   smb encrypt = required
+   server signing = required
+   ntlm auth = ntlmv2-only
+   restrict anonymous = 2
+
+   netbios name = {hostname[:15]}
+   netbios aliases =
+   browse list = yes
+   enhanced browsing = yes
+
+[shared]
+   comment = Shared Files
+   path = /home/pi/shared
+   guest ok = no
+   public = no
+   browseable = yes
+   writable = yes
+   read only = no
+   valid users = {smb_username}
+   force user = pi
+   force group = pi
+   create mask = 0664
+   directory mask = 0775
+   force create mode = 0664
+   force directory mode = 0775
+   delete readonly = yes
+   inherit permissions = no
+   inherit owner = yes
+   follow symlinks = no
+   wide links = no
+"""
+
+    generated_conf = Path("/tmp/pycam_smb.conf")
+    generated_conf.write_text(smb_config_text)
+    run_cmd("sudo mkdir -p /etc/samba", check=False)
+    if not run_cmd(f"sudo cp '{generated_conf}' /etc/samba/smb.conf", check=False):
+        log_step("WARNING", "Failed to install generated Samba configuration")
+        return False
+    log_step("SAMBA", "Samba configuration installed (encrypted SMB3, authenticated)")
     
     # Install SMB service advertisement for better network discovery
     avahi_smb_source = f"{PROJECT_ROOT}/Services/avahi-smb.service"
@@ -567,13 +666,44 @@ def setup_samba():
     run_cmd("sudo systemctl enable wsdd", check=False)
     run_cmd("sudo systemctl restart wsdd", check=False)
     
-    # Ensure proper permissions on shared directory for full guest access
-    log_step("SAMBA", "Setting permissions for full guest access...")
+    # Ensure proper permissions on shared directory for authenticated SMB access.
+    log_step("SAMBA", "Setting permissions for authenticated SMB access...")
     run_cmd("sudo chown -R pi:pi /home/pi/shared", check=False)
-    run_cmd("sudo find /home/pi/shared -type d -exec chmod 777 {} +", check=False)
-    run_cmd("sudo find /home/pi/shared -type f -exec chmod 666 {} +", check=False)
+    run_cmd("sudo find /home/pi/shared -type d -exec chmod 775 {} +", check=False)
+    run_cmd("sudo find /home/pi/shared -type f -exec chmod 664 {} +", check=False)
+
+    # Save credentials for operator/sticker printing.
+    creds_text = (
+        f"Device: {hostname}\n"
+        f"SMB Share: \\\\{hostname}.local\\shared\n"
+        f"Username: {smb_username}\n"
+        f"Password: {smb_password}\n"
+        f"IP Share: \\\\{hostname}\\shared\n"
+    )
+    creds_env = (
+        f"SMB_HOSTNAME={hostname}\n"
+        f"SMB_USERNAME={smb_username}\n"
+        f"SMB_PASSWORD={smb_password}\n"
+        f"SMB_SHARE=shared\n"
+    )
+
+    creds_txt_path = Path("/tmp/pycam_smb_credentials.txt")
+    creds_env_path = Path("/tmp/pycam_smb_credentials.env")
+    creds_txt_path.write_text(creds_text)
+    creds_env_path.write_text(creds_env)
+
+    run_cmd(f"sudo cp '{creds_txt_path}' /home/pi/shared/smb_credentials.txt", check=False)
+    run_cmd(f"sudo cp '{creds_env_path}' /home/pi/shared/smb_credentials.env", check=False)
+    run_cmd("sudo chown pi:pi /home/pi/shared/smb_credentials.txt /home/pi/shared/smb_credentials.env", check=False)
+    run_cmd("sudo chmod 600 /home/pi/shared/smb_credentials.txt /home/pi/shared/smb_credentials.env", check=False)
     
-    return True
+    return {
+        "hostname": hostname,
+        "username": smb_username,
+        "password": smb_password,
+        "share": "shared",
+        "credentials_file": "/home/pi/shared/smb_credentials.txt",
+    }
 
 def setup_camera_boot_config():
     """Ensure gpu_mem is sufficient for PiCam3 DMA allocation."""
@@ -915,7 +1045,7 @@ def main():
         setup_directories()
         
         # Samba setup
-        setup_samba()
+        smb_credentials = setup_samba()
         
         # Generate device-unique hardware config from template
         if args.skip_hwconfig:
@@ -952,6 +1082,11 @@ def main():
         print(f"Hostname: {hostname}.local")
         print(f"Web interface: http://{hostname}.local")
         print(f"Samba share: \\\\{hostname}.local\\shared")
+        if smb_credentials:
+            print("SMB authentication (Mode B):")
+            print(f"  Username: {smb_credentials['username']}")
+            print(f"  Password: {smb_credentials['password']}")
+            print(f"  Credential card: {smb_credentials['credentials_file']}")
         print(f"ComitUp portal: http://10.41.0.1 (when connected to {hostname}-comitup WiFi)")
         print(f"Install log: /home/pi/shared/logs/install_{install_logger.start_time.strftime('%Y%m%d_%H%M%S')}.log")
         print("\\nHardware Configuration:")
