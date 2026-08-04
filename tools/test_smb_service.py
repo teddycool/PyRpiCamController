@@ -16,6 +16,7 @@ PROJECT_ROOT = "/home/pi/PyRpiCamController"
 SHARED_DIR = "/home/pi/shared"
 SMB_CONF_SOURCE = f"{PROJECT_ROOT}/Services/smb.conf"
 SMB_CONF_TARGET = "/etc/samba/smb.conf"
+SMB_CREDENTIALS_ENV = f"{SHARED_DIR}/smb_credentials.env"
 
 def log(message):
     """Log message with timestamp"""
@@ -60,6 +61,36 @@ def service_is_active(service_name):
     """Check if a systemd service is active"""
     success, _, _ = run_cmd(f"systemctl is-active {service_name}", check=False)
     return success
+
+def load_smb_credentials():
+    """Load installer-generated SMB credentials for authenticated Mode B testing."""
+    if not os.path.exists(SMB_CREDENTIALS_ENV):
+        return None
+
+    creds = {}
+    try:
+        with open(SMB_CREDENTIALS_ENV, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                creds[key.strip()] = value.strip()
+    except Exception as e:
+        log(f"⚠ Failed to read SMB credentials file: {e}")
+        return None
+
+    username = creds.get("SMB_USERNAME")
+    password = creds.get("SMB_PASSWORD")
+    if not username or not password:
+        return None
+
+    return {
+        "username": username,
+        "password": password,
+        "hostname": creds.get("SMB_HOSTNAME", socket.gethostname()),
+        "share": creds.get("SMB_SHARE", "shared"),
+    }
 
 def stop_smb_services():
     """Stop SMB services"""
@@ -108,6 +139,9 @@ def test_smb_service():
         log("✗ ERROR: This script requires sudo access to configure SMB services")
         return False
     
+    smb_credentials = load_smb_credentials()
+    auth_mode = smb_credentials is not None
+
     # Install Samba if not present
     log("Checking if Samba is installed...")
     if not command_exists('smbd') and not command_exists('samba'):
@@ -151,29 +185,36 @@ def test_smb_service():
         else:
             log("⚠ Failed to backup existing SMB configuration")
     
-    # Install new SMB configuration
-    log("Installing SMB configuration...")
-    success, _, stderr = run_cmd(f"sudo cp '{SMB_CONF_SOURCE}' '{SMB_CONF_TARGET}'")
-    if not success:
-        log(f"✗ Failed to install SMB configuration: {stderr}")
-        return False
-    log("✓ SMB configuration installed")
+    if auth_mode:
+        log("Authenticated SMB mode detected - keeping existing installer-generated smb.conf")
+    else:
+        # Install new SMB configuration (legacy guest fallback)
+        log("Installing SMB configuration...")
+        success, _, stderr = run_cmd(f"sudo cp '{SMB_CONF_SOURCE}' '{SMB_CONF_TARGET}'")
+        if not success:
+            log(f"✗ Failed to install SMB configuration: {stderr}")
+            return False
+        log("✓ SMB configuration installed")
     
-    # Fix directory permissions for guest access
-    log("Setting directory permissions for guest access...")
+    # Set shared directory permissions
+    log("Setting directory permissions...")
     success, _, stderr = run_cmd(f"sudo chmod 755 /home/pi")
     if not success:
         log(f"⚠ Failed to set /home/pi permissions: {stderr}")
     
-    success, _, stderr = run_cmd(f"sudo chmod 777 '{SHARED_DIR}'")
+    target_mode = "775" if auth_mode else "777"
+    success, _, stderr = run_cmd(f"sudo chmod {target_mode} '{SHARED_DIR}'")
     if not success:
         log(f"⚠ Failed to set shared directory permissions: {stderr}")
     
-    # Make existing files deletable by anyone
-    success, _, stderr = run_cmd(f"sudo chmod -R 666 '{SHARED_DIR}'/*")
-    run_cmd(f"find '{SHARED_DIR}' -type d -exec sudo chmod 777 {{}} \\;", check=False)
+    if auth_mode:
+        run_cmd(f"sudo find '{SHARED_DIR}' -type d -exec chmod 775 {{}} +", check=False)
+        run_cmd(f"sudo find '{SHARED_DIR}' -type f -exec chmod 664 {{}} +", check=False)
+    else:
+        success, _, stderr = run_cmd(f"sudo chmod -R 666 '{SHARED_DIR}'/*")
+        run_cmd(f"find '{SHARED_DIR}' -type d -exec sudo chmod 777 {{}} \;", check=False)
     
-    log("✓ Directory permissions configured for guest access")
+    log("✓ Directory permissions configured")
     
     # Test SMB configuration
     log("Testing SMB configuration...")
@@ -283,14 +324,26 @@ def test_smb_service():
     
     if command_exists('smbclient'):
         log("Testing SMB share accessibility...")
+
+        if auth_mode:
+            username = smb_credentials["username"]
+            password = smb_credentials["password"]
+            share_name = smb_credentials.get("share", "shared")
+            auth_list_cmd_ip = f"timeout 10 smbclient -L //{ip_address} -U '{username}%{password}'"
+            auth_share_cmd_ip = f"timeout 10 smbclient //{ip_address}/{share_name} -U '{username}%{password}' -c 'ls; quit'"
+            auth_list_cmd_host = f"timeout 10 smbclient -L //{hostname} -U '{username}%{password}'"
+            log(f"Using authenticated SMB test user: {username}")
+        else:
+            auth_list_cmd_ip = f"timeout 10 smbclient -L //{ip_address} -U% -N"
+            auth_share_cmd_ip = f"timeout 10 smbclient //{ip_address}/shared -U% -c 'ls; quit'"
+            auth_list_cmd_host = f"timeout 10 smbclient -L //{hostname} -U% -N"
         
-        # Test anonymous access to the share
-        success, _, _ = run_cmd(f"timeout 10 smbclient -L //{ip_address} -U% -N", check=False)
+        success, _, _ = run_cmd(auth_list_cmd_ip, check=False)
         if success:
             log("✓ SMB shares are accessible")
             
             # Test specific share access
-            success, _, _ = run_cmd(f"timeout 10 smbclient //{ip_address}/shared -U% -c 'ls; quit'", check=False)
+            success, _, _ = run_cmd(auth_share_cmd_ip, check=False)
             if success:
                 log("✓ shared is accessible")
             else:
@@ -300,7 +353,7 @@ def test_smb_service():
             
         # Also test with hostname
         log(f"Testing access with hostname {hostname}...")
-        success, _, _ = run_cmd(f"timeout 10 smbclient -L //{hostname} -U% -N", check=False)
+        success, _, _ = run_cmd(auth_list_cmd_host, check=False)
         if success:
             log(f"✓ SMB accessible via hostname {hostname}")
         else:
@@ -328,7 +381,10 @@ def test_smb_service():
     log("Network access:")
     log(f"  • SMB: smb://{hostname}.local/shared")
     log(f"  • IP:  smb://{ip_address}/shared")
-    log("  • Guest access enabled (mapped to 'pi' account)")
+    if auth_mode:
+        log(f"  • Authentication required: {smb_credentials['username']}")
+    else:
+        log("  • Guest access enabled (mapped to 'pi' account)")
     
     print()
     log(f"Access from Windows: \\\\{hostname}\\shared or \\\\{ip_address}\\shared")
