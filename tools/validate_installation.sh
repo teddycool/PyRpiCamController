@@ -129,6 +129,24 @@ else
     echo "❌ Missing"
 fi
 
+echo -n "   • Web access log file: "
+if [ -f "/home/pi/shared/logs/camcontroller_web_access.log" ]; then
+    if [ -s "/home/pi/shared/logs/camcontroller_web_access.log" ]; then
+        echo "✅ Exists (has data)"
+    else
+        echo "⚠️  Exists (empty, waiting for traffic)"
+    fi
+else
+    echo "❌ Missing"
+fi
+
+echo -n "   • Web error log file: "
+if [ -f "/home/pi/shared/logs/camcontroller_web_error.log" ]; then
+    echo "✅ Exists"
+else
+    echo "❌ Missing"
+fi
+
 echo
 
 # 5. ComitUp WiFi (if installed)
@@ -169,6 +187,7 @@ echo "=========="
 services_ok=0
 network_ok=0
 python_ok=0
+logs_ok=0
 
 systemctl is-active camcontroller.service >/dev/null && ((services_ok++))
 systemctl is-active camcontroller-web.service >/dev/null && ((services_ok++))
@@ -179,6 +198,9 @@ systemctl is-active nmbd >/dev/null && ((services_ok++))
 curl -s --connect-timeout 5 "http://localhost" >/dev/null && ((network_ok++))
 command -v smbclient >/dev/null && timeout 10 smbclient //$LOCAL_IP/shared -U% -c "ls; quit" >/dev/null 2>&1 && ((network_ok++))
 
+[ -f "/home/pi/shared/logs/camcontroller_web_access.log" ] && ((logs_ok++))
+[ -f "/home/pi/shared/logs/camcontroller_web_error.log" ] && ((logs_ok++))
+
 for test in "${test_imports[@]}"; do
     import_cmd="${test#*:}"
     python3 -c "$import_cmd" 2>/dev/null && ((python_ok++))
@@ -186,6 +208,7 @@ done
 
 echo "Services: $services_ok/5 running"
 echo "Network: $network_ok/2 accessible"
+echo "Web logs: $logs_ok/2 present"
 echo "Python: $python_ok/${#test_imports[@]} imports working"
 
 if [ $services_ok -ge 3 ] && [ $network_ok -ge 1 ] && [ $python_ok -ge 5 ]; then

@@ -4,6 +4,7 @@
 
 __author__ = 'teddycool'
 
+import copy
 import json
 import os
 from typing import Any, Dict, Optional, Union
@@ -27,6 +28,7 @@ class SettingsManager:
         self.user_file = user_file
         self._schema = None
         self._user_settings = {}
+        self._dirty_paths = set()
         self.load_schema()
         self.load_user_settings()
     
@@ -42,26 +44,45 @@ class SettingsManager:
     
     def load_user_settings(self):
         """Load user-specific settings overrides."""
+        self._user_settings = self._read_user_settings_from_disk()
+        self._dirty_paths.clear()
+
+    def _read_user_settings_from_disk(self) -> Dict:
+        """Read user settings from disk without mutating in-memory state."""
         if os.path.exists(self.user_file):
             try:
                 with open(self.user_file, 'r') as f:
-                    self._user_settings = json.load(f)
+                    return json.load(f)
             except json.JSONDecodeError:
-                self._user_settings = {}
+                return {}
+        return {}
     
     def save_user_settings(self):
         """Save user settings to file."""
         user_dir = os.path.dirname(self.user_file) or "."
         os.makedirs(user_dir, exist_ok=True)
         temp_file = self.user_file + ".tmp"
+        merged_settings = copy.deepcopy(self._read_user_settings_from_disk())
+
+        if self._dirty_paths:
+            for path in sorted(self._dirty_paths):
+                try:
+                    value = self._get_nested_value(self._user_settings, path)
+                except KeyError:
+                    continue
+                self._set_nested_value(merged_settings, path, value)
+        else:
+            merged_settings = copy.deepcopy(self._user_settings)
 
         try:
             with open(temp_file, 'w') as f:
-                json.dump(self._user_settings, f, indent=2)
+                json.dump(merged_settings, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
 
             os.replace(temp_file, self.user_file)
+            self._user_settings = merged_settings
+            self._dirty_paths.clear()
 
             # Best-effort directory sync to reduce metadata loss after abrupt power loss
             try:
@@ -145,6 +166,7 @@ class SettingsManager:
         
         # Set the value
         self._set_nested_value(self._user_settings, path, value)
+        self._dirty_paths.add(path)
         
         if save:
             self.save_user_settings()

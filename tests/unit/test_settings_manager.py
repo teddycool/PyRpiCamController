@@ -258,5 +258,94 @@ class TestSettingsManager:
         assert manager.get("Cam.storage_management.threshold_value", 500) == 500
         assert manager.get("Cam.storage_management.threshold_unit", "MB") == "MB"
 
+    def test_concurrent_saves_preserve_unrelated_changes(self):
+        """Concurrent manager instances should not clobber unrelated settings."""
+        concurrent_schema = {
+            "schema_version": "1.0",
+            "settings": {
+                "DeviceName": {"value": "", "type": "text"},
+                "Cam": {
+                    "publishers": {
+                        "youtube": {
+                            "rtmps_url": {"value": "", "type": "text"},
+                            "stream_key": {"value": "", "type": "password"}
+                        }
+                    }
+                },
+                "OTA": {
+                    "update_status": {
+                        "value": "idle",
+                        "type": "enum",
+                        "options": ["idle", "applying", "error"]
+                    }
+                }
+            }
+        }
+
+        concurrent_schema_path = os.path.join(self.temp_dir, "concurrent_schema.json")
+        with open(concurrent_schema_path, 'w') as f:
+            json.dump(concurrent_schema, f)
+
+        first_manager = SettingsManager(concurrent_schema_path, self.test_user_path)
+        second_manager = SettingsManager(concurrent_schema_path, self.test_user_path)
+
+        first_manager.set("Cam.publishers.youtube.rtmps_url", "rtmps://example/live2")
+        second_manager.set("Cam.publishers.youtube.stream_key", "secret-key")
+
+        merged_manager = SettingsManager(concurrent_schema_path, self.test_user_path)
+        assert merged_manager.get("Cam.publishers.youtube.rtmps_url") == "rtmps://example/live2"
+        assert merged_manager.get("Cam.publishers.youtube.stream_key") == "secret-key"
+
+    def test_stale_runtime_writer_does_not_drop_newer_settings(self):
+        """A stale runtime writer should only persist its own OTA fields."""
+        ota_schema = {
+            "schema_version": "1.0",
+            "settings": {
+                "DeviceName": {"value": "", "type": "text"},
+                "Cam": {
+                    "publishers": {
+                        "youtube": {
+                            "publish": {"value": False, "type": "bool"},
+                            "stream_key": {"value": "", "type": "password"}
+                        }
+                    }
+                },
+                "OTA": {
+                    "update_status": {
+                        "value": "idle",
+                        "type": "enum",
+                        "options": ["idle", "applying", "error"]
+                    }
+                }
+            }
+        }
+
+        ota_schema_path = os.path.join(self.temp_dir, "ota_schema.json")
+        with open(ota_schema_path, 'w') as f:
+            json.dump(ota_schema, f)
+
+        with open(self.test_user_path, 'w') as f:
+            json.dump({
+                "Cam": {
+                    "publishers": {
+                        "youtube": {
+                            "publish": True,
+                            "stream_key": "original-key"
+                        }
+                    }
+                }
+            }, f)
+
+        daemon_manager = SettingsManager(ota_schema_path, self.test_user_path)
+        web_manager = SettingsManager(ota_schema_path, self.test_user_path)
+
+        web_manager.set("DeviceName", "Kitchen camera")
+        daemon_manager.set("OTA.update_status", "applying")
+
+        merged_manager = SettingsManager(ota_schema_path, self.test_user_path)
+        assert merged_manager.get("DeviceName") == "Kitchen camera"
+        assert merged_manager.get("Cam.publishers.youtube.stream_key") == "original-key"
+        assert merged_manager.get("OTA.update_status") == "applying"
+
 if __name__ == "__main__":
     pytest.main([__file__])

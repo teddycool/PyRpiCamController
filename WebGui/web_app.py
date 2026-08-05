@@ -12,6 +12,8 @@ import socket
 import time
 import datetime
 import shutil
+import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 # Add parent directory to path to access Settings module
 from Settings.settings_manager import settings_manager
@@ -20,9 +22,57 @@ OTA_SHARED_DIR = Path('/home/pi/ota')
 OTA_COMMAND_DIR = OTA_SHARED_DIR / 'commands'
 OTA_WEB_BACKUP_DIR = OTA_SHARED_DIR / 'web_backups'
 OTA_CHANGELOG_FILE = OTA_SHARED_DIR / 'ota_changelog.txt'
+WEB_LOG_DIR = Path('/home/pi/shared/logs')
+WEB_LOG_FILE = WEB_LOG_DIR / 'camcontroller_web.log'
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
+
+
+def _setup_web_logger():
+    """Create a dedicated rotating file logger for Web GUI operational events."""
+    logger = logging.getLogger('camcontroller.web')
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    try:
+        WEB_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(WEB_LOG_FILE, maxBytes=1024 * 1024, backupCount=5)
+    except Exception:
+        fallback_path = Path('/tmp/camcontroller_web.log')
+        handler = RotatingFileHandler(fallback_path, maxBytes=1024 * 1024, backupCount=2)
+
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.propagate = False
+    return logger
+
+
+def _is_sensitive_setting(field_path: str, schema_info: dict = None) -> bool:
+    """Return True when a setting should not log raw values."""
+    if schema_info and schema_info.get('type') == 'password':
+        return True
+
+    lowered = field_path.lower()
+    sensitive_markers = ('password', 'passwd', 'secret', 'token', 'api_key', 'apikey', 'stream_key')
+    return any(marker in lowered for marker in sensitive_markers)
+
+
+def _format_setting_value_for_log(field_path: str, value, schema_info: dict = None) -> str:
+    """Return safe, compact value text for logging."""
+    if _is_sensitive_setting(field_path, schema_info):
+        return '<redacted>'
+
+    value_text = str(value)
+    if len(value_text) > 120:
+        return value_text[:117] + '...'
+    return value_text
+
+
+WEB_LOGGER = _setup_web_logger()
 
 
 SECTION_ORDER = [
@@ -65,6 +115,19 @@ def _order_grouped_sections(section_map: dict) -> dict:
 
 def _normalize_update_status(update_info: dict) -> dict:
     """Avoid leaving the UI stuck in 'checking' when the last check is stale."""
+    if (
+        update_info.get('update_status') == 'applying'
+        and update_info.get('current_version')
+        and update_info.get('available_version')
+        and update_info.get('current_version') == update_info.get('available_version')
+    ):
+        normalized = dict(update_info)
+        normalized['available_version'] = ''
+        normalized['has_update'] = False
+        normalized['update_status'] = 'idle'
+        normalized['status_message'] = 'Previous update completed; cleared stale applying state.'
+        return normalized
+
     if update_info.get('update_status') != 'checking':
         return update_info
 
@@ -110,6 +173,7 @@ def _set_runtime_setting(path, value):
 def index():
     """Main settings form with basic/advanced tabs."""
     level = request.args.get('level', 'basic')  # Default to basic settings
+    settings_manager.load_user_settings()
     
     # Display form
     ui_schema = settings_manager.get_web_editable_schema()
@@ -342,6 +406,7 @@ def stream_status():
 def update_settings():
     """Update settings via AJAX - supports both single and bulk updates"""
     try:
+        settings_manager.load_user_settings()
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No JSON data received'}), 400
@@ -366,6 +431,7 @@ def update_settings():
             
             if field not in ui_schema:
                 print(f"Warning: Field {field} not found or not editable, skipping")
+                WEB_LOGGER.warning("Skipped non-editable setting field=%s", field)
                 continue
 
             schema_info = ui_schema[field]
@@ -374,6 +440,12 @@ def update_settings():
             converted_value = convert_form_value(value, schema_info)
             # Save the setting
             settings_manager.set(field, converted_value, save=True)
+
+            WEB_LOGGER.info(
+                "Setting changed via bulk endpoint field=%s value=%s",
+                field,
+                _format_setting_value_for_log(field, converted_value, schema_info),
+            )
             
             # Track this change for restart notification
             track_setting_change(field, converted_value)
@@ -393,6 +465,7 @@ def update_settings():
     except Exception as e:
         error_msg = f"Error updating settings: {str(e)}"
         print(error_msg)
+        WEB_LOGGER.exception("Settings bulk update failed")
         return jsonify({'error': error_msg}), 500
 
 
@@ -400,6 +473,7 @@ def update_settings():
 def update_setting():
     """Update a single setting via AJAX"""
     try:
+        settings_manager.load_user_settings()
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No JSON data received'}), 400
@@ -424,6 +498,12 @@ def update_setting():
         
         # Save the setting
         settings_manager.set(field, converted_value, save=True)
+
+        WEB_LOGGER.info(
+            "Setting changed via single endpoint field=%s value=%s",
+            field,
+            _format_setting_value_for_log(field, converted_value, schema_info),
+        )
         
         # Track this change for restart notification
         track_setting_change(field, converted_value)
@@ -440,6 +520,7 @@ def update_setting():
     except Exception as e:
         error_msg = f"Error updating setting {field if 'field' in locals() else 'unknown'}: {str(e)}"
         print(error_msg)
+        WEB_LOGGER.exception("Single setting update failed field=%s", field if 'field' in locals() else 'unknown')
         return jsonify({'error': error_msg}), 500
 
 
@@ -631,7 +712,23 @@ def get_update_status():
             update_info['available_version'] != ''):
             update_info['has_update'] = True
 
-        update_info = _normalize_update_status(update_info)
+        normalized_update_info = _normalize_update_status(update_info)
+        if normalized_update_info != update_info:
+            WEB_LOGGER.info(
+                "OTA status normalized message=%s old_status=%s new_status=%s current=%s available=%s",
+                normalized_update_info.get('status_message', ''),
+                update_info.get('update_status', ''),
+                normalized_update_info.get('update_status', ''),
+                update_info.get('current_version', ''),
+                update_info.get('available_version', ''),
+            )
+            if normalized_update_info.get('update_status') != update_info.get('update_status'):
+                _set_runtime_setting('OTA.update_status', normalized_update_info.get('update_status', 'idle'))
+            if normalized_update_info.get('available_version') != update_info.get('available_version'):
+                _set_runtime_setting('OTA.available_version', normalized_update_info.get('available_version', ''))
+            if not normalized_update_info.get('available_version') and settings_manager.get('OTA.changelog', ''):
+                _set_runtime_setting('OTA.changelog', '')
+            update_info = normalized_update_info
             
         response = jsonify(update_info)
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'

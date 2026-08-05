@@ -27,6 +27,9 @@ Examples:
 """
 
 import argparse
+import getpass
+import json
+import os
 import shlex
 import subprocess
 import sys
@@ -43,11 +46,13 @@ class ProvisioningError(Exception):
 class ProvisioningManager:
     """Orchestrates provisioning of a fresh Pi."""
 
+    CACHE_FILE = Path.home() / ".provision_cache.json"
+
     def __init__(self, pi_ip, pi_user, release_version, device_name, location,
                  backend_url=None, non_interactive=False, skip_hwconfig=False,
                  skip_enrollment=False, ssh_timeout=60, local=False,
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
-                 lock_password=True):
+                 lock_password=True, use_cached_password=False, cache_password=False):
         """
         Initialize provisioning manager.
 
@@ -84,6 +89,8 @@ class ProvisioningManager:
         self.ssh_posture = ssh_posture
         self.ssh_pubkey = Path(ssh_pubkey).expanduser() if ssh_pubkey else None
         self.lock_password = lock_password
+        self.use_cached_password = use_cached_password
+        self.cache_password = cache_password
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -103,6 +110,53 @@ class ProvisioningManager:
             return f"v{version_str}"
         return version_str
 
+    def _get_cached_password(self):
+        """
+        Retrieve cached password for this Pi from local cache file.
+        Returns None if no cached password exists for this host.
+        """
+        if not self.CACHE_FILE.exists():
+            return None
+        try:
+            cache = json.loads(self.CACHE_FILE.read_text(encoding="utf-8"))
+            host_key = f"{self.pi_user}@{self.pi_ip}"
+            return cache.get(host_key)
+        except (json.JSONDecodeError, OSError):
+            return None
+
+    def _save_password_to_cache(self, password):
+        """Save password to local cache file for future use."""
+        try:
+            cache = {}
+            if self.CACHE_FILE.exists():
+                cache = json.loads(self.CACHE_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            cache = {}
+
+        host_key = f"{self.pi_user}@{self.pi_ip}"
+        cache[host_key] = password
+        
+        try:
+            self.CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+            self.CACHE_FILE.chmod(0o600)  # readable/writable only by owner
+            print(f"  ℹ  Password cached for future use (~/.provision_cache.json)")
+        except OSError as e:
+            print(f"  ⚠  Could not cache password: {e}")
+
+    def _clear_cached_password(self):
+        """Remove cached password for this Pi from cache file."""
+        if not self.CACHE_FILE.exists():
+            return
+        try:
+            cache = json.loads(self.CACHE_FILE.read_text(encoding="utf-8"))
+            host_key = f"{self.pi_user}@{self.pi_ip}"
+            if host_key in cache:
+                del cache[host_key]
+                self.CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+                self.CACHE_FILE.chmod(0o600)
+        except (json.JSONDecodeError, OSError):
+            pass
+
     def _base_ssh_opts(self):
         """Return base SSH options, using ControlMaster socket when available."""
         opts = [
@@ -118,29 +172,70 @@ class ProvisioningManager:
     def open_ssh_session(self):
         """Open a persistent SSH ControlMaster session (single password prompt)."""
         self._ctl_socket = tempfile.mktemp(prefix="prov_ssh_", suffix=".ctl")
-        print("[0/5] Opening SSH session (you may be prompted for password once)...")
-        result = subprocess.run(
-            [
-                "ssh",
-                "-o", "ConnectTimeout=10",
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "SendEnv=none",
-                "-o", "ControlMaster=yes",
-                "-o", f"ControlPath={self._ctl_socket}",
-                "-o", "ControlPersist=600",
-                "-f",   # fork into background after auth
-                "-N",   # no remote command
-                f"{self.pi_user}@{self.pi_ip}",
-            ],
-        )
-        if result.returncode != 0:
-            raise ProvisioningError(
-                f"Cannot connect to Pi at {self.pi_ip}. Make sure:\n"
-                f"  - Pi is powered on and reachable at {self.pi_ip}\n"
-                f"  - SSH is enabled on the Pi\n"
-                f"  - SSH credentials are correct"
+        
+        cached_password = None
+        if self.use_cached_password:
+            cached_password = self._get_cached_password()
+            if cached_password:
+                print("[0/5] Opening SSH session (using cached password)...")
+            else:
+                print("[0/5] Opening SSH session (no cached password found; you may be prompted)...")
+        else:
+            print("[0/5] Opening SSH session (you may be prompted for password once)...")
+        
+        env = os.environ.copy()
+        askpass_script = None
+        
+        # If we have a cached password, use SSH_ASKPASS to provide it programmatically
+        if cached_password:
+            askpass_script = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.sh')
+            askpass_script.write(f"#!/bin/sh\necho '{shlex.quote(cached_password)}'\n")
+            askpass_script.close()
+            os.chmod(askpass_script.name, 0o700)
+            env["SSH_ASKPASS"] = askpass_script.name
+            env["SSH_ASKPASS_REQUIRE"] = "force"
+            env["DISPLAY"] = ":0"  # Required for SSH_ASKPASS to work
+        
+        try:
+            result = subprocess.run(
+                [
+                    "ssh",
+                    "-o", "ConnectTimeout=10",
+                    "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null",
+                    "-o", "SendEnv=none",
+                    "-o", "ControlMaster=yes",
+                    "-o", f"ControlPath={self._ctl_socket}",
+                    "-o", "ControlPersist=600",
+                    "-f",   # fork into background after auth
+                    "-N",   # no remote command
+                    f"{self.pi_user}@{self.pi_ip}",
+                ],
+                env=env,
             )
+            if result.returncode != 0:
+                # If cached password failed, clear it and raise error
+                if cached_password:
+                    print("  ⚠  Cached password failed; clearing cache")
+                    self._clear_cached_password()
+                raise ProvisioningError(
+                    f"Cannot connect to Pi at {self.pi_ip}. Make sure:\n"
+                    f"  - Pi is powered on and reachable at {self.pi_ip}\n"
+                    f"  - SSH is enabled on the Pi\n"
+                    f"  - SSH credentials are correct"
+                )
+            
+            # If we successfully used a cached password, note it
+            if cached_password:
+                print("  ✓ Using cached credentials")
+        
+        finally:
+            # Clean up SSH_ASKPASS script
+            if askpass_script:
+                try:
+                    os.unlink(askpass_script.name)
+                except OSError:
+                    pass
 
     def close_ssh_session(self):
         """Close the ControlMaster session."""
@@ -578,6 +673,14 @@ class ProvisioningManager:
             print(f"Location: {self.location}")
             print("=" * 60)
 
+            # If --cache-password is set, prompt for password now
+            if self.cache_password:
+                import getpass
+                password = getpass.getpass(f"Enter SSH password for {self.pi_user}@{self.pi_ip}: ")
+                self._save_password_to_cache(password)
+                # Set use_cached_password to True so open_ssh_session uses the cached password
+                self.use_cached_password = True
+
             self.open_ssh_session()
             self.verify_pi_connectivity()
             self.download_and_extract()
@@ -690,6 +793,21 @@ Examples:
         help="Do not lock the Pi user's password when SSH posture is key-only or disable"
     )
     parser.add_argument(
+        "--cache-password",
+        action="store_true",
+        help="Prompt for SSH password and cache it for future provisioning runs (~/.provision_cache.json)"
+    )
+    parser.add_argument(
+        "--use-cached-password",
+        action="store_true",
+        help="Use cached SSH password from ~/.provision_cache.json for this host (if available)"
+    )
+    parser.add_argument(
+        "--clear-password-cache",
+        action="store_true",
+        help="Clear cached password for this host and exit"
+    )
+    parser.add_argument(
         "--production",
         action="store_true",
         help="Enable production policy checks (requires hardened SSH posture and password lock)"
@@ -716,6 +834,19 @@ Examples:
         print("Argument and policy validation successful")
         return 0
 
+    # Handle password cache clear operation
+    if args.clear_password_cache:
+        manager = ProvisioningManager(
+            pi_ip=args.pi_ip,
+            pi_user=args.pi_user,
+            release_version=args.release_version,
+            device_name=args.device_name,
+            location=args.location,
+        )
+        manager._clear_cached_password()
+        print(f"Cleared cached password for {args.pi_user}@{args.pi_ip}")
+        return 0
+
     manager = ProvisioningManager(
         pi_ip=args.pi_ip,
         pi_user=args.pi_user,
@@ -732,6 +863,8 @@ Examples:
         ssh_posture=args.ssh_posture,
         ssh_pubkey=args.ssh_pubkey,
         lock_password=not args.no_lock_password,
+        use_cached_password=args.use_cached_password,
+        cache_password=args.cache_password,
     )
 
     return manager.provision()
