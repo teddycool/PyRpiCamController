@@ -52,7 +52,8 @@ class ProvisioningManager:
                  backend_url=None, non_interactive=False, skip_hwconfig=False,
                  skip_enrollment=False, ssh_timeout=60, local=False,
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
-                 lock_password=True, use_cached_password=False, cache_password=False):
+                 lock_password=True, use_cached_password=False, cache_password=False,
+                 production=False):
         """
         Initialize provisioning manager.
 
@@ -91,6 +92,7 @@ class ProvisioningManager:
         self.lock_password = lock_password
         self.use_cached_password = use_cached_password
         self.cache_password = cache_password
+        self.production = production
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -326,6 +328,216 @@ class ProvisioningManager:
         result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
             raise ProvisioningError(f"SCP failed: {result.stderr}")
+
+    def pull_file(self, remote_path, local_path):
+        """Copy a file from the Pi to local filesystem via SCP."""
+        scp_cmd = ["scp"] + self._base_ssh_opts() + [f"{self.pi_user}@{self.pi_ip}:{remote_path}", str(local_path)]
+        result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            raise ProvisioningError(f"SCP pull failed: {result.stderr}")
+
+    def _build_local_tarball(self, out_path: Path):
+        """Produce a tar.gz build artifact into out_path (git archive HEAD)."""
+        result = subprocess.run(
+            [
+                "git", "archive",
+                "--format=tar.gz",
+                f"--output={out_path}",
+                "--prefix=PyRpiCamController/",
+                "HEAD",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=self.repo_dir,
+        )
+        if result.returncode != 0:
+            raise ProvisioningError(f"git archive failed: {result.stderr}")
+
+    def _sha256_of(self, path: Path):
+        import hashlib
+        h = hashlib.sha256()
+        with path.open("rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def _try_smbclient_upload(self, device_dir_name, local_files):
+        """Attempt to upload files using smbclient with current local username."""
+        smbshare = "//192.168.1.104/backup"
+        smb_user = getpass.getuser()
+
+        # create remote dirs (pyrpicam and device subdir)
+        mk_cmds = [f"mkdir pyrpicam", f"mkdir pyrpicam/{device_dir_name}"]
+        mk_cmd = "; ".join(mk_cmds)
+        mk_full = ["smbclient", smbshare, "-U", smb_user, "-c", mk_cmd]
+        try:
+            mk_result = subprocess.run(mk_full, timeout=30)
+            if mk_result.returncode != 0:
+                return False
+        except Exception:
+            return False
+
+        # put files
+        put_cmds = [f"cd pyrpicam/{device_dir_name}"]
+        for p in local_files:
+            put_cmds.append(f"lcd {shlex.quote(str(p.parent))}")
+            put_cmds.append(f"put {shlex.quote(p.name)}")
+        put_full = ["smbclient", smbshare, "-U", smb_user, "-c", "; ".join(put_cmds)]
+        try:
+            result = subprocess.run(put_full, timeout=120)
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    def _try_mount_and_copy(self, device_dir_name, local_files):
+        """Attempt to mount the cifs share (requires sudo) and copy files, then unmount."""
+        mount_point = Path(tempfile.mkdtemp(prefix="pyrbackup_"))
+        share = f"//192.168.1.104/backup"
+        user = getpass.getuser()
+        try:
+            mount_cmd = [
+                "sudo", "mount", "-t", "cifs", share, str(mount_point),
+                "-o", f"username={user},rw,vers=3.0"
+            ]
+            r = subprocess.run(mount_cmd, capture_output=True, text=True, timeout=30)
+            if r.returncode != 0:
+                return False
+            target = mount_point / "pyrpicam" / device_dir_name
+            target.mkdir(parents=True, exist_ok=True)
+            for p in local_files:
+                dest = target / p.name
+                subprocess.run(["/bin/cp", str(p), str(dest)], check=True)
+            return True
+        except Exception:
+            return False
+        finally:
+            # try to unmount
+            try:
+                subprocess.run(["sudo", "umount", str(mount_point)], capture_output=True, timeout=10)
+            except Exception:
+                pass
+
+    def store_production_artifacts(self):
+        """Collect and store production artifacts on the backup SMB share.
+
+        Artifacts saved per device into smb://192.168.1.104/backup/pyrpicam/<device-id>
+        """
+        # Use device hostname (derived from CPU ID by installer) as backup folder name.
+        device_id = self.device_name.replace(" ", "_")
+        try:
+            host_res = self.ssh_run("hostname", check=False)
+            host_name = (host_res.stdout or "").strip()
+            if host_name:
+                device_id = host_name
+        except Exception:
+            pass
+        print(f"\n→ Storing production artifacts for {device_id}...")
+
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            local_files = []
+
+            # 1) Device SMB credentials generated during install
+            try:
+                device_cred = tmp / "smb_credentials.txt"
+                self.pull_file(f"~/shared/smb_credentials.txt", device_cred)
+                local_files.append(device_cred)
+            except Exception:
+                # Keep a fallback note if device credential card is missing
+                cred_file = tmp / "smb_credentials.txt"
+                cred_file.write_text(
+                    "device smb credentials file not found on device (/home/pi/shared/smb_credentials.txt)\n",
+                    encoding="utf-8",
+                )
+                local_files.append(cred_file)
+
+            # 2) Pull hwconfig from Pi (if present)
+            try:
+                hw_local = tmp / "hwconfig.py"
+                self.pull_file(f"~/PyRpiCamController/CamController/hwconfig.py", hw_local)
+                local_files.append(hw_local)
+            except Exception:
+                # fallback: copy default schema from repo if available
+                schema = self.repo_dir / "Settings" / "settings_schema.json"
+                if schema.exists():
+                    dest = tmp / schema.name
+                    subprocess.run(["/bin/cp", str(schema), str(dest)], check=False)
+                    local_files.append(dest)
+
+            # 2b) Pull deployed settings overrides (complete deployed settings file)
+            try:
+                settings_local = tmp / "user_settings.json"
+                self.pull_file(f"~/PyRpiCamController/Settings/user_settings.json", settings_local)
+                local_files.append(settings_local)
+            except Exception:
+                pass
+
+            # 3) OTA api key (attempt to read via settings_manager)
+            try:
+                cmd = (
+                    "cd ~/PyRpiCamController && "
+                    "python3 -c \"from Settings.settings_manager import settings_manager as s; print(s.get('OTA.api_key') or '')\""
+                )
+                res = self.ssh_run(cmd, check=False)
+                ota_key = (res.stdout or "").strip()
+                ota_file = tmp / "ota_api_key.txt"
+                ota_file.write_text(ota_key or "(not found)", encoding="utf-8")
+                local_files.append(ota_file)
+            except Exception:
+                pass
+
+            # 4) operator SSH public key
+            pubkey = None
+            if self.ssh_pubkey and Path(self.ssh_pubkey).exists():
+                pubkey = Path(self.ssh_pubkey)
+            else:
+                # common default
+                for cand in [Path.home() / ".ssh" / "id_ed25519.pub", Path.home() / ".ssh" / "id_rsa.pub"]:
+                    if cand.exists():
+                        pubkey = cand
+                        break
+            if pubkey:
+                dest = tmp / pubkey.name
+                subprocess.run(["/bin/cp", str(pubkey), str(dest)], check=False)
+                local_files.append(dest)
+
+            # 5) Build artifact & sha256 (prefer dist/ artifact, else build)
+            dist_artifact = self.repo_dir / "dist" / self.tarball_filename
+            if dist_artifact.exists():
+                dest = tmp / dist_artifact.name
+                subprocess.run(["/bin/cp", str(dist_artifact), str(dest)], check=False)
+            else:
+                dest = tmp / self.tarball_filename
+                try:
+                    self._build_local_tarball(dest)
+                except Exception:
+                    dest = None
+            if dest and dest.exists():
+                local_files.append(dest)
+                sha = self._sha256_of(dest)
+                sha_file = tmp / (dest.name + ".sha256")
+                sha_file.write_text(sha, encoding="utf-8")
+                local_files.append(sha_file)
+
+            # Try smbclient upload first
+            if self._try_smbclient_upload(device_id, local_files):
+                print("  ✓ Artifacts uploaded via smbclient")
+                return
+
+            # Try mount+copy (requires sudo on local machine and cifs-utils)
+            if self._try_mount_and_copy(device_id, local_files):
+                print("  ✓ Artifacts copied via temporary CIFS mount")
+                return
+
+            # Fallback: leave files locally and inform user
+            fallback_dir = Path.home() / "pyrpicam_backup" / device_id
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            for p in local_files:
+                try:
+                    subprocess.run(["/bin/cp", str(p), str(fallback_dir / p.name)], check=False)
+                except Exception:
+                    pass
+            print(f"  ⚠  Could not upload artifacts to SMB share. Local copies saved to: {fallback_dir}")
 
     def verify_pi_connectivity(self):
         """Verify SSH connectivity to Pi (ControlMaster already open)."""
@@ -690,6 +902,12 @@ class ProvisioningManager:
                 self.enroll_device()
 
             self.verify_installation()
+            # If production mode requested, collect and store artifacts to SMB backup
+            if self.production:
+                try:
+                    self.store_production_artifacts()
+                except Exception as e:
+                    print(f"  ⚠  Production artifact storage failed: {e}")
             self.apply_post_provision_hardening()
             self.print_summary()
 
@@ -865,6 +1083,7 @@ Examples:
         lock_password=not args.no_lock_password,
         use_cached_password=args.use_cached_password,
         cache_password=args.cache_password,
+        production=args.production,
     )
 
     return manager.provision()
