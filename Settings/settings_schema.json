@@ -403,7 +403,7 @@
               "name": "YouTube Live Streaming",
               "section": "Camera",
               "description": "Enable YouTube Live streaming in parallel with the local MJPEG stream",
-              "level": "advanced"
+              "level": "basic"
             },
             "web_editable": true
           },
@@ -414,7 +414,7 @@
               "name": "YouTube RTMPS URL",
               "section": "Camera",
               "description": "YouTube RTMPS ingest URL from YouTube Studio (without the stream key), e.g. rtmps://a.rtmp.youtube.com/live2",
-              "level": "advanced"
+              "level": "basic"
             },
             "web_editable": true
           },
@@ -425,7 +425,7 @@
               "name": "YouTube Stream Key",
               "section": "Camera",
               "description": "Your unique stream key from YouTube Studio (never shown in the interface)",
-              "level": "advanced"
+              "level": "basic"
             },
             "web_editable": true
           },

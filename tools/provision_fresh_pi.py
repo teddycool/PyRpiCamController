@@ -21,6 +21,9 @@ Examples:
     # Custom admin backend URL
     python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
         --backend-url https://admin.myserver.com --non-interactive
+        
+    python3 tools/provision_fresh_pi.py 192.168.199 1.3.0 "RpiCam1" "BeeHive1"
+
 """
 
 import argparse
