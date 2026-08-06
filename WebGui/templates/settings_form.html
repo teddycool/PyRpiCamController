@@ -670,17 +670,21 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             </div>
         </div>
         
-        <!-- Basic/Advanced Tabs -->
+        <!-- Status/Basic/Advanced Tabs -->
         <div class="tabs">
+            <a href="/?level=status" class="tab {% if current_level == 'status' %}active{% endif %}">Status</a>
             <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Basic Settings</a>
             <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Advanced Settings</a>
         </div>
         
-        <div style="background-color: {% if current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
-                    color: {% if current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
+        <div style="background-color: {% if current_level == 'status' %}#e6f4ff{% elif current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
+                    color: {% if current_level == 'status' %}#0c5460{% elif current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
                     padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <strong>{% if current_level == 'basic' %}Basic Settings{% else %}Advanced Settings{% endif %}:</strong> 
-            {% if current_level == 'basic' %}
+            <strong>{% if current_level == 'status' %}Status{% elif current_level == 'basic' %}Basic Settings{% else %}Advanced Settings{% endif %}:</strong>
+            {% if current_level == 'status' %}
+                Live status overview for streaming and OTA updates.
+                <a href="/?level=basic" style="color: #0c5460; text-decoration: underline;">Go to Basic Settings</a>
+            {% elif current_level == 'basic' %}
                 Essential camera settings for normal operation. 
                 <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Need more options?</a>
             {% else %}
@@ -704,6 +708,134 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         {% endwith %}
         
         <div class="settings-form">
+            {% if current_level == 'status' %}
+            <!-- Streaming Status Panel -->
+            <div class="section streaming-controls">
+                <h3 class="section-title">📹 Stream Status</h3>
+                <div class="section-content">
+                    <div class="stream-status" id="streamStatus">
+                        <div class="status-indicator">
+                            <span class="status-light" id="statusLight"></span>
+                            <span id="statusText">Checking status...</span>
+                        </div>
+                    </div>
+                    
+                    <p class="status-note">Streaming is controlled by the Mode setting above. Set Mode to "Stream" and restart the service to enable streaming.</p>
+                    
+                    <div class="stream-info" id="streamInfo" style="display: none;">
+                        <div class="info-item">
+                            <label>Stream URL:</label>
+                            <span id="streamUrl">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Resolution:</label>
+                            <span id="streamResolution">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Frame Rate:</label>
+                            <span id="streamFramerate">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Actual FPS:</label>
+                            <span id="actualFps" class="fps-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Connected Clients:</label>
+                            <span id="streamClients">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Capture Mode:</label>
+                            <span id="streamCaptureMode">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeStatusItem" style="display: none;">
+                            <label>YouTube Live:</label>
+                            <span id="youtubeStatus">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeForwardFpsItem" style="display: none;">
+                            <label>YouTube Publish FPS:</label>
+                            <span id="youtubeForwardFps">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeAvgPublishItem" style="display: none;">
+                            <label>Avg Publish Time:</label>
+                            <span id="youtubeAvgPublishMs">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeMaxPublishItem" style="display: none;">
+                            <label>Max Publish Time:</label>
+                            <span id="youtubeMaxPublishMs">-</span>
+                        </div>
+                        <div class="info-item" id="youtubeDroppedItem" style="display: none;">
+                            <label>YouTube Dropped:</label>
+                            <span id="youtubeDroppedFrames">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>View Stream:</label>
+                            <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
+                                👁️ Open Stream
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Software Updates Panel -->
+            <div class="section updates">
+                <h3 class="section-title">📦 Updates (OTA)</h3>
+                <div class="section-content">
+                    <div class="update-status" id="updateStatus">
+                        <div class="version-info">
+                            <div class="current-version">
+                                <strong>Current Version:</strong> <span id="currentVersion">Loading...</span>
+                            </div>
+                            <div class="available-version" id="availableVersionDiv" style="display: none;">
+                                <strong>Available Version:</strong> <span id="availableVersion">-</span>
+                            </div>
+                            <div class="last-check">
+                                <strong>Last Check:</strong> <span id="lastCheck">Never</span>
+                            </div>
+                        </div>
+                        
+                        <div class="update-actions">
+                            <button type="button" id="checkUpdatesBtn" class="check-button">
+                                🔍 Check for Updates
+                            </button>
+                            <button type="button" id="viewChangelogBtn" class="changelog-button" style="display: none;">
+                                📄 View Changelog
+                            </button>
+                            <button type="button" id="applyUpdateBtn" class="update-button" style="display: none;">
+                                ⬆️ Apply Update
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="update-notification" id="updateNotification" style="display: none;">
+                        <div class="notification-content">
+                            <span class="notification-icon">🎉</span>
+                            <span class="notification-text" id="updateNotificationText">Update available!</span>
+                        </div>
+                    </div>
+                    
+                    <div class="update-progress" id="updateProgress" style="display: none;">
+                        <div class="progress-text" id="progressText">Checking for updates...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="changelog" id="changelogContainer" style="display: none;">
+                        <h4>📋 Changelog</h4>
+                        <div class="changelog-content" id="changelogContent">
+                            Loading changelog...
+                        </div>
+                    </div>
+                    
+                    <div class="backup-info" id="backupInfo" style="display: none;">
+                        <p class="backup-note">
+                            <strong>ℹ️ Backup:</strong> A backup will be created automatically before applying the update.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
             {% for section_name, section_fields in grouped_schema.items() %}
             <div class="section">
                 <h2 class="section-title">{{ section_name }}</h2>
@@ -778,155 +910,6 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 </div>
             </div>
             {% endfor %}
-            
-            <!-- Streaming Status Panel -->
-            <div class="section streaming-controls">
-                <h3 class="section-title">📹 Stream Status</h3>
-                <div class="section-content">
-                    <div class="stream-status" id="streamStatus">
-                        <div class="status-indicator">
-                            <span class="status-light" id="statusLight"></span>
-                            <span id="statusText">Checking status...</span>
-                        </div>
-                    </div>
-                    
-                    <p class="status-note">Streaming is controlled by the Mode setting above. Set Mode to "Stream" and restart the service to enable streaming.</p>
-                    
-                    <div class="stream-info" id="streamInfo" style="display: none;">
-                        <div class="info-item">
-                            <label>Stream URL:</label>
-                            <span id="streamUrl">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Resolution:</label>
-                            <span id="streamResolution">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Frame Rate:</label>
-                            <span id="streamFramerate">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Actual FPS:</label>
-                            <span id="actualFps" class="fps-value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Connected Clients:</label>
-                            <span id="streamClients">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Capture Mode:</label>
-                            <span id="streamCaptureMode">-</span>
-                        </div>
-                        <div class="info-item" id="youtubeStatusItem" style="display: none;">
-                            <label>YouTube Live:</label>
-                            <span id="youtubeStatus">-</span>
-                        </div>
-                        <div class="info-item" id="youtubeForwardFpsItem" style="display: none;">
-                            <label>YouTube Publish FPS:</label>
-                            <span id="youtubeForwardFps">-</span>
-                        </div>
-                        <div class="info-item" id="youtubeAvgPublishItem" style="display: none;">
-                            <label>Avg Publish Time:</label>
-                            <span id="youtubeAvgPublishMs">-</span>
-                        </div>
-                        <div class="info-item" id="youtubeMaxPublishItem" style="display: none;">
-                            <label>Max Publish Time:</label>
-                            <span id="youtubeMaxPublishMs">-</span>
-                        </div>
-                        <div class="info-item" id="youtubeDroppedItem" style="display: none;">
-                            <label>YouTube Dropped:</label>
-                            <span id="youtubeDroppedFrames">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>View Stream:</label>
-                            <button type="button" class="stream-button view-stream" id="viewStreamBtn" disabled>
-                                👁️ Open Stream
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Temperature Monitoring Panel -->
-            <div class="section temperature-monitoring">
-                <h3 class="section-title">🌡️ Temperature Monitoring</h3>
-                <div class="section-content">
-                    <div class="temperature-info" id="temperatureInfo">
-                        <div class="temperature-widget" id="cpuTempWidget">
-                            <span class="temp-label">CPU Temperature:</span>
-                            <span class="temp-value" id="cpuTempValue">Loading...</span>
-                        </div>
-                        <div class="temperature-widget" id="ds18b20TempWidget">
-                            <span class="temp-label">DS18B20 Temperature:</span>
-                            <span class="temp-value" id="ds18b20TempValue">Not available</span>
-                        </div>
-                        <div class="temperature-widget" id="cpuLoadWidget">
-                            <span class="temp-label">CPU Load:</span>
-                            <span class="temp-value" id="cpuLoadValue">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Software Updates Panel -->
-            {% if current_level == 'basic' %}
-            <div class="section updates">
-                <h3 class="section-title">📦 Updates (OTA)</h3>
-                <div class="section-content">
-                    <div class="update-status" id="updateStatus">
-                        <div class="version-info">
-                            <div class="current-version">
-                                <strong>Current Version:</strong> <span id="currentVersion">Loading...</span>
-                            </div>
-                            <div class="available-version" id="availableVersionDiv" style="display: none;">
-                                <strong>Available Version:</strong> <span id="availableVersion">-</span>
-                            </div>
-                            <div class="last-check">
-                                <strong>Last Check:</strong> <span id="lastCheck">Never</span>
-                            </div>
-                        </div>
-                        
-                        <div class="update-actions">
-                            <button type="button" id="checkUpdatesBtn" class="check-button">
-                                🔍 Check for Updates
-                            </button>
-                            <button type="button" id="viewChangelogBtn" class="changelog-button" style="display: none;">
-                                📄 View Changelog
-                            </button>
-                            <button type="button" id="applyUpdateBtn" class="update-button" style="display: none;">
-                                ⬆️ Apply Update
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="update-notification" id="updateNotification" style="display: none;">
-                        <div class="notification-content">
-                            <span class="notification-icon">🎉</span>
-                            <span class="notification-text" id="updateNotificationText">Update available!</span>
-                        </div>
-                    </div>
-                    
-                    <div class="update-progress" id="updateProgress" style="display: none;">
-                        <div class="progress-text" id="progressText">Checking for updates...</div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="changelog" id="changelogContainer" style="display: none;">
-                        <h4>📋 Changelog</h4>
-                        <div class="changelog-content" id="changelogContent">
-                            Loading changelog...
-                        </div>
-                    </div>
-                    
-                    <div class="backup-info" id="backupInfo" style="display: none;">
-                        <p class="backup-note">
-                            <strong>ℹ️ Backup:</strong> A backup will be created automatically before applying the update.
-                        </p>
-                    </div>
-                </div>
-            </div>
             {% endif %}
 
             <!-- Apply Changes Panel -->
@@ -980,7 +963,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             updateTemperatureStatus();
             updatePendingChanges();
 
-            // OTA panel is rendered only on basic tab.
+            // OTA panel is rendered on status tab only.
             if (document.getElementById('checkUpdatesBtn')) {
                 initUpdateControls();
                 updateUpdateStatus();
@@ -1188,7 +1171,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
         function initStreamingControls() {
             // Set up event listeners for streaming buttons
-            document.getElementById('viewStreamBtn').addEventListener('click', viewStream);
+            const viewStreamBtn = document.getElementById('viewStreamBtn');
+            if (viewStreamBtn) {
+                viewStreamBtn.addEventListener('click', viewStream);
+            }
         }
 
         function initApplyControls() {
@@ -1222,7 +1208,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         }
         
         function updateTemperatureUI(data) {
-            // Get regular temperature widgets (in settings section)
+            // Get optional in-page temperature widgets (removed from tabs, may be absent)
             const cpuTempWidget = document.getElementById('cpuTempWidget');
             const cpuTempValue = document.getElementById('cpuTempValue');
             const ds18b20TempWidget = document.getElementById('ds18b20TempWidget');
@@ -1239,15 +1225,18 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const diskSpaceHeaderValue = document.getElementById('diskSpaceHeaderValue');
             const cpuLoadHeaderWidget = document.getElementById('cpuLoadHeaderWidget');
             const cpuLoadHeaderValue = document.getElementById('cpuLoadHeaderValue');
+
+            // Helper to safely update optional (tab-specific) widgets.
+            const setOptionalWidget = (valueEl, widgetEl, text, className) => {
+                if (valueEl) valueEl.textContent = text;
+                if (widgetEl) widgetEl.className = className;
+            };
             
             if (!data) {
                 // Update regular widgets
-                if (cpuTempValue) cpuTempValue.textContent = 'Error';
-                if (ds18b20TempValue) ds18b20TempValue.textContent = 'Error';
-                if (cpuLoadValue) cpuLoadValue.textContent = 'Error';
-                if (cpuTempWidget) cpuTempWidget.className = 'temperature-widget temp-unknown';
-                if (ds18b20TempWidget) ds18b20TempWidget.className = 'temperature-widget temp-unknown';
-                if (cpuLoadWidget) cpuLoadWidget.className = 'temperature-widget temp-unknown';
+                setOptionalWidget(cpuTempValue, cpuTempWidget, 'Error', 'temperature-widget temp-unknown');
+                setOptionalWidget(ds18b20TempValue, ds18b20TempWidget, 'Error', 'temperature-widget temp-unknown');
+                setOptionalWidget(cpuLoadValue, cpuLoadWidget, 'Error', 'temperature-widget temp-unknown');
                 
                 // Update header widgets
                 if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = 'Error';
@@ -1267,16 +1256,14 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const tempClass = getTemperatureClass(data.cpu_temperature, 'cpu');
                 
                 // Update regular widgets
-                if (cpuTempValue) cpuTempValue.textContent = tempText;
-                if (cpuTempWidget) cpuTempWidget.className = `temperature-widget ${tempClass}`;
+                setOptionalWidget(cpuTempValue, cpuTempWidget, tempText, `temperature-widget ${tempClass}`);
                 
                 // Update header widgets
                 if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = tempText;
                 if (cpuTempHeaderWidget) cpuTempHeaderWidget.className = `temp-header-widget ${tempClass}`;
             } else {
                 // Update regular widgets
-                if (cpuTempValue) cpuTempValue.textContent = 'Not available';
-                if (cpuTempWidget) cpuTempWidget.className = 'temperature-widget temp-unknown';
+                setOptionalWidget(cpuTempValue, cpuTempWidget, 'Not available', 'temperature-widget temp-unknown');
                 
                 // Update header widgets
                 if (cpuTempHeaderValue) cpuTempHeaderValue.textContent = 'Not available';
@@ -1289,8 +1276,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const tempClass = getTemperatureClass(data.ds18b20_temperature, 'ambient');
                 
                 // Update regular widgets
-                if (ds18b20TempValue) ds18b20TempValue.textContent = tempText;
-                if (ds18b20TempWidget) ds18b20TempWidget.className = `temperature-widget ${tempClass}`;
+                setOptionalWidget(ds18b20TempValue, ds18b20TempWidget, tempText, `temperature-widget ${tempClass}`);
                 
                 // Update header widgets
                 if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = tempText;
@@ -1299,8 +1285,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const statusText = data.ds18b20_available ? 'Reading...' : 'Not available';
                 
                 // Update regular widgets
-                if (ds18b20TempValue) ds18b20TempValue.textContent = statusText;
-                if (ds18b20TempWidget) ds18b20TempWidget.className = 'temperature-widget temp-unknown';
+                setOptionalWidget(ds18b20TempValue, ds18b20TempWidget, statusText, 'temperature-widget temp-unknown');
                 
                 // Update header widgets
                 if (ds18b20TempHeaderValue) ds18b20TempHeaderValue.textContent = statusText;
@@ -1315,14 +1300,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const loadText = `${data.cpu_load_percent.toFixed(1)}%${coreText}`;
                 const loadClass = getCpuLoadClass(data.cpu_load_percent);
 
-                if (cpuLoadValue) cpuLoadValue.textContent = loadText;
-                if (cpuLoadWidget) cpuLoadWidget.className = `temperature-widget ${loadClass}`;
+                setOptionalWidget(cpuLoadValue, cpuLoadWidget, loadText, `temperature-widget ${loadClass}`);
 
                 if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = loadText;
                 if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = `temp-header-widget ${loadClass}`;
             } else {
-                if (cpuLoadValue) cpuLoadValue.textContent = 'Not available';
-                if (cpuLoadWidget) cpuLoadWidget.className = 'temperature-widget temp-unknown';
+                setOptionalWidget(cpuLoadValue, cpuLoadWidget, 'Not available', 'temperature-widget temp-unknown');
 
                 if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = 'Not available';
                 if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = 'temp-header-widget temp-unknown';
@@ -1391,6 +1374,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const statusText = document.getElementById('statusText');
             const viewBtn = document.getElementById('viewStreamBtn');
             const streamInfo = document.getElementById('streamInfo');
+
+            // Status panel exists only on the Status tab. On Basic/Advanced tabs,
+            // the shared header widgets still update, but the stream panel is absent.
+            if (!statusLight || !statusText || !viewBtn || !streamInfo) {
+                return;
+            }
 
             if (hasError) {
                 statusLight.className = 'status-light';

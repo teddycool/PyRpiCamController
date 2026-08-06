@@ -172,7 +172,9 @@ def _set_runtime_setting(path, value):
 @app.route("/", methods=["GET"])
 def index():
     """Main settings form with basic/advanced tabs."""
-    level = request.args.get('level', 'basic')  # Default to basic settings
+    level = request.args.get('level', 'status')  # Default to status overview
+    if level not in {'status', 'basic', 'advanced'}:
+        level = 'status'
     settings_manager.load_user_settings()
     
     # Display form
@@ -184,7 +186,11 @@ def index():
     
     for field, schema_info in ui_schema.items():
         setting_level = schema_info.get('level', 'basic')  # Default to basic if not specified
-        
+
+        # Status view is an overview tab (no editable settings list)
+        if level == 'status':
+            continue
+
         # Only show settings for the current level
         if setting_level != level:
             continue
