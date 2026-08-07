@@ -31,6 +31,8 @@ class PiCam3(CamBase.CamBase):
             (1920, 1080),
             (1280, 720),
             (640, 480),
+            (2304, 1296),  
+            (1536, 864),   
         ]
         self._cam = None
         self._camera_config = None

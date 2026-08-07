@@ -472,6 +472,20 @@ class ProvisioningManager:
             except Exception:
                 pass
 
+            # 2c) Pull the complete install log from the device
+            try:
+                latest_log_result = self.ssh_run(
+                    "ls -1t /home/pi/shared/logs/install_*.log 2>/dev/null | head -n 1",
+                    check=False,
+                )
+                latest_log = (latest_log_result.stdout or "").strip()
+                if latest_log:
+                    install_log_local = tmp / Path(latest_log).name
+                    self.pull_file(latest_log, install_log_local)
+                    local_files.append(install_log_local)
+            except Exception:
+                pass
+
             # 3) OTA api key (attempt to read via settings_manager)
             try:
                 cmd = (
@@ -726,7 +740,10 @@ class ProvisioningManager:
                 check=True
             )
 
-        self.verify_ota_settings()
+        if not self.skip_enrollment:
+            self.verify_ota_settings()
+        else:
+            print("  → OTA settings in settings_manager... skipped (enrollment disabled)")
 
         print("\n  ✓ All verification checks passed")
 
