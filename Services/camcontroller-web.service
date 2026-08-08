@@ -10,7 +10,7 @@ WorkingDirectory=/home/pi/PyRpiCamController/WebGui
 ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/wait_for_real_network.sh
 ExecStartPre=/bin/mkdir -p /home/pi/shared/logs
 # If installed via apt:
-ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 --access-logfile /home/pi/shared/logs/camcontroller_web_access.log --error-logfile /home/pi/shared/logs/camcontroller_web_error.log --capture-output --log-level info web_app:app
+ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 --access-logfile - --error-logfile - --capture-output --log-level info web_app:app
 # Uses port 80 when ComitUp is not running (network available)
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE

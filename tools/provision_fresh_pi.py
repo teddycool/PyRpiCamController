@@ -22,7 +22,14 @@ Examples:
     python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
         --backend-url https://admin.myserver.com --non-interactive
         
-    python3 tools/provision_fresh_pi.py 192.168.199 1.3.0 "RpiCam1" "BeeHive1"
+    python3 tools/provision_fresh_pi.py 192.168.199 1.4.3 "RpiCam1" "BeeHive1"
+
+    # Production hardening with SSH key (key-only SSH posture) and using defaults
+    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+
+    # Production hardening with SSH key (key-only SSH posture) and interactive hwconfig
+    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+    
 
 """
 

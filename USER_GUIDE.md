@@ -47,9 +47,10 @@ Once WiFi is configured, your camera system provides two ways to access files an
 - **When available**: Only when connected to your WiFi network
 
 ### File Sharing (SMB/Samba)
+For the connection to work, use the address and credetials on the provided sticker.
 - **Windows**: Open File Explorer → `\\[device-name].local\shared`
 - **Mac**: Finder → Go → Connect to Server → `smb://[device-name].local/shared`
-- **What you'll find**: 
+- **What you'll find after login**: 
   - `images/` - All captured photos organized by date
   - `logs/` - System logs and installation records
 
@@ -71,25 +72,25 @@ Your camera system intelligently handles network connectivity:
 - ComitUp portal **starts automatically**
 - Camera web interface is **OFF**
 - File sharing is **unavailable** 
-- Look for the `comitup-<nnn>` network to reconfigure WiFi
+- Look for the `comitup-<nnn>` network to reconfigure a WiFi
 
 ---
 
 ## 📁 File Organization
 
-Your captured images are automatically organized by date:
+Your captured images are automatically organized by date and named with the unix-timestamp for the exposure-time:
 
 ```
 shared/
 ├── images/
-│   ├── 2026-04-18/          # Today's photos
-│   │   ├── photo_001.jpg
-│   │   └── video_001.mp4
-│   ├── 2026-04-17/          # Yesterday's photos
+│   ├── 2026-04-18/              # Today's photos
+│   │   ├── 1786083365.jpg
+│   ├── 2026-04-17/              # Yesterday's photos
 │   └── ...
 └── logs/
-    ├── camera.log           # Camera system logs
-    └── install_*.log        # Installation records
+    ├── cam.log                  # Camera system logs
+    └── install_*.log            # Installation records
+    └── camcontroller_web.log    # Web-interface logs
 ```
 
 ---
@@ -139,14 +140,15 @@ shared/
 
 ## 🔄 OTA Updates
 
-Your device supports Over-The-Air (OTA) software updates.
+Your device supports Over-The-Air (OTA) software updates. For security reasons the camera hardware and OS is locked for normal login and ssh and the way to update the software is by OTA only.
+The OS is handling needed security updates (but not upgrades) silently in the background.
 
 ### How OTA works
 
 1. The update daemon checks for new releases on the configured server.
 2. If an update is available, the Web UI shows the new version.
 3. You can review changelog/release notes in the UI.
-4. Start update from UI (or wait for configured auto-apply behavior).
+4. Start update from UI.
 5. Device verifies package checksum before install.
 6. Device creates backup, installs update, verifies service health, and reports status.
 
@@ -163,6 +165,8 @@ In the web interface:
 - Device identity is tied to CPU serial + API key in OTA backend.
 - If no update appears, confirm server URL, API key, and registered device entry.
 - After successful update, current version in UI should match installed release.
+- Automatic updates are disabled by default but can be enabled via the web-gui.
+
 
 ## 📺 YouTube Live Streaming
 

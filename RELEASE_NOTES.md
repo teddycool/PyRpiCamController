@@ -1,5 +1,97 @@
 # Release Notes
 
+This file is the canonical project changelog.
+
+- Newest release is always at the top.
+- Historical entries are kept below.
+- Per-build notes are also generated in `dist/release-notes-<version>.md`.
+
+## v1.4.3
+
+Release date: 2026-08-08
+
+### Highlights
+
+- Added **Docs tab** to the Web GUI with links to project markdown guides.
+- Added secure docs API endpoints in web service:
+  - `/api/docs/<doc_id>` for whitelisted markdown documents.
+  - `/api/doc-assets/<path>` for safe image serving from `_doc/`.
+- Added markdown rendering in the Web GUI docs viewer.
+- Web service logging migrated to `journald` for Gunicorn access/error output.
+- OTA update flow now applies changed service units automatically after successful update.
+
+### Validation
+
+- Web GUI compiles and starts.
+- Docs tab tested with markdown content and linked images.
+- `camcontroller-web.service` verified active after deployment restart.
+
+## v1.4.2
+
+Release date: 2026-08-06
+
+### Highlights
+
+- Reorganized Web GUI tabs:
+  - Status tab as default view.
+  - Stream status and OTA status moved into Status tab.
+- Improved top-header runtime widgets across all tabs.
+- Production provisioning enhancements:
+  - Artifact backup to SMB by device hostname.
+  - Include deployed settings, device SMB credentials, OTA key, release tarball + checksum.
+  - Include install log in production artifact bundle.
+
+### Validation
+
+- Fresh-device install and production deploy validated.
+- Backup artifacts verified in SMB destination.
+
+## v1.4.1
+
+Release date: 2026-08-05
+
+### Highlights
+
+- Improved provisioning and deployment workflow reliability.
+- Added/expanded Web GUI operational logging.
+- Included release/deploy fixes for production flow.
+
+## v1.4.0
+
+Release date: 2026-08-04
+
+### Highlights
+
+- Updated YouTube settings UX and level assignment.
+- Release baseline updates for 1.4.x branch.
+
+## v1.3.0
+
+Release date: 2026-08-03
+
+### Highlights
+
+- Stable 1.3 baseline before 1.4 production hardening series.
+- Release packaging and deployment flow alignment.
+
+## v1.2.4
+
+Release date: 2026-08-02
+
+### Highlights
+
+- Stream FPS behavior improved when YouTube Live is active.
+- Release packaging fixes and reusable Pi smoke test improvements.
+
+## v1.2.3
+
+Release date: 2026-08-01
+
+### Highlights
+
+- Release manager update to auto-bump version in release pipeline.
+- Patch-level fixes from code-review integration.
+
 ## v1.2.1
 
 Web GUI polish release — clearer settings layout, configurable YouTube FPS, English UI labels, and refreshed documentation.
@@ -92,6 +184,22 @@ Production baseline release for secure provisioning, OTA, and release-based depl
 - Confirmed provisioning, reboot, OTA apply, and service startup behavior.
 - Confirmed the Web UI reflects the installed version after OTA.
 
+## v1.1.1
+
+Release date: 2026-07-xx
+
+### Highlights
+
+- Incremental maintenance and stability improvements.
+
+## v1.1.0
+
+Release date: 2026-07-xx
+
+### Highlights
+
+- Initial 1.1-series baseline for OTA and service orchestration.
+
 ## v1.0.6
 
 OTA became production-ready and was validated on Raspberry Pi hardware.
@@ -122,23 +230,3 @@ OTA became production-ready and was validated on Raspberry Pi hardware.
 - Hardware validation completed for OTA path from older versions to `1.0.6`.
 - Production endpoint check returns authorized responses with correct device identity.
 - Device shows `1.0.6` in Web GUI after successful update.
-- OTA update paths are present in the repository but are not supported for production use in this release.
-
-### Known limitations
-
-- Some advanced vision and integration features remain in active development.
-- Update-related UI/API paths are considered experimental for now.
-
-### Upgrade notes
-
-- For existing setups, review Settings/settings_schema.json defaults before deployment.
-- Use the shared SMB share name for client access.
-- Validate camera type and mode after applying new settings.
-
-### Verification summary (recommended before tag)
-
-- Service startup and restart behavior validated.
-- WiFi onboarding flow validated.
-- Photo capture and stream mode validated.
-- SMB read/write access validated from at least one client OS.
-- Documentation links and examples validated.

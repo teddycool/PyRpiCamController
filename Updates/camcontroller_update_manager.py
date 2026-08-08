@@ -471,15 +471,15 @@ class UpdateManager:
             if self.verify_update():
                 self.logger.info("=== OTA Update Completed Successfully ===")
                 self._report_update_status('success', update_info)
-                
-                # Reload systemd in case service unit files changed
-                subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=False)
+
+                # Sync service unit files from updated payload and apply changes.
+                self._sync_and_apply_service_units()
 
                 # Only reboot when the backend explicitly requires it (e.g. boot config changes)
                 if update_info.get('requires_reboot', False):
                     self.logger.info("Update requires reboot - rebooting in 30 seconds")
                     time.sleep(30)
-                    subprocess.run(['sudo', 'systemctl', 'reboot'], check=False)
+                    subprocess.run(['systemctl', 'reboot'], check=False)
                 
                 return True
             else:
@@ -576,6 +576,67 @@ class UpdateManager:
             subprocess.run(['chmod', '+x', str(self.paths['install_path'] / 'CamController' / 'Main.py')], check=False)
         except Exception as e:
             self.logger.warning(f"Error setting permissions: {e}")
+
+    def _sync_and_apply_service_units(self):
+        """Sync service unit files into /etc/systemd/system and apply safe restarts."""
+        services_dir = self.paths['install_path'] / 'Services'
+        target_dir = Path('/etc/systemd/system')
+        service_files = [
+            'camcontroller.service',
+            'camcontroller-web.service',
+            'camcontroller-update.service',
+        ]
+
+        changed_units = []
+
+        for service_file in service_files:
+            source = services_dir / service_file
+            destination = target_dir / service_file
+
+            if not source.exists():
+                self.logger.warning(f"Service unit missing in payload, skipping: {source}")
+                continue
+
+            try:
+                source_bytes = source.read_bytes()
+                destination_bytes = destination.read_bytes() if destination.exists() else None
+                if destination_bytes == source_bytes:
+                    self.logger.info(f"Service unit unchanged: {service_file}")
+                    continue
+
+                shutil.copy2(source, destination)
+                changed_units.append(service_file)
+                self.logger.info(f"Service unit synced: {service_file}")
+            except Exception as exc:
+                self.logger.warning(f"Failed to sync service unit {service_file}: {exc}")
+
+        if not changed_units:
+            self.logger.info("No service unit changes detected after OTA update")
+            return
+
+        subprocess.run(['systemctl', 'daemon-reload'], check=False)
+
+        # Apply web unit changes immediately so web logging/network/service options take effect.
+        if 'camcontroller-web.service' in changed_units:
+            result = subprocess.run(['systemctl', 'restart', 'camcontroller-web.service'],
+                                    capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                self.logger.warning(f"Failed to restart camcontroller-web.service: {result.stderr.strip()}")
+            else:
+                self.logger.info("Restarted camcontroller-web.service after unit sync")
+
+        # If main service unit changed, apply it without hard-failing OTA if restart has issues.
+        if 'camcontroller.service' in changed_units:
+            result = subprocess.run(['systemctl', 'try-restart', 'camcontroller.service'],
+                                    capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                self.logger.warning(f"Failed to apply camcontroller.service unit restart: {result.stderr.strip()}")
+            else:
+                self.logger.info("Applied camcontroller.service unit changes")
+
+        # Do not restart camcontroller-update.service from within its own process.
+        if 'camcontroller-update.service' in changed_units:
+            self.logger.info("camcontroller-update.service updated; new unit applies on next service restart")
             
     def _cleanup_old_backups(self):
         """Remove old backup files beyond retention limit."""

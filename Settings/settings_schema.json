@@ -310,7 +310,7 @@
         "web_editable": true
       },
       "timeslot": {
-        "value": 15,
+        "value": 60,
         "type": "int",
         "min": 1,
         "max": 3600,
@@ -556,8 +556,8 @@
     "Stream": {
       "resolution": {
         "value": [
-          1024,
-          768
+          1536,
+            864
         ],
         "type": "enum",
         "options": [
@@ -718,10 +718,10 @@
         "name": "Light Level (%)",
         "section": "System",
         "description": "Light intensity in percent",
-        "level": "advanced"
+        "level": "basic"
       },
       "web_editable": true,
-      "level": "advanced"
+      "level": "basic"
     },
     "LightPwmFreq": {
       "value": 2500,

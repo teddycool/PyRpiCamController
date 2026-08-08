@@ -10,6 +10,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camera Settings</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* Sensorwebben Brand Colors and Typography */
         :root {
@@ -175,8 +176,82 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             color: white;
             transform: translateY(-1px);
         }
-        
-        /* Streaming Control Styles */
+
+        /* Docs Tab Styles */
+        .docs-layout {
+            display: flex;
+            gap: 20px;
+            min-height: 400px;
+        }
+        .docs-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 180px;
+            max-width: 200px;
+        }
+        .doc-card {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 12px 14px;
+            background: var(--background-light);
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .doc-card:hover {
+            border-color: var(--secondary-color);
+            background: rgba(74,144,194,0.08);
+        }
+        .doc-card.active {
+            border-color: var(--primary-color);
+            background: rgba(44,90,160,0.12);
+        }
+        .doc-icon { font-size: 20px; margin-bottom: 4px; }
+        .doc-label { font-weight: 700; font-size: 14px; color: var(--dark-text); }
+        .doc-desc  { font-size: 11px; color: var(--light-text); margin-top: 2px; }
+        .docs-viewer {
+            flex: 1;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 20px 24px;
+            background: var(--background-white);
+            overflow-y: auto;
+            max-height: 75vh;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .docs-viewer h1,
+        .docs-viewer h2 { color: var(--primary-color); }
+        .docs-viewer h3 { color: var(--secondary-color); }
+        .docs-viewer code {
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .docs-viewer pre {
+            background: #f4f4f4;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .docs-viewer pre code { background: none; padding: 0; }
+        .docs-placeholder {
+            color: var(--light-text);
+            font-style: italic;
+            padding: 60px 0;
+            text-align: center;
+        }
+        .docs-loading {
+            color: var(--light-text);
+            text-align: center;
+            padding: 60px 0;
+        }
         .streaming-controls {
             background: linear-gradient(135deg, rgba(74, 144, 194, 0.1) 0%, rgba(44, 90, 160, 0.1) 100%) !important;
             border: 2px solid var(--secondary-color) !important;
@@ -670,26 +745,29 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             </div>
         </div>
         
-        <!-- Status/Basic/Advanced Tabs -->
+        <!-- Status/Basic/Advanced/Docs Tabs -->
         <div class="tabs">
             <a href="/?level=status" class="tab {% if current_level == 'status' %}active{% endif %}">Status</a>
             <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Basic Settings</a>
             <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Advanced Settings</a>
+            <a href="/?level=docs" class="tab {% if current_level == 'docs' %}active{% endif %}">📖 Docs</a>
         </div>
         
-        <div style="background-color: {% if current_level == 'status' %}#e6f4ff{% elif current_level == 'basic' %}#d4edda{% else %}#fff3cd{% endif %}; 
-                    color: {% if current_level == 'status' %}#0c5460{% elif current_level == 'basic' %}#155724{% else %}#856404{% endif %}; 
+        <div style="background-color: {% if current_level == 'status' %}#e6f4ff{% elif current_level == 'basic' %}#d4edda{% elif current_level == 'advanced' %}#fff3cd{% else %}#f0e6ff{% endif %}; 
+                    color: {% if current_level == 'status' %}#0c5460{% elif current_level == 'basic' %}#155724{% elif current_level == 'advanced' %}#856404{% else %}#4a235a{% endif %}; 
                     padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <strong>{% if current_level == 'status' %}Status{% elif current_level == 'basic' %}Basic Settings{% else %}Advanced Settings{% endif %}:</strong>
+            <strong>{% if current_level == 'status' %}Status{% elif current_level == 'basic' %}Basic Settings{% elif current_level == 'advanced' %}Advanced Settings{% else %}Documentation{% endif %}:</strong>
             {% if current_level == 'status' %}
                 Live status overview for streaming and OTA updates.
                 <a href="/?level=basic" style="color: #0c5460; text-decoration: underline;">Go to Basic Settings</a>
             {% elif current_level == 'basic' %}
                 Essential camera settings for normal operation. 
                 <a href="/?level=advanced" style="color: #155724; text-decoration: underline;">Need more options?</a>
-            {% else %}
+            {% elif current_level == 'advanced' %}
                 Advanced configuration options for experienced users.
                 <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Back to Basic Settings</a>
+            {% else %}
+                Browse guides and reference documentation.
             {% endif %}
         </div>
         
@@ -832,6 +910,39 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                         <p class="backup-note">
                             <strong>ℹ️ Backup:</strong> A backup will be created automatically before applying the update.
                         </p>
+                    </div>
+                </div>
+            </div>
+            {% elif current_level == 'docs' %}
+            <!-- Documentation Tab -->
+            <div class="section docs-panel">
+                <h3 class="section-title">📖 Documentation</h3>
+                <div class="section-content">
+                    <div class="docs-layout">
+                        <div class="docs-sidebar">
+                            <button class="doc-card" onclick="loadDoc('user_guide', this)">
+                                <span class="doc-icon">📘</span>
+                                <span class="doc-label">User Guide</span>
+                                <span class="doc-desc">Getting started &amp; daily use</span>
+                            </button>
+                            <button class="doc-card" onclick="loadDoc('release_notes', this)">
+                                <span class="doc-icon">📋</span>
+                                <span class="doc-label">Release Notes</span>
+                                <span class="doc-desc">Version history &amp; changes</span>
+                            </button>
+
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); width: 100%;">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--light-text); margin-bottom: 8px;">GitHub</div>
+                                <a class="doc-card" href="https://github.com/teddycool/PyRpiCamController" target="_blank" rel="noopener noreferrer" style="text-decoration: none; box-sizing: border-box;">
+                                    <span class="doc-icon">🔗</span>
+                                    <span class="doc-label">Project Repository</span>
+                                    <span class="doc-desc">Open github.com/teddycool/PyRpiCamController</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="docs-viewer" id="docsViewer">
+                            <div class="docs-placeholder">← Select a document to read it here</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1167,6 +1278,30 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             button.className = 'apply-button';
             button.textContent = '🔄 Apply Changes & Restart Service';
             updatePendingChanges(); // Refresh status
+        }
+
+        // --- Docs Tab ---
+        function loadDoc(docId, btn) {
+            const viewer = document.getElementById('docsViewer');
+            if (!viewer) return;
+            document.querySelectorAll('.doc-card').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            viewer.innerHTML = '<div class="docs-loading">⏳ Loading…</div>';
+            fetch('/api/docs/' + docId)
+                .then(function(r) {
+                    if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || r.status); });
+                    return r.text();
+                })
+                .then(function(md) {
+                    if (typeof marked !== 'undefined') {
+                        viewer.innerHTML = marked.parse(md);
+                    } else {
+                        viewer.innerHTML = '<pre style="white-space:pre-wrap">' + md.replace(/</g,'&lt;') + '</pre>';
+                    }
+                })
+                .catch(function(err) {
+                    viewer.innerHTML = '<div class="docs-placeholder">⚠️ Could not load document: ' + err.message + '</div>';
+                });
         }
 
         function initStreamingControls() {

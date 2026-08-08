@@ -129,22 +129,15 @@ else
     echo "❌ Missing"
 fi
 
-echo -n "   • Web access log file: "
-if [ -f "/home/pi/shared/logs/camcontroller_web_access.log" ]; then
-    if [ -s "/home/pi/shared/logs/camcontroller_web_access.log" ]; then
-        echo "✅ Exists (has data)"
+echo -n "   • Web journald logs: "
+if journalctl -u camcontroller-web.service -n 1 --no-pager >/dev/null 2>&1; then
+    if journalctl -u camcontroller-web.service -n 1 --no-pager | grep -q .; then
+        echo "✅ Available"
     else
-        echo "⚠️  Exists (empty, waiting for traffic)"
+        echo "⚠️  Service has no entries yet"
     fi
 else
-    echo "❌ Missing"
-fi
-
-echo -n "   • Web error log file: "
-if [ -f "/home/pi/shared/logs/camcontroller_web_error.log" ]; then
-    echo "✅ Exists"
-else
-    echo "❌ Missing"
+    echo "❌ Unavailable"
 fi
 
 echo
@@ -198,8 +191,7 @@ systemctl is-active nmbd >/dev/null && ((services_ok++))
 curl -s --connect-timeout 5 "http://localhost" >/dev/null && ((network_ok++))
 command -v smbclient >/dev/null && timeout 10 smbclient //$LOCAL_IP/shared -U% -c "ls; quit" >/dev/null 2>&1 && ((network_ok++))
 
-[ -f "/home/pi/shared/logs/camcontroller_web_access.log" ] && ((logs_ok++))
-[ -f "/home/pi/shared/logs/camcontroller_web_error.log" ] && ((logs_ok++))
+journalctl -u camcontroller-web.service -n 1 --no-pager >/dev/null 2>&1 && ((logs_ok++))
 
 for test in "${test_imports[@]}"; do
     import_cmd="${test#*:}"
@@ -208,7 +200,7 @@ done
 
 echo "Services: $services_ok/5 running"
 echo "Network: $network_ok/2 accessible"
-echo "Web logs: $logs_ok/2 present"
+echo "Web logs: $logs_ok/1 available (journald)"
 echo "Python: $python_ok/${#test_imports[@]} imports working"
 
 if [ $services_ok -ge 3 ] && [ $network_ok -ge 1 ] && [ $python_ok -ge 5 ]; then

@@ -176,16 +176,20 @@ sudo journalctl -u camcontroller-web.service -n 200 --no-pager
 
 `camcontroller-web.service` uses:
 
-- `ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 --access-logfile /home/pi/shared/logs/camcontroller_web_access.log --error-logfile /home/pi/shared/logs/camcontroller_web_error.log --capture-output --log-level info web_app:app`
+- `ExecStart=/usr/bin/gunicorn -w 2 -b 0.0.0.0:80 --access-logfile - --error-logfile - --capture-output --log-level info web_app:app`
 - `AmbientCapabilities=CAP_NET_BIND_SERVICE`
 - `CapabilityBoundingSet=CAP_NET_BIND_SERVICE`
 - `WorkingDirectory=/home/pi/PyRpiCamController/WebGui`
 - `Environment=PYTHONPATH=/home/pi/PyRpiCamController`
 
-Web request and Gunicorn runtime logs are written to:
+Web request and Gunicorn runtime logs are written to `journald` for `camcontroller-web.service`.
 
-- `/home/pi/shared/logs/camcontroller_web_access.log`
-- `/home/pi/shared/logs/camcontroller_web_error.log`
+Inspect with:
+
+```bash
+sudo journalctl -u camcontroller-web.service -n 200 --no-pager
+sudo journalctl -u camcontroller-web.service -f
+```
 
 If logs show repeated `Can't connect to ('0.0.0.0', 80)`, confirm the capability lines are present in the installed unit and then reload systemd:
 

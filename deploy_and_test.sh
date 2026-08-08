@@ -223,20 +223,17 @@ else
     echo "✗ camcontroller_web.log missing"
 fi
 
-echo "=== Gunicorn Access Logs ==="
-if [ -f "$PI_HOME/shared/logs/camcontroller_web_access.log" ]; then
-    SIZE=$(stat -c%s "$PI_HOME/shared/logs/camcontroller_web_access.log" 2>/dev/null || echo "0")
-    echo "✓ camcontroller_web_access.log exists ($(numfmt --to=iec $SIZE 2>/dev/null || echo "$SIZE bytes"))"
+echo "=== Gunicorn Logs (journald) ==="
+if journalctl -u camcontroller-web.service -n 1 --no-pager >/dev/null 2>&1; then
+    LAST_LINE=$(journalctl -u camcontroller-web.service -n 1 --no-pager 2>/dev/null)
+    if [ -n "$LAST_LINE" ]; then
+        echo "✓ journal entries available"
+        echo "  Last entry: $LAST_LINE"
+    else
+        echo "⚠️  journald reachable, but no camcontroller-web entries yet"
+    fi
 else
-    echo "✗ camcontroller_web_access.log missing"
-fi
-
-echo "=== Gunicorn Error Logs ==="
-if [ -f "$PI_HOME/shared/logs/camcontroller_web_error.log" ]; then
-    SIZE=$(stat -c%s "$PI_HOME/shared/logs/camcontroller_web_error.log" 2>/dev/null || echo "0")
-    echo "✓ camcontroller_web_error.log exists ($(numfmt --to=iec $SIZE 2>/dev/null || echo "$SIZE bytes"))"
-else
-    echo "✗ camcontroller_web_error.log missing"
+    echo "✗ unable to read journald for camcontroller-web.service"
 fi
 
 echo "=== Directory Permissions ==="

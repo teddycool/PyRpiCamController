@@ -173,7 +173,7 @@ def _set_runtime_setting(path, value):
 def index():
     """Main settings form with basic/advanced tabs."""
     level = request.args.get('level', 'status')  # Default to status overview
-    if level not in {'status', 'basic', 'advanced'}:
+    if level not in {'status', 'basic', 'advanced', 'docs'}:
         level = 'status'
     settings_manager.load_user_settings()
     
@@ -947,6 +947,55 @@ def create_backup():
 # Old separate reload/restart endpoints replaced by unified apply-and-restart
 # @app.route("/api/settings/reload", methods=["POST"])
 # @app.route("/api/service/restart", methods=["POST"])
+
+
+# Allowed documentation files exposed through the Docs tab
+_DOCS_ALLOWLIST = {
+    'user_guide':      ('USER_GUIDE.md',      'User Guide'),
+    'release_notes':   ('RELEASE_NOTES.md',   'Release Notes'),
+}
+
+_DOC_ASSET_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
+
+@app.route("/api/docs/<doc_id>")
+def get_doc(doc_id):
+    """Serve a whitelisted Markdown documentation file as plain text.
+
+    Relative asset paths (e.g. _doc/foo.png) are rewritten to the
+    /api/doc-assets/ endpoint so images render correctly in the browser.
+    """
+    entry = _DOCS_ALLOWLIST.get(doc_id)
+    if not entry:
+        return jsonify({'error': 'Document not found'}), 404
+    filename, title = entry
+    doc_path = Path(__file__).parent.parent / filename
+    if not doc_path.exists():
+        return jsonify({'error': f'{filename} not found on device'}), 404
+    import re as _re
+    content = doc_path.read_text(encoding='utf-8')
+    # Rewrite relative _doc/ image references so they resolve via the asset route
+    content = _re.sub(r'(?<=[("\'])_doc/', '/api/doc-assets/', content)
+    response = app.response_class(response=content, mimetype='text/plain; charset=utf-8')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route("/api/doc-assets/<path:filename>")
+def get_doc_asset(filename):
+    """Serve image assets from the _doc/ directory (images only, no traversal)."""
+    asset_dir = Path(__file__).parent.parent / '_doc'
+    # Block path traversal
+    try:
+        target = (asset_dir / filename).resolve()
+        target.relative_to(asset_dir.resolve())
+    except ValueError:
+        return jsonify({'error': 'Access denied'}), 403
+    if target.suffix.lower() not in _DOC_ASSET_EXTENSIONS:
+        return jsonify({'error': 'File type not allowed'}), 403
+    if not target.exists():
+        return jsonify({'error': 'Asset not found'}), 404
+    from flask import send_file as _send_file
+    return _send_file(target)
 
 
 @app.route("/stream")

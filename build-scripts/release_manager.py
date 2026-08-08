@@ -28,6 +28,7 @@ from pathlib import Path
 # Configuration
 PROJECT_ROOT = Path(__file__).parent.parent
 VERSION_FILE = PROJECT_ROOT / "VERSION"
+RELEASE_NOTES_FILE = PROJECT_ROOT / "RELEASE_NOTES.md"
 RELEASE_DIR = PROJECT_ROOT / "releases"
 DIST_DIR = PROJECT_ROOT / "dist"
 
@@ -105,11 +106,59 @@ class ReleaseManager:
             return []
 
     def has_only_version_change(self):
-        """True if only VERSION file is modified/staged"""
+        """True if only release metadata files are modified/staged."""
         entries = self.get_git_status_entries()
         if not entries:
             return False
-        return all(path == "VERSION" for _, path in entries)
+        allowed = {"VERSION", "RELEASE_NOTES.md"}
+        return all(path in allowed for _, path in entries)
+
+    def update_master_release_notes(self, version):
+        """Prepend a new release entry to RELEASE_NOTES.md (latest-first)."""
+        today = datetime.now().strftime('%Y-%m-%d')
+        preamble = (
+            "This file is the canonical project changelog.\n\n"
+            "- Newest release is always at the top.\n"
+            "- Historical entries are kept below.\n"
+            "- Per-build notes are also generated in `dist/release-notes-<version>.md`."
+        )
+        new_entry = f"""## v{version}
+
+Release date: {today}
+
+### Highlights
+
+- [Add release highlights]
+
+### Validation
+
+- [Add validation notes]
+
+"""
+
+        if RELEASE_NOTES_FILE.exists():
+            existing = RELEASE_NOTES_FILE.read_text(encoding='utf-8')
+        else:
+            existing = "# Release Notes\n\n"
+
+        header = "# Release Notes"
+        existing_releases = ""
+        if existing.startswith(header):
+            rest = existing[len(header):].lstrip('\n')
+            if rest.startswith("This file is the canonical project changelog."):
+                release_start = rest.find("\n## ")
+                existing_releases = rest[release_start + 1:] if release_start != -1 else ""
+            else:
+                release_start = rest.find("## ")
+                existing_releases = rest[release_start:] if release_start != -1 else rest
+        else:
+            release_start = existing.find("## ")
+            existing_releases = existing[release_start:] if release_start != -1 else existing.strip()
+
+        updated = f"{header}\n\n{preamble}\n\n{new_entry}{existing_releases.lstrip()}"
+
+        RELEASE_NOTES_FILE.write_text(updated, encoding='utf-8')
+        self.log(f"Master release notes updated: {RELEASE_NOTES_FILE}")
     
     def run_cmd(self, cmd, check=True):
         """Run command and return success/output"""
@@ -275,8 +324,8 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
     def git_commit_and_tag(self, version):
         """Commit version changes and create git tag"""
         commands = [
-            f"git add {VERSION_FILE}",
-            f"git commit -m 'Bump version to {version}'",
+            f"git add {VERSION_FILE} {RELEASE_NOTES_FILE}",
+            f"git commit -m 'Release {version}: update VERSION and release notes'",
             f"git tag -a v{version} -m 'Release version {version}'",
         ]
         
@@ -353,6 +402,9 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
         if not self.run_tests():
             self.log("Tests failed - aborting release", "ERROR")
             return False
+
+        # Update canonical release notes (latest-first)
+        self.update_master_release_notes(version)
         
         # Git operations
         if not self.git_commit_and_tag(version):
