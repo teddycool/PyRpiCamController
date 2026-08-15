@@ -28,9 +28,26 @@ $id  = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $pdo    = cam_db();
 
 // ---------------------------------------------------------------------------
-// GET — list devices
+// GET — single device or list all
 // ---------------------------------------------------------------------------
 if ($method === 'GET') {
+    if ($id) {
+        // Single device detail
+        $stmt = $pdo->prepare("
+            SELECT id, device_id, name, current_version, channel, is_active,
+                   last_seen, last_ip, notes, created_at
+            FROM   cam_devices
+            WHERE  id = ?
+        ");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            json_error('Device not found', 404);
+        }
+        json_ok($row);
+    }
+
+    // List all devices
     $rows = $pdo->query("
         SELECT id, device_id, name, current_version, channel, is_active,
                last_seen, last_ip, notes, created_at

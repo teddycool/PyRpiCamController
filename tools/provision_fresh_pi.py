@@ -22,13 +22,13 @@ Examples:
     python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
         --backend-url https://admin.myserver.com --non-interactive
         
-    python3 tools/provision_fresh_pi.py 192.168.199 1.4.3 "RpiCam1" "BeeHive1"
+    python3 tools/provision_fresh_pi.py 192.168.199 1.5.0 "RpiCam1" "BeeHive1"
 
     # Production hardening with SSH key (key-only SSH posture) and using defaults
-    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+    python3 tools/provision_fresh_pi.py 192.168.1.99 1.5.0 "Camera-Prod" "Warehouse" --non-interactive --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
 
     # Production hardening with SSH key (key-only SSH posture) and interactive hwconfig
-    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+    python3 tools/provision_fresh_pi.py 192.168.1.99 1.5.0 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
     
 
 """
@@ -43,6 +43,13 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+
+DEFAULT_SSH_PUBKEY_CANDIDATES = [
+    Path.home() / ".ssh" / "id_ed25519.pub",
+    Path.home() / ".ssh" / "pyrpi_prov_ed25519.pub",
+    Path.home() / ".ssh" / "id_rsa.pub",
+]
 
 
 class ProvisioningError(Exception):
@@ -1062,6 +1069,30 @@ Examples:
 
     args = parser.parse_args()
 
+    def resolve_ssh_pubkey(pubkey_arg, require_key=False):
+        """Resolve and validate SSH public key path before provisioning starts."""
+        if pubkey_arg:
+            key_path = Path(pubkey_arg).expanduser()
+            if not key_path.exists():
+                available = [str(p) for p in DEFAULT_SSH_PUBKEY_CANDIDATES if p.exists()]
+                hint = ""
+                if available:
+                    hint = "\nAvailable keys:\n  - " + "\n  - ".join(available)
+                parser.error(f"--ssh-pubkey file not found: {key_path}{hint}")
+            return str(key_path)
+
+        if require_key:
+            for candidate in DEFAULT_SSH_PUBKEY_CANDIDATES:
+                if candidate.exists():
+                    print(f"Using auto-detected SSH public key: {candidate}")
+                    return str(candidate)
+            parser.error(
+                "No SSH public key found in default locations. "
+                "Provide --ssh-pubkey (for example ~/.ssh/pyrpi_prov_ed25519.pub)."
+            )
+
+        return None
+
     if args.production:
         if args.ssh_posture == "keep":
             parser.error(
@@ -1071,6 +1102,10 @@ Examples:
             parser.error(
                 "--production does not allow --no-lock-password"
             )
+
+    # Validate key path early to avoid failing late after installation.
+    key_required = args.ssh_posture in ("key-only", "disable")
+    args.ssh_pubkey = resolve_ssh_pubkey(args.ssh_pubkey, require_key=key_required)
 
     if args.validate_only:
         print("Argument and policy validation successful")
