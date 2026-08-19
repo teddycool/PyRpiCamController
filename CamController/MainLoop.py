@@ -251,11 +251,28 @@ class MainLoop:
     def _update_runtime_status(self, timestamp: float | None = None):
         """Write current runtime status to file for web interface"""
         try:
+            awb_mode = str(self._settings.get("Cam.white_balance_mode", "auto") or "auto")
+            awb_enable = bool(self._settings.get("Cam.awb_enable", True))
+            awb_mode_display = awb_mode
+            if not awb_enable:
+                red_gain = self._settings.get("Cam.white_balance_red_gain", None)
+                blue_gain = self._settings.get("Cam.white_balance_blue_gain", None)
+                if red_gain is not None and blue_gain is not None:
+                    try:
+                        awb_mode_display = f"manual ({float(red_gain):.2f}/{float(blue_gain):.2f})"
+                    except (TypeError, ValueError):
+                        awb_mode_display = "manual"
+                else:
+                    awb_mode_display = "manual"
+
             status_data = {
                 'timestamp': timestamp if timestamp is not None else time.time(),
                 'cpu_temperature': self._cputemp if self._cputemp is not None else None,
                 'ds18b20_temperature': self._ds18b20temp,
-                'ds18b20_available': self._ds18b20tempmonitor is not None
+                'ds18b20_available': self._ds18b20tempmonitor is not None,
+                'awb_mode': awb_mode,
+                'awb_enable': awb_enable,
+                'awb_mode_display': awb_mode_display,
             }
 
             current_state = getattr(self, '_currentstate', None)

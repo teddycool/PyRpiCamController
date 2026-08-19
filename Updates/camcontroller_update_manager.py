@@ -475,6 +475,9 @@ class UpdateManager:
                 # Sync service unit files from updated payload and apply changes.
                 self._sync_and_apply_service_units()
 
+                # Always refresh web GUI process so updated Flask/templates are loaded.
+                self._restart_web_service_after_update()
+
                 # Only reboot when the backend explicitly requires it (e.g. boot config changes)
                 if update_info.get('requires_reboot', False):
                     self.logger.info("Update requires reboot - rebooting in 30 seconds")
@@ -637,6 +640,25 @@ class UpdateManager:
         # Do not restart camcontroller-update.service from within its own process.
         if 'camcontroller-update.service' in changed_units:
             self.logger.info("camcontroller-update.service updated; new unit applies on next service restart")
+
+    def _restart_web_service_after_update(self):
+        """Restart web GUI service to load updated Python code/templates after OTA."""
+        try:
+            result = subprocess.run(
+                ['systemctl', 'restart', 'camcontroller-web.service'],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                self.logger.warning(
+                    "Failed to restart camcontroller-web.service after OTA payload install: %s",
+                    result.stderr.strip(),
+                )
+            else:
+                self.logger.info("Restarted camcontroller-web.service after OTA payload install")
+        except Exception as exc:
+            self.logger.warning("Error restarting camcontroller-web.service after OTA: %s", exc)
             
     def _cleanup_old_backups(self):
         """Remove old backup files beyond retention limit."""
