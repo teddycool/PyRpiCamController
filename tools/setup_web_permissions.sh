@@ -10,6 +10,8 @@ pi ALL=(ALL) NOPASSWD: /bin/systemctl restart camcontroller.service
 pi ALL=(ALL) NOPASSWD: /bin/systemctl stop camcontroller.service
 pi ALL=(ALL) NOPASSWD: /bin/systemctl start camcontroller.service
 pi ALL=(ALL) NOPASSWD: /bin/systemctl status camcontroller.service
+pi ALL=(ALL) NOPASSWD: /bin/systemctl reboot
+pi ALL=(ALL) NOPASSWD: /bin/systemctl poweroff
 EOF
 
 echo "Sudo permissions configured successfully."

@@ -135,9 +135,22 @@ class StreamState(BaseState.BaseState):
                     with self._youtube_stats_lock:
                         self._youtube_forward_frames_seen += 1
 
-                    published = self._youtube_publisher.publish(bytes(frame), metadata={"mode": "stream"})
+                    frame_time = time.monotonic()
+                    local_clients = getattr(output, "clients", 0)
+                    frame_interval = (
+                        self._youtube_frame_interval_with_clients
+                        if local_clients > 0
+                        else self._youtube_frame_interval
+                    )
+
+                    if self._last_youtube_frame and (frame_time - self._last_youtube_frame) < frame_interval:
+                        with self._youtube_stats_lock:
+                            self._youtube_forward_frames_skipped += 1
+                        continue
+
+                    published = self._youtube_publisher.publish(frame, metadata={"mode": "stream"})
                     if published:
-                        self._last_youtube_frame = time.time()
+                        self._last_youtube_frame = frame_time
                         with self._youtube_stats_lock:
                             self._youtube_forward_frames_sent += 1
 

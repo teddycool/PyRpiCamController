@@ -8,11 +8,13 @@ from flask import Flask, render_template, request, redirect, jsonify, flash
 import sys
 import os
 import json as json_module  # Use different name to avoid conflicts
+import subprocess
 import socket
 import time
 import datetime
 import shutil
 import logging
+import threading
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 # Add parent directory to path to access Settings module
@@ -70,6 +72,35 @@ def _format_setting_value_for_log(field_path: str, value, schema_info: dict = No
     if len(value_text) > 120:
         return value_text[:117] + '...'
     return value_text
+
+
+def _schedule_privileged_command(command_args, delay_seconds: float = 1.5):
+    """Run a privileged command shortly after the HTTP response is returned."""
+    def _execute_command():
+        try:
+            WEB_LOGGER.info('Executing privileged command: %s', ' '.join(command_args))
+            subprocess.run(command_args, check=False)
+        except Exception:
+            WEB_LOGGER.exception('Privileged command failed: %s', command_args)
+
+    timer = threading.Timer(delay_seconds, _execute_command)
+    timer.daemon = True
+    timer.start()
+
+
+def _is_camera_service_active() -> bool:
+    """Return True when the main camera service is currently active."""
+    try:
+        result = subprocess.run(
+            ['/bin/systemctl', 'is-active', 'camcontroller.service'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0 and result.stdout.strip() == 'active'
+    except Exception:
+        WEB_LOGGER.exception('Failed to read camcontroller.service status')
+        return False
 
 
 WEB_LOGGER = _setup_web_logger()
@@ -615,6 +646,79 @@ def apply_and_restart():
             'message': restart_message,
             'action': 'restart',
             'changes_applied': changes['changes']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/reboot-device", methods=["POST"])
+def reboot_device():
+    """Reboot the camera device after sending the response."""
+    try:
+        _schedule_privileged_command(['sudo', '/bin/systemctl', 'reboot'])
+        return jsonify({
+            'success': True,
+            'message': 'Reboot requested. The camera device will restart shortly.',
+            'action': 'reboot'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/shutdown-device", methods=["POST"])
+def shutdown_device():
+    """Power off the camera device after sending the response."""
+    try:
+        _schedule_privileged_command(['sudo', '/bin/systemctl', 'poweroff'])
+        return jsonify({
+            'success': True,
+            'message': 'Shutdown requested. After the camera powers off, unplug it and plug it back in to start it again.',
+            'action': 'shutdown'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/camera-service-state", methods=["GET"])
+def camera_service_state():
+    """Return the current state of the main camera service only."""
+    try:
+        active = _is_camera_service_active()
+        return jsonify({
+            'success': True,
+            'service': 'camcontroller.service',
+            'active': active,
+            'paused': not active,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/camera-service-toggle", methods=["POST"])
+def camera_service_toggle():
+    """Pause/resume only the main camera service (camcontroller.service)."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        action = str(payload.get('action', '')).strip().lower()
+
+        if action not in {'pause', 'play'}:
+            return jsonify({'error': 'Invalid action. Use pause or play.'}), 400
+
+        if action == 'pause':
+            _schedule_privileged_command(['sudo', '/bin/systemctl', 'stop', 'camcontroller.service'])
+            message = 'Camera service pause requested. Streaming/capture will stop shortly.'
+            target_active = False
+        else:
+            _schedule_privileged_command(['sudo', '/bin/systemctl', 'start', 'camcontroller.service'])
+            message = 'Camera service start requested. Streaming/capture will resume shortly.'
+            target_active = True
+
+        return jsonify({
+            'success': True,
+            'service': 'camcontroller.service',
+            'requested_action': action,
+            'target_active': target_active,
+            'message': message,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

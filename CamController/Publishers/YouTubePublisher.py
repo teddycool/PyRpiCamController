@@ -285,7 +285,7 @@ class YouTubePublisher(PublisherBase):
             self._ffmpeg_process = subprocess.Popen(
                 ffmpeg_cmd,
                 stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 bufsize=0,
                 preexec_fn=os.setsid,  # Own process group for clean teardown
@@ -364,7 +364,6 @@ class YouTubePublisher(PublisherBase):
                 try:
                     publish_start = time.perf_counter()
                     self._ffmpeg_process.stdin.write(frame_data)
-                    self._ffmpeg_process.stdin.flush()
                     publish_ms = (time.perf_counter() - publish_start) * 1000.0
                     
                     with self._stats_lock:

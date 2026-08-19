@@ -35,6 +35,39 @@ class PiCam2(CamBase.CamBase):
         self._camera_config = None
         self._logger = logger
 
+    def _setting_or_default(self, settings: dict[str, Any], path: str, default: Any) -> Any:
+        current: Any = settings
+        for part in path.split('.'):
+            if not isinstance(current, dict):
+                return default
+            current = current.get(part, default)
+
+        if isinstance(current, dict):
+            return current.get("value", default)
+        return current
+
+    def _resolve_awb_mode(self, settings: dict[str, Any]) -> Any:
+        awb_mode_raw = str(
+            self._setting_or_default(settings, "Cam.white_balance_mode", "auto") or "auto"
+        ).strip().lower()
+
+        mode_map = {
+            "auto": libcamera.controls.AwbModeEnum.Auto,
+            "daylight": libcamera.controls.AwbModeEnum.Daylight,
+            "cloudy": libcamera.controls.AwbModeEnum.Cloudy,
+            "tungsten": libcamera.controls.AwbModeEnum.Tungsten,
+            "fluorescent": libcamera.controls.AwbModeEnum.Fluorescent,
+            "indoor": libcamera.controls.AwbModeEnum.Indoor,
+            "incandescent": libcamera.controls.AwbModeEnum.Incandescent,
+        }
+        return mode_map.get(awb_mode_raw, libcamera.controls.AwbModeEnum.Auto)
+
+    def _video_color_space(self):
+        color_space_factory = getattr(getattr(libcamera, "ColorSpace", None), "Sycc", None)
+        if callable(color_space_factory):
+            return color_space_factory()
+        return None
+
     def _resolve_image_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
         camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
         requested_res = camera_cfg.resolution
@@ -67,14 +100,34 @@ class PiCam2(CamBase.CamBase):
 
     def _get_common_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
         camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
+
+        awb_enable = bool(self._setting_or_default(settings, "Cam.awb_enable", True))
         controls = {
-            "AwbMode": libcamera.controls.AwbModeEnum.Auto,
+            "AwbMode": self._resolve_awb_mode(settings),
             "AeEnable": True,
-            "AwbEnable": True,
+            "AwbEnable": awb_enable,
         }
 
         if camera_cfg.brightness is not None:
             controls["Brightness"] = camera_cfg.brightness
+
+        saturation = self._setting_or_default(settings, "Cam.saturation", None)
+        if saturation is not None:
+            controls["Saturation"] = float(saturation)
+
+        contrast = self._setting_or_default(settings, "Cam.contrast", None)
+        if contrast is not None:
+            controls["Contrast"] = float(contrast)
+
+        sharpness = self._setting_or_default(settings, "Cam.sharpness", None)
+        if sharpness is not None:
+            controls["Sharpness"] = float(sharpness)
+
+        if not awb_enable:
+            red_gain = self._setting_or_default(settings, "Cam.white_balance_red_gain", None)
+            blue_gain = self._setting_or_default(settings, "Cam.white_balance_blue_gain", None)
+            if red_gain is not None and blue_gain is not None:
+                controls["ColourGains"] = (float(red_gain), float(blue_gain))
 
         return controls
 
@@ -128,9 +181,13 @@ class PiCam2(CamBase.CamBase):
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
         self._cam = Picamera2()
+        stream_color_space = self._video_color_space()
+        stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
+        if stream_color_space is not None:
+            stream_config_kwargs["colour_space"] = stream_color_space
         self._camera_config = self._cam.create_video_configuration(
             main={"format": "RGB888", "size": stream_res},
-            controls=self._get_stream_controls(settings),
+            **stream_config_kwargs,
         )
         self._logger.info("%s stream config: %s", self._camera_name, str(self._camera_config.get("main")))
         self._cam.configure(self._camera_config)
@@ -155,9 +212,13 @@ class PiCam2(CamBase.CamBase):
         try:
             stream_res = self._resolve_stream_resolution(settings)
             self._cam = Picamera2()
+            stream_color_space = self._video_color_space()
+            stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
+            if stream_color_space is not None:
+                stream_config_kwargs["colour_space"] = stream_color_space
             self._camera_config = self._cam.create_video_configuration(
                 main={"format": "YUV420", "size": stream_res},
-                controls=self._get_stream_controls(settings),
+                **stream_config_kwargs,
             )
             self._logger.info(
                 "%s encoded stream config: %s",
@@ -201,4 +262,5 @@ class PiCam2(CamBase.CamBase):
 
     def __del__(self):
         self.stop()
+
     
