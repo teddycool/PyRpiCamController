@@ -559,19 +559,40 @@ class CameraStreamer:
             cam_chip = settings.get('CamChip', 'PiCam3')
             resolution = settings_manager.get('Stream.resolution')
             framerate = settings_manager.get('Stream.framerate')
+            idle_framerate = max(1, int(settings_manager.get('Stream.idle_framerate', 2)))
+            jpeg_quality = int(settings_manager.get('Stream.jpeg_quality', 80))
+            mjpeg_bitrate_mbps = int(settings_manager.get('Stream.mjpeg_bitrate_mbps', 0))
             port = settings_manager.get('Stream.port')
             
             logger.info(f"Camera type: {cam_chip}, Resolution: {resolution}, FPS: {framerate}, Port: {port}")
 
             # Build stream settings expected by camera implementations.
+            stream_base = settings.get('Stream', {}) if isinstance(settings, dict) else {}
             stream_settings = dict(settings)
-            stream_settings['Stream'] = {
+            stream_settings['Stream'] = dict(stream_base) if isinstance(stream_base, dict) else {}
+            stream_settings['Stream'].update({
                 'resolution': resolution,
                 'framerate': framerate,
-            }
+                'idle_framerate': idle_framerate,
+                'jpeg_quality': jpeg_quality,
+                'mjpeg_bitrate_mbps': mjpeg_bitrate_mbps,
+            })
 
             active_framerate = max(1, int(framerate))
-            idle_framerate = max(1, int(settings_manager.get('Stream.idle_framerate', 2)))
+
+            rpi_board = str(settings.get('RpiBoard', 'Unknown'))
+            if rpi_board in {'Rpi3B', 'Rpi3B+'} and (
+                (int(resolution[0]) * int(resolution[1])) > (1280 * 720) or active_framerate > 15
+            ):
+                logger.warning(
+                    "%s with %s at %sx%s@%sfps may produce poor MJPEG quality/latency. "
+                    "Recommended baseline for dual local+YouTube is 1280x720 @ 10-15fps.",
+                    rpi_board,
+                    cam_chip,
+                    int(resolution[0]),
+                    int(resolution[1]),
+                    active_framerate,
+                )
 
             success = self._init_camera_interface(
                 cam_chip,

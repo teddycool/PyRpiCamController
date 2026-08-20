@@ -144,6 +144,45 @@ class PiCamHQ(CamBase.CamBase):
             "FrameRate": stream_cfg.framerate,
         }
 
+    def _resolve_stream_mjpeg_bitrate(
+        self,
+        settings: dict[str, Any],
+        resolution: CamBase.Resolution,
+        framerate: int,
+    ) -> int:
+        manual_mbps = self._setting_or_default(settings, "Stream.mjpeg_bitrate_mbps", 0)
+        try:
+            manual_mbps_int = int(manual_mbps)
+        except (TypeError, ValueError):
+            manual_mbps_int = 0
+
+        if manual_mbps_int > 0:
+            bitrate = max(8_000_000, min(120_000_000, manual_mbps_int * 1_000_000))
+            self._logger.info("%s MJPEG bitrate: manual %s Mbps", self._camera_name, bitrate // 1_000_000)
+            return bitrate
+
+        jpeg_quality = self._setting_or_default(settings, "Stream.jpeg_quality", 80)
+        try:
+            jpeg_quality_int = int(jpeg_quality)
+        except (TypeError, ValueError):
+            jpeg_quality_int = 80
+
+        jpeg_quality_int = max(40, min(95, jpeg_quality_int))
+        quality_factor = max(0.65, min(1.45, jpeg_quality_int / 80.0))
+        width, height = int(resolution[0]), int(resolution[1])
+        auto_bitrate = int(width * height * max(1, int(framerate)) * quality_factor)
+        bitrate = max(8_000_000, min(80_000_000, auto_bitrate))
+        self._logger.info(
+            "%s MJPEG bitrate auto=%s Mbps (res=%sx%s fps=%s quality=%s)",
+            self._camera_name,
+            bitrate // 1_000_000,
+            width,
+            height,
+            framerate,
+            jpeg_quality_int,
+        )
+        return bitrate
+
     def _apply_runtime_controls(self, settings: dict[str, Any]) -> None:
         if self._cam is None:
             return
@@ -215,6 +254,9 @@ class PiCamHQ(CamBase.CamBase):
         """Start camera with Picamera2 MJPEG encoder output for low CPU usage."""
         try:
             stream_res = self._resolve_stream_resolution(settings)
+            stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
+            stream_fps = max(1, int(stream_cfg.framerate))
+            stream_bitrate = self._resolve_stream_mjpeg_bitrate(settings, stream_res, stream_fps)
             self._cam = Picamera2()
             stream_color_space = self._video_color_space()
             stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
@@ -230,7 +272,7 @@ class PiCamHQ(CamBase.CamBase):
                 str(self._camera_config.get("main")),
             )
             self._cam.configure(self._camera_config)
-            encoder = MJPEGEncoder(bitrate=10000000)
+            encoder = MJPEGEncoder(bitrate=stream_bitrate)
             self._cam.start_recording(encoder, FileOutput(output))
             self._apply_runtime_controls(settings)
             return True

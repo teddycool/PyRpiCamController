@@ -744,6 +744,20 @@
         "web_editable": true,
         "level": "advanced"
       },
+      "mjpeg_bitrate_mbps": {
+        "value": 0,
+        "type": "int",
+        "min": 0,
+        "max": 120,
+        "ui": {
+          "name": "MJPEG Bitrate (Mbps)",
+          "section": "Stream",
+          "description": "MJPEG encoder bitrate in Mbps. Set 0 for automatic bitrate based on resolution/FPS/quality.",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
       "port": {
         "value": 8554,
         "type": "int",
