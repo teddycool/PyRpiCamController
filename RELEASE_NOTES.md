@@ -12,59 +12,31 @@ Release date: 2026-08-20
 
 ### Highlights
 
-- [Add release highlights]
+- Public rollout release covering all improvements made after `v1.5.0`.
+- Includes the internal `v1.5.1`–`v1.5.4` work (those versions were not publicly released).
+- Better live stream quality and stability, especially on Raspberry Pi 3 + Pi Camera 3:
+  - Improved MJPEG handling at higher resolutions.
+  - Better stream behavior when running both local preview and YouTube Live in parallel.
+  - Added safer defaults/guardrails for high-load stream combinations on Pi 3-class hardware.
+- Better camera color control in stream mode:
+  - White balance mode and AWB behavior are now configurable.
+  - Added runtime AWB status visibility in the top status area.
+- Improved Web GUI usability:
+  - Added a dedicated **Tools** tab.
+  - Moved device actions into Tools for clearer day-to-day operation.
+- More reliable service control from the Web GUI:
+  - Camera service stop/start now validates actual service state and returns clear errors if the requested state is not reached.
+- More robust network/startup behavior:
+  - Comitup/portal behavior now yields correctly to normal operation when a real wired/client network is available.
+- OTA update flow improvements:
+  - `camcontroller-web` is now restarted after OTA apply so GUI/backend changes become active immediately.
 
 ### Validation
 
-- [Add validation notes]
+- Release pipeline completed successfully for `v1.5.5`.
+- Validated on Raspberry Pi target devices with service restart and runtime verification.
+- Verified camera + web services active after deploy, including fixed network/startup behavior.
 
-## v1.5.4
-
-Release date: 2026-08-19
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.5.3
-
-Release date: 2026-08-19
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.5.2
-
-Release date: 2026-08-19
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.5.1
-
-Release date: 2026-08-19
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
 
 ## v1.5.0
 
@@ -72,11 +44,11 @@ Release date: 2026-08-08
 
 ### Highlights
 
-- [Add release highlights]
+- Baseline public `1.5.x` release used as the starting point for subsequent operational, streaming, and UX improvements delivered in `v1.5.5`.
 
 ### Validation
 
-- [Add validation notes]
+- Baseline release validation completed at time of `v1.5.0` publication.
 
 ## v1.4.3
 

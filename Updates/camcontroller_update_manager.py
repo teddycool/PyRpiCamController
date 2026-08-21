@@ -584,6 +584,14 @@ class UpdateManager:
         """Sync service unit files into /etc/systemd/system and apply safe restarts."""
         services_dir = self.paths['install_path'] / 'Services'
         target_dir = Path('/etc/systemd/system')
+        if not os.access(target_dir, os.W_OK):
+            self.logger.warning(
+                "Skipping service unit sync: %s is not writable. "
+                "If running under systemd sandboxing, add /etc/systemd/system to ReadWritePaths.",
+                target_dir,
+            )
+            return
+
         service_files = [
             'camcontroller.service',
             'camcontroller-web.service',
