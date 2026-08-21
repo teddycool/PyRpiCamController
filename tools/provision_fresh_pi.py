@@ -1153,8 +1153,10 @@ Examples:
                 "--production does not allow --no-lock-password"
             )
 
-    # Validate key path early to avoid failing late after installation.
-    key_required = args.ssh_posture in ("key-only", "disable")
+    # Validate explicit key paths early, but only require an auto-detected key
+    # for real provisioning runs. `--validate-only` is used in CI policy checks
+    # where no local SSH key may exist.
+    key_required = args.ssh_posture in ("key-only", "disable") and not args.validate_only
     args.ssh_pubkey = resolve_ssh_pubkey(args.ssh_pubkey, require_key=key_required)
 
     if args.validate_only:
