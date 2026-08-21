@@ -126,6 +126,19 @@ class ProvisioningManager:
             return f"v{version_str}"
         return version_str
 
+    @staticmethod
+    def _parse_semver(version_str):
+        """Parse semantic version string into (major, minor, patch)."""
+        cleaned = version_str.strip().removeprefix("v")
+        parts = cleaned.split(".")
+        if len(parts) != 3:
+            raise ValueError(f"Invalid semantic version: {version_str}")
+        return tuple(int(part) for part in parts)
+
+    def _version_at_least(self, minimum_version):
+        """Return True if target release version is >= minimum_version."""
+        return self._parse_semver(self.release_version) >= self._parse_semver(minimum_version)
+
     def _get_cached_password(self):
         """
         Retrieve cached password for this Pi from local cache file.
@@ -740,6 +753,9 @@ class ProvisioningManager:
 
         self.wait_for_service_active("camcontroller.service", "Camera controller service")
         self.wait_for_service_active("camcontroller-update.service", "OTA update daemon")
+        self.wait_for_service_active("camcontroller-web.service", "Web GUI service")
+
+        self.verify_installed_version()
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
@@ -759,7 +775,25 @@ class ProvisioningManager:
         else:
             print("  → OTA settings in settings_manager... skipped (enrollment disabled)")
 
+        if self._version_at_least("1.5.6"):
+            self.verify_ota_unit_sync_prerequisites()
+
         print("\n  ✓ All verification checks passed")
+
+    def verify_installed_version(self):
+        """Ensure the installed VERSION matches requested release."""
+        version_check_cmd = (
+            "cd ~/PyRpiCamController && "
+            "python3 -c \""
+            "from pathlib import Path; "
+            "import sys; "
+            "installed = Path('VERSION').read_text(encoding='utf-8').strip(); "
+            f"expected = '{self.release_version}'; "
+            "print(f'installed={installed} expected={expected}'); "
+            "sys.exit(0 if installed == expected else 2)"
+            "\""
+        )
+        self.ssh_run(version_check_cmd, "Installed VERSION matches requested release", check=True)
 
     def apply_post_provision_hardening(self):
         """Apply v1 security baseline controls after successful provisioning."""
@@ -822,6 +856,22 @@ class ProvisioningManager:
             "\""
         )
         self.ssh_run(ota_check_cmd, "OTA settings in settings_manager", check=True)
+
+    def verify_ota_unit_sync_prerequisites(self):
+        """Ensure updater unit can write systemd units for future OTA service sync."""
+        prereq_cmd = (
+            "python3 -c \""
+            "from pathlib import Path; "
+            "import re, sys; "
+            "unit = Path('/etc/systemd/system/camcontroller-update.service').read_text(encoding='utf-8'); "
+            "matches = re.findall(r'^ReadWritePaths=(.*)$', unit, re.MULTILINE); "
+            "line = matches[-1] if matches else ''; "
+            "ok = '/etc/systemd/system' in line.split(); "
+            "print('OK: updater unit ReadWritePaths includes /etc/systemd/system' if ok else 'ERROR: updater unit missing /etc/systemd/system write path'); "
+            "sys.exit(0 if ok else 2)"
+            "\""
+        )
+        self.ssh_run(prereq_cmd, "OTA updater unit has service-sync write path", check=True)
 
     def wait_for_service_active(self, service_name, label, timeout=180, interval=5):
         """Wait for a systemd service to become active with retries."""
