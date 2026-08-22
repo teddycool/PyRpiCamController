@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2800" viewBox="0 0 1800 2800">
+  <defs>
+    <style>
+      .title{font:700 42px Arial,Helvetica,sans-serif; fill:#102a43}
+      .subtitle{font:400 22px Arial,Helvetica,sans-serif; fill:#486581}
+      .lane{font:700 24px Arial,Helvetica,sans-serif; fill:#102a43}
+      .box{fill:#ffffff; stroke:#2f5bea; stroke-width:3; rx:18; ry:18}
+      .box2{fill:#f7fbff; stroke:#2f5bea; stroke-width:3; rx:18; ry:18}
+      .warn{fill:#fff7ed; stroke:#d97706; stroke-width:3; rx:18; ry:18}
+      .fail{fill:#fff1f2; stroke:#dc2626; stroke-width:3; rx:18; ry:18}
+      .success{fill:#ecfdf5; stroke:#16a34a; stroke-width:3; rx:18; ry:18}
+      .doc{fill:#f8fafc; stroke:#64748b; stroke-width:2.5; rx:14; ry:14}
+      .text{font:400 20px Arial,Helvetica,sans-serif; fill:#102a43}
+      .small{font:400 17px Arial,Helvetica,sans-serif; fill:#334e68}
+      .small2{font:400 16px Arial,Helvetica,sans-serif; fill:#334e68}
+      .decision{fill:#ffffff; stroke:#8b5cf6; stroke-width:3}
+      .label{font:700 18px Arial,Helvetica,sans-serif; fill:#6b46c1}
+      .legend{font:700 18px Arial,Helvetica,sans-serif; fill:#102a43}
+      .arrow{stroke:#334e68; stroke-width:3.5; fill:none; marker-end:url(#arrowHead)}
+      .arrowBlue{stroke:#2f5bea; stroke-width:4; fill:none; marker-end:url(#arrowHeadBlue)}
+      .arrowOrange{stroke:#d97706; stroke-width:4; fill:none; marker-end:url(#arrowHeadOrange)}
+      .arrowRed{stroke:#dc2626; stroke-width:4; fill:none; marker-end:url(#arrowHeadRed)}
+    </style>
+    <marker id="arrowHead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#334e68"/>
+    </marker>
+    <marker id="arrowHeadBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2f5bea"/>
+    </marker>
+    <marker id="arrowHeadOrange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrowHeadRed" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="2800" fill="#ffffff"/>
+  <text x="900" y="72" text-anchor="middle" class="title">PyRpiCamController OTA Workflow (User-Initiated Apply)</text>
+  <text x="900" y="112" text-anchor="middle" class="subtitle">From update availability in the Web GUI to install, unit sync, reboot, rollback, and completion</text>
+
+  <!-- Swimlane headers -->
+  <rect x="60" y="150" width="270" height="60" fill="#e0f2fe" stroke="#7dd3fc" rx="12" ry="12"/>
+  <text x="195" y="188" text-anchor="middle" class="lane">User</text>
+  <rect x="340" y="150" width="270" height="60" fill="#dbeafe" stroke="#93c5fd" rx="12" ry="12"/>
+  <text x="475" y="188" text-anchor="middle" class="lane">Web GUI</text>
+  <rect x="620" y="150" width="270" height="60" fill="#ede9fe" stroke="#c4b5fd" rx="12" ry="12"/>
+  <text x="755" y="188" text-anchor="middle" class="lane">OTA Daemon</text>
+  <rect x="900" y="150" width="300" height="60" fill="#fef3c7" stroke="#fcd34d" rx="12" ry="12"/>
+  <text x="1050" y="188" text-anchor="middle" class="lane">Update Manager</text>
+  <rect x="1210" y="150" width="250" height="60" fill="#dcfce7" stroke="#86efac" rx="12" ry="12"/>
+  <text x="1335" y="188" text-anchor="middle" class="lane">Systemd / Services</text>
+  <rect x="1470" y="150" width="270" height="60" fill="#ffe4e6" stroke="#fda4af" rx="12" ry="12"/>
+  <text x="1605" y="188" text-anchor="middle" class="lane">OTA Backend</text>
+
+  <!-- Main flow boxes -->
+  <rect class="success" x="90" y="250" width="210" height="70"/>
+  <text x="195" y="292" text-anchor="middle" class="text">Update available</text>
+
+  <rect class="box" x="90" y="360" width="210" height="70"/>
+  <text x="195" y="401" text-anchor="middle" class="text">User clicks Apply</text>
+
+  <rect class="box" x="370" y="360" width="220" height="92"/>
+  <text x="480" y="395" text-anchor="middle" class="text">Write</text>
+  <text x="480" y="422" text-anchor="middle" class="small">/home/pi/ota/commands/ota_apply_trigger</text>
+
+  <rect class="box" x="650" y="360" width="220" height="92"/>
+  <text x="760" y="395" text-anchor="middle" class="text">Detect trigger</text>
+  <text x="760" y="422" text-anchor="middle" class="small">Set OTA.update_status = applying</text>
+
+  <rect class="box" x="930" y="360" width="240" height="92"/>
+  <text x="1050" y="395" text-anchor="middle" class="text">perform_update()</text>
+  <text x="1050" y="422" text-anchor="middle" class="small">Start OTA transaction</text>
+
+  <rect class="box2" x="930" y="500" width="240" height="88"/>
+  <text x="1050" y="536" text-anchor="middle" class="text">GET /api/ota/check</text>
+  <text x="1050" y="562" text-anchor="middle" class="small">cpu_id + version + api_key</text>
+
+  <polygon class="decision" points="1050,630 1135,690 1050,750 965,690"/>
+  <text x="1050" y="696" text-anchor="middle" class="label">Still available?</text>
+  <text x="1165" y="684" class="small2">No</text>
+  <text x="1045" y="762" class="small2">Yes</text>
+
+  <rect class="warn" x="1250" y="635" width="250" height="86"/>
+  <text x="1375" y="670" text-anchor="middle" class="text">Set idle</text>
+  <text x="1375" y="698" text-anchor="middle" class="small">Clear available_version</text>
+
+  <rect class="box" x="930" y="800" width="240" height="88"/>
+  <text x="1050" y="836" text-anchor="middle" class="text">POST /api/ota/report</text>
+  <text x="1050" y="862" text-anchor="middle" class="small">status=started (best effort)</text>
+
+  <rect class="doc" x="930" y="930" width="240" height="88"/>
+  <text x="1050" y="966" text-anchor="middle" class="text">Create backup</text>
+  <text x="1050" y="992" text-anchor="middle" class="small">/home/pi/ota/backups/</text>
+
+  <rect class="doc" x="930" y="1060" width="240" height="88"/>
+  <text x="1050" y="1096" text-anchor="middle" class="text">Download tarball</text>
+  <text x="1050" y="1122" text-anchor="middle" class="small">/home/pi/ota/downloads/</text>
+
+  <rect class="box" x="930" y="1190" width="240" height="88"/>
+  <text x="1050" y="1226" text-anchor="middle" class="text">Verify SHA-256</text>
+  <text x="1050" y="1252" text-anchor="middle" class="small">checksum valid?</text>
+
+  <polygon class="decision" points="1050,1325 1135,1385 1050,1445 965,1385"/>
+  <text x="1050" y="1391" text-anchor="middle" class="label">Valid?</text>
+
+  <rect class="fail" x="1250" y="1350" width="250" height="102"/>
+  <text x="1375" y="1385" text-anchor="middle" class="text">Fail + rollback</text>
+  <text x="1375" y="1413" text-anchor="middle" class="small">Report error / try restore</text>
+
+  <rect class="box" x="930" y="1510" width="240" height="88"/>
+  <text x="1050" y="1546" text-anchor="middle" class="text">Safe extract</text>
+  <text x="1050" y="1572" text-anchor="middle" class="small">/home/pi/ota/temp/extract</text>
+
+  <rect class="box" x="930" y="1640" width="240" height="88"/>
+  <text x="1050" y="1676" text-anchor="middle" class="text">Validate package</text>
+  <text x="1050" y="1702" text-anchor="middle" class="small">Required files present</text>
+
+  <rect class="box2" x="930" y="1770" width="240" height="88"/>
+  <text x="1050" y="1806" text-anchor="middle" class="text">Stop service</text>
+  <text x="1050" y="1832" text-anchor="middle" class="small">camcontroller.service</text>
+
+  <rect class="box" x="930" y="1900" width="240" height="88"/>
+  <text x="1050" y="1936" text-anchor="middle" class="text">Install payload</text>
+  <text x="1050" y="1962" text-anchor="middle" class="small">/home/pi/PyRpiCamController</text>
+
+  <rect class="box" x="930" y="2030" width="240" height="88"/>
+  <text x="1050" y="2066" text-anchor="middle" class="text">Update VERSION</text>
+  <text x="1050" y="2092" text-anchor="middle" class="small">Set permissions</text>
+
+  <rect class="box2" x="930" y="2160" width="240" height="88"/>
+  <text x="1050" y="2196" text-anchor="middle" class="text">Start service</text>
+  <text x="1050" y="2222" text-anchor="middle" class="small">Health-check loop</text>
+
+  <polygon class="decision" points="1050,2295 1135,2355 1050,2415 965,2355"/>
+  <text x="1050" y="2361" text-anchor="middle" class="label">Healthy?</text>
+
+  <rect class="fail" x="1250" y="2320" width="250" height="102"/>
+  <text x="1375" y="2355" text-anchor="middle" class="text">Rollback path</text>
+  <text x="1375" y="2383" text-anchor="middle" class="small">Restore backup / retry</text>
+
+  <rect class="success" x="930" y="2490" width="240" height="92"/>
+  <text x="1050" y="2527" text-anchor="middle" class="text">Sync service units</text>
+  <text x="1050" y="2554" text-anchor="middle" class="small">/etc/systemd/system</text>
+
+  <polygon class="decision" points="1050,2625 1135,2685 1050,2745 965,2685"/>
+  <text x="1050" y="2691" text-anchor="middle" class="label">Unit sync OK?</text>
+
+  <rect class="warn" x="1250" y="2640" width="250" height="102"/>
+  <text x="1375" y="2674" text-anchor="middle" class="text">Repair pending</text>
+  <text x="1375" y="2702" text-anchor="middle" class="small">Reboot + boot-time retry</text>
+
+  <rect class="box2" x="930" y="2790" width="240" height="92" transform="translate(0,-10)"/>
+  <text x="1050" y="2827" text-anchor="middle" class="text">Restart web service</text>
+  <text x="1050" y="2854" text-anchor="middle" class="small">Load new UI/backend</text>
+
+  <rect class="box" x="930" y="2915" width="240" height="88" transform="translate(0,-10)"/>
+  <text x="1050" y="2951" text-anchor="middle" class="text">requires_reboot?</text>
+  <text x="1050" y="2977" text-anchor="middle" class="small">Schedule reboot if true</text>
+
+  <rect class="success" x="930" y="3045" width="240" height="92" transform="translate(0,-10)"/>
+  <text x="1050" y="3082" text-anchor="middle" class="text">Finish</text>
+  <text x="1050" y="3109" text-anchor="middle" class="small">OTA.update_status = idle</text>
+
+  <!-- Legend -->
+  <rect x="1280" y="300" width="430" height="210" fill="#f8fafc" stroke="#cbd5e1" rx="18" ry="18"/>
+  <text x="1495" y="340" text-anchor="middle" class="legend">Legend</text>
+  <rect x="1320" y="360" width="32" height="18" class="box"/>
+  <text x="1370" y="376" class="small">Normal action</text>
+  <rect x="1320" y="395" width="32" height="18" class="success"/>
+  <text x="1370" y="411" class="small">Success / completed</text>
+  <rect x="1320" y="430" width="32" height="18" class="warn"/>
+  <text x="1370" y="446" class="small">Warning / repair path</text>
+  <rect x="1320" y="465" width="32" height="18" class="fail"/>
+  <text x="1370" y="481" class="small">Failure / rollback</text>
+
+  <!-- Connecting arrows -->
+  <path class="arrow" d="M195 320 L195 360"/>
+  <path class="arrow" d="M300 395 L370 395"/>
+  <path class="arrow" d="M590 406 L650 406"/>
+  <path class="arrow" d="M870 406 L930 406"/>
+  <path class="arrow" d="M1050 452 L1050 500"/>
+  <path class="arrow" d="M1050 588 L1050 630"/>
+  <path class="arrowBlue" d="M1135 690 L1250 690"/>
+  <path class="arrow" d="M1050 750 L1050 800"/>
+  <path class="arrow" d="M1050 888 L1050 930"/>
+  <path class="arrow" d="M1050 1018 L1050 1060"/>
+  <path class="arrow" d="M1050 1148 L1050 1190"/>
+  <path class="arrow" d="M1050 1278 L1050 1325"/>
+  <path class="arrowRed" d="M1135 1385 L1250 1385"/>
+  <path class="arrow" d="M1050 1445 L1050 1510"/>
+  <path class="arrow" d="M1050 1598 L1050 1640"/>
+  <path class="arrow" d="M1050 1728 L1050 1770"/>
+  <path class="arrow" d="M1050 1858 L1050 1900"/>
+  <path class="arrow" d="M1050 1988 L1050 2030"/>
+  <path class="arrow" d="M1050 2118 L1050 2160"/>
+  <path class="arrow" d="M1050 2248 L1050 2295"/>
+  <path class="arrowRed" d="M1135 2355 L1250 2355"/>
+  <path class="arrow" d="M1050 2415 L1050 2490"/>
+  <path class="arrow" d="M1050 2582 L1050 2625"/>
+  <path class="arrowOrange" d="M1135 2685 L1250 2685"/>
+  <path class="arrow" d="M1050 2745 L1050 2780"/>
+  <path class="arrow" d="M1050 2870 L1050 2915"/>
+  <path class="arrow" d="M1050 3003 L1050 3045"/>
+
+  <!-- Reboot / no-update callouts -->
+  <path class="arrowOrange" d="M1375 737 C1375 780, 1305 775, 1220 825"/>
+  <text x="1328" y="778" class="small">No update</text>
+  <path class="arrowOrange" d="M1375 2742 C1375 2790, 1280 2810, 1200 2850"/>
+  <text x="1334" y="2810" class="small">Sync failed → reboot to retry</text>
+
+  <!-- Footer note -->
+  <text x="900" y="3260" text-anchor="middle" class="subtitle">Trigger files live in /home/pi/ota/commands; logs in /home/pi/shared/logs/camcontroller_update.log</text>
+</svg>

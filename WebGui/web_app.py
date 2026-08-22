@@ -15,6 +15,7 @@ import datetime
 import shutil
 import logging
 import threading
+import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 # Add parent directory to path to access Settings module
@@ -26,6 +27,12 @@ OTA_WEB_BACKUP_DIR = OTA_SHARED_DIR / 'web_backups'
 OTA_CHANGELOG_FILE = OTA_SHARED_DIR / 'ota_changelog.txt'
 WEB_LOG_DIR = Path('/home/pi/shared/logs')
 WEB_LOG_FILE = WEB_LOG_DIR / 'camcontroller_web.log'
+FS_HEALTH_SOURCES = [
+    WEB_LOG_DIR / 'cam.log',
+    WEB_LOG_DIR / 'camcontroller_update.log',
+    WEB_LOG_DIR / 'camcontroller_web.log',
+    WEB_LOG_DIR / 'camcontroller_update_recovery.log',
+]
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
@@ -217,6 +224,111 @@ def _ensure_ota_command_dir_writable():
 def _set_runtime_setting(path, value):
     """Persist OTA runtime state, including readonly status fields."""
     settings_manager.set(path, value, save=True, allow_readonly=True)
+
+
+def _tail_lines(path: Path, max_lines: int = 1200):
+    """Read up to max_lines from file tail without loading very large files fully."""
+    try:
+        with path.open('r', encoding='utf-8', errors='replace') as handle:
+            lines = handle.readlines()
+            if len(lines) > max_lines:
+                return lines[-max_lines:]
+            return lines
+    except Exception:
+        return []
+
+
+def _derive_fs_health_from_logs(max_signals: int = 40):
+    """Derive filesystem risk signals from shared log files only (SMB-visible sources)."""
+    critical_patterns = [
+        re.compile(r"read-only file system", re.IGNORECASE),
+        re.compile(r"remounting filesystem read-only", re.IGNORECASE),
+        re.compile(r"\bEXT4-fs\b.*\berror\b", re.IGNORECASE),
+        re.compile(r"\bI/O error\b", re.IGNORECASE),
+        re.compile(r"\bInput/output error\b", re.IGNORECASE),
+        re.compile(r"\bjournal\b.*\babort", re.IGNORECASE),
+        re.compile(r"\bstructure needs cleaning\b", re.IGNORECASE),
+        re.compile(r"\bmmc\d*\b.*\berror\b", re.IGNORECASE),
+        re.compile(r"\bblk_update_request\b", re.IGNORECASE),
+    ]
+    warning_patterns = [
+        re.compile(r"\bNo space left on device\b", re.IGNORECASE),
+        re.compile(r"\bfilesystem\b.*\bcorrupt", re.IGNORECASE),
+        re.compile(r"\bfsck\b", re.IGNORECASE),
+        re.compile(r"\brollback\b", re.IGNORECASE),
+        re.compile(r"\bpermission denied\b", re.IGNORECASE),
+        re.compile(r"\bfailed to (write|save|persist)\b", re.IGNORECASE),
+    ]
+
+    signals = []
+    scanned_files = []
+    scanned_line_count = 0
+
+    for source_path in FS_HEALTH_SOURCES:
+        if not source_path.exists():
+            continue
+
+        lines = _tail_lines(source_path, max_lines=1200)
+        if not lines:
+            continue
+
+        scanned_files.append(str(source_path))
+        scanned_line_count += len(lines)
+
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            severity = None
+            for pattern in critical_patterns:
+                if pattern.search(line):
+                    severity = 'critical'
+                    break
+
+            if severity is None:
+                for pattern in warning_patterns:
+                    if pattern.search(line):
+                        severity = 'warning'
+                        break
+
+            if severity is None:
+                continue
+
+            signals.append({
+                'severity': severity,
+                'source': source_path.name,
+                'message': line[:400],
+            })
+
+    signals = signals[-max_signals:]
+    critical_count = sum(1 for item in signals if item['severity'] == 'critical')
+    warning_count = sum(1 for item in signals if item['severity'] == 'warning')
+
+    if critical_count > 0:
+        overall = 'critical'
+        summary = 'Critical filesystem risk signals found in logs.'
+    elif warning_count > 0:
+        overall = 'warning'
+        summary = 'Potential filesystem/disk risk signals found in logs.'
+    elif scanned_files:
+        overall = 'ok'
+        summary = 'No filesystem risk patterns detected in scanned shared logs.'
+    else:
+        overall = 'unknown'
+        summary = 'No shared logs were readable for filesystem health analysis.'
+
+    return {
+        'overall': overall,
+        'summary': summary,
+        'critical_count': critical_count,
+        'warning_count': warning_count,
+        'signal_count': len(signals),
+        'signals': list(reversed(signals)),
+        'scanned_files': scanned_files,
+        'scanned_line_count': scanned_line_count,
+        'generated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+    }
 
 @app.route("/", methods=["GET"])
 def index():
@@ -774,6 +886,17 @@ def camera_service_toggle():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/tools/fs-health", methods=["GET"])
+def get_fs_health_signals():
+    """Return derived filesystem/disk health signals from shared log files."""
+    try:
+        payload = _derive_fs_health_from_logs()
+        return jsonify(payload)
+    except Exception as exc:
+        WEB_LOGGER.exception("Filesystem health signal analysis failed")
+        return jsonify({'error': f'Failed to analyze filesystem health: {exc}'}), 500
 
 
 @app.route("/api/settings/debug", methods=["GET"])

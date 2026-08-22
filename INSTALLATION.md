@@ -264,11 +264,12 @@ Verify OTA settings and one manual check path:
 ```bash
 python3 -c "from Settings.settings_manager import settings_manager; print('OtaEnable=', settings_manager.get('OtaEnable')); print('server=', settings_manager.get('OTA.server_url')); print('interval=', settings_manager.get('OTA.check_interval'))"
 
-echo "manual check" | sudo tee /tmp/ota_check_trigger
+echo "manual check" | sudo tee /home/pi/ota/commands/ota_check_trigger
 sudo journalctl -u camcontroller-update.service -n 100 --no-pager
 ```
 
 If OTA backend is production, confirm responses come from `https://www.sensorwebben.se/pycamota`.
+For full daemon/update flow details, see `OTA_DAEMON_GUIDE.md`.
 
 ### 9) Troubleshooting
 
