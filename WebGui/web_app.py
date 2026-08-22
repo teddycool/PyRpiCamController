@@ -8,11 +8,13 @@ from flask import Flask, render_template, request, redirect, jsonify, flash
 import sys
 import os
 import json as json_module  # Use different name to avoid conflicts
+import subprocess
 import socket
 import time
 import datetime
 import shutil
 import logging
+import threading
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 # Add parent directory to path to access Settings module
@@ -70,6 +72,53 @@ def _format_setting_value_for_log(field_path: str, value, schema_info: dict = No
     if len(value_text) > 120:
         return value_text[:117] + '...'
     return value_text
+
+
+def _schedule_privileged_command(command_args, delay_seconds: float = 1.5):
+    """Run a privileged command shortly after the HTTP response is returned."""
+    def _execute_command():
+        try:
+            WEB_LOGGER.info('Executing privileged command: %s', ' '.join(command_args))
+            subprocess.run(command_args, check=False)
+        except Exception:
+            WEB_LOGGER.exception('Privileged command failed: %s', command_args)
+
+    timer = threading.Timer(delay_seconds, _execute_command)
+    timer.daemon = True
+    timer.start()
+
+
+def _is_camera_service_active() -> bool:
+    """Return True when the main camera service is currently active."""
+    try:
+        result = subprocess.run(
+            ['/bin/systemctl', 'is-active', 'camcontroller.service'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0 and result.stdout.strip() == 'active'
+    except Exception:
+        WEB_LOGGER.exception('Failed to read camcontroller.service status')
+        return False
+
+
+def _run_systemctl_for_camera(action: str, timeout_seconds: int = 20):
+    """Run systemctl action for camcontroller.service and return (ok, stderr)."""
+    try:
+        result = subprocess.run(
+            ['sudo', '-n', '/bin/systemctl', action, 'camcontroller.service'],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+        stderr_text = (result.stderr or '').strip()
+        return result.returncode == 0, stderr_text
+    except subprocess.TimeoutExpired:
+        return False, 'systemctl command timed out'
+    except Exception as exc:
+        return False, str(exc)
 
 
 WEB_LOGGER = _setup_web_logger()
@@ -173,7 +222,7 @@ def _set_runtime_setting(path, value):
 def index():
     """Main settings form with basic/advanced tabs."""
     level = request.args.get('level', 'status')  # Default to status overview
-    if level not in {'status', 'basic', 'advanced', 'docs'}:
+    if level not in {'status', 'basic', 'advanced', 'tools', 'docs'}:
         level = 'status'
     settings_manager.load_user_settings()
     
@@ -315,6 +364,11 @@ def stream_status():
             'ds18b20_available': False,
             'temperature_timestamp': None
         }
+        awb_data = {
+            'awb_mode': None,
+            'awb_enable': None,
+            'awb_mode_display': None,
+        }
         youtube_data = None
         
         try:
@@ -329,6 +383,9 @@ def stream_status():
                             temperature_data['ds18b20_temperature'] = status_data.get('ds18b20_temperature')
                             temperature_data['ds18b20_available'] = status_data.get('ds18b20_available', False)
                             temperature_data['temperature_timestamp'] = status_data.get('timestamp')
+                            awb_data['awb_mode'] = status_data.get('awb_mode')
+                            awb_data['awb_enable'] = status_data.get('awb_enable')
+                            awb_data['awb_mode_display'] = status_data.get('awb_mode_display')
                             youtube_data = status_data.get('youtube')
                         break  # Success, exit retry loop
                     except (json_module.JSONDecodeError, IOError) as e:
@@ -398,6 +455,7 @@ def stream_status():
         
         # Add temperature data to response
         response_data.update(temperature_data)
+        response_data.update(awb_data)
         response_data.update(disk_data)
         response_data.update(cpu_load_data)
         
@@ -615,6 +673,104 @@ def apply_and_restart():
             'message': restart_message,
             'action': 'restart',
             'changes_applied': changes['changes']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/reboot-device", methods=["POST"])
+def reboot_device():
+    """Reboot the camera device after sending the response."""
+    try:
+        _schedule_privileged_command(['sudo', '/bin/systemctl', 'reboot'])
+        return jsonify({
+            'success': True,
+            'message': 'Reboot requested. The camera device will restart shortly.',
+            'action': 'reboot'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/shutdown-device", methods=["POST"])
+def shutdown_device():
+    """Power off the camera device after sending the response."""
+    try:
+        _schedule_privileged_command(['sudo', '/bin/systemctl', 'poweroff'])
+        return jsonify({
+            'success': True,
+            'message': 'Shutdown requested. After the camera powers off, unplug it and plug it back in to start it again.',
+            'action': 'shutdown'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/camera-service-state", methods=["GET"])
+def camera_service_state():
+    """Return the current state of the main camera service only."""
+    try:
+        active = _is_camera_service_active()
+        return jsonify({
+            'success': True,
+            'service': 'camcontroller.service',
+            'active': active,
+            'paused': not active,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/service/camera-service-toggle", methods=["POST"])
+def camera_service_toggle():
+    """Pause/resume only the main camera service (camcontroller.service)."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        action = str(payload.get('action', '')).strip().lower()
+
+        if action not in {'pause', 'play'}:
+            return jsonify({'error': 'Invalid action. Use pause or play.'}), 400
+
+        systemctl_action = 'stop' if action == 'pause' else 'start'
+        desired_active = action == 'play'
+
+        ok, stderr_text = _run_systemctl_for_camera(systemctl_action)
+        if not ok:
+            error_message = (
+                stderr_text
+                or 'systemctl command failed. Ensure sudo permissions allow this action.'
+            )
+            WEB_LOGGER.warning(
+                'Camera service toggle failed action=%s error=%s',
+                action,
+                error_message,
+            )
+            return jsonify({'error': error_message}), 500
+
+        # Let systemd settle briefly, then verify actual state.
+        time.sleep(1.0)
+        actual_active = _is_camera_service_active()
+
+        if actual_active != desired_active:
+            mismatch_message = (
+                f'Camera service did not reach requested state ({action}). '
+                f'Current active={actual_active}. Another watchdog/service may be forcing it back.'
+            )
+            WEB_LOGGER.warning(mismatch_message)
+            return jsonify({'error': mismatch_message, 'active': actual_active}), 409
+
+        if action == 'pause':
+            message = 'Camera service stopped.'
+        else:
+            message = 'Camera service started.'
+
+        return jsonify({
+            'success': True,
+            'service': 'camcontroller.service',
+            'requested_action': action,
+            'target_active': desired_active,
+            'active': actual_active,
+            'message': message,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

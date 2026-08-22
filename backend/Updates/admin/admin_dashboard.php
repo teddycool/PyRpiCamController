@@ -246,6 +246,71 @@ $admin = current_admin();
     </div>
 </div>
 
+<!-- View Device Modal -->
+<div class="modal fade" id="viewDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Device Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="view-device-body">
+                <div class="text-center py-4"><div class="spinner-border"></div></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning" id="view-to-edit-btn"
+                    onclick="switchToEdit()"><i class="bi bi-pencil me-1"></i>Edit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Device Modal -->
+<div class="modal fade" id="editDeviceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" id="edit-device-form">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Device</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-device-id">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Device ID</label>
+                    <input type="text" class="form-control" id="edit-device-device-id" readonly disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Name / Label</label>
+                    <input type="text" name="name" class="form-control" id="edit-device-name" placeholder="e.g. Kitchen cam">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Channel</label>
+                    <select name="channel" class="form-select" id="edit-device-channel">
+                        <option value="stable">stable</option>
+                        <option value="testing">testing</option>
+                        <option value="beta">beta</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" id="edit-device-notes" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="edit-device-active" role="switch">
+                        <label class="form-check-label" for="edit-device-active">Active</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- API Key result Modal -->
 <div class="modal fade" id="apiKeyModal" tabindex="-1">
     <div class="modal-dialog">
@@ -406,7 +471,7 @@ async function loadDevices() {
                 <td class="small">${fmtDate(d.last_seen)}</td>
                 <td class="small">${d.last_ip || '—'}</td>
                 <td>
-                    <div class="d-flex gap-1">
+                    <div class="d-flex gap-1 flex-wrap">
                         <select class="form-select form-select-sm" style="width:100px"
                             onchange="changeDeviceChannel(${d.id}, this.value)">
                             ${['stable','testing','beta'].map(c =>
@@ -417,6 +482,12 @@ async function loadDevices() {
                             onclick="toggleDevice(${d.id}, ${d.is_active})"
                             title="${d.is_active ? 'Deactivate' : 'Activate'}">
                             <i class="bi bi-toggle-${d.is_active ? 'on' : 'off'}"></i></button>
+                        <button class="btn btn-sm btn-outline-primary"
+                            onclick="viewDevice(${d.id})"
+                            title="View details"><i class="bi bi-eye"></i></button>
+                        <button class="btn btn-sm btn-outline-warning"
+                            onclick="editDevice(${d.id})"
+                            title="Edit"><i class="bi bi-pencil"></i></button>
                         <button class="btn btn-sm btn-outline-danger"
                             onclick="deleteDevice(${d.id}, '${d.device_id}')"
                             title="Delete"><i class="bi bi-trash"></i></button>
@@ -425,6 +496,99 @@ async function loadDevices() {
             </tr>`).join('');
     } catch(e) { toast(e.message, 'danger'); }
 }
+
+// ---------------------------------------------------------------------------
+// Device view / edit
+// ---------------------------------------------------------------------------
+let _currentViewId = null;
+
+async function viewDevice(id) {
+    _currentViewId = id;
+    const body = document.getElementById('view-device-body');
+    body.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div></div>';
+    new bootstrap.Modal(document.getElementById('viewDeviceModal')).show();
+    try {
+        const d = await api('GET', `../api/devices.php?id=${id}`);
+        body.innerHTML = `
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Device ID</label>
+                <div class="font-monospace">${d.device_id}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Name</label>
+                <div>${d.name || '<span class="text-muted">—</span>'}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Current version</label>
+                <div>${d.current_version || '<span class="text-muted">—</span>'}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Channel</label>
+                <div><span class="badge bg-secondary">${d.channel}</span></div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Status</label>
+                <div>${d.is_active
+                    ? '<span class="badge bg-success">active</span>'
+                    : '<span class="badge bg-secondary">inactive</span>'}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Last seen</label>
+                <div class="small">${fmtDate(d.last_seen)}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Last IP</label>
+                <div class="small">${d.last_ip || '—'}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="text-muted small mb-1">Registered</label>
+                <div class="small">${fmtDate(d.created_at)}</div>
+            </div>
+            ${d.notes ? `<div class="col-12"><label class="text-muted small mb-1">Notes</label><div class="small">${d.notes}</div></div>` : ''}
+        </div>`;
+        document.getElementById('view-to-edit-btn').setAttribute('data-device-id', id);
+    } catch(e) {
+        body.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+function switchToEdit() {
+    bootstrap.Modal.getInstance(document.getElementById('viewDeviceModal')).hide();
+    editDevice(_currentViewId);
+}
+
+async function editDevice(id) {
+    try {
+        const d = await api('GET', `../api/devices.php?id=${id}`);
+        document.getElementById('edit-device-id').value      = d.id;
+        document.getElementById('edit-device-device-id').value = d.device_id;
+        document.getElementById('edit-device-name').value    = d.name || '';
+        document.getElementById('edit-device-notes').value   = d.notes || '';
+        document.getElementById('edit-device-active').checked = !!d.is_active;
+        const sel = document.getElementById('edit-device-channel');
+        for (const opt of sel.options) opt.selected = (opt.value === d.channel);
+        new bootstrap.Modal(document.getElementById('editDeviceModal')).show();
+    } catch(e) { toast(e.message, 'danger'); }
+}
+
+document.getElementById('edit-device-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id      = document.getElementById('edit-device-id').value;
+    const payload = {
+        _method:   'PUT',
+        name:      document.getElementById('edit-device-name').value,
+        channel:   document.getElementById('edit-device-channel').value,
+        notes:     document.getElementById('edit-device-notes').value,
+        is_active: document.getElementById('edit-device-active').checked ? 1 : 0,
+    };
+    try {
+        await api('POST', `../api/devices.php?id=${id}`, payload);
+        toast('Device updated');
+        bootstrap.Modal.getInstance(document.getElementById('editDeviceModal')).hide();
+        loadDevices();
+    } catch(err) { toast(err.message, 'danger'); }
+});
 
 async function changeDeviceChannel(id, channel) {
     try {

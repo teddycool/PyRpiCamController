@@ -22,13 +22,13 @@ Examples:
     python3 provision_fresh_pi.py 192.168.1.50 1.0.0 "Camera-03" "Kitchen" \\
         --backend-url https://admin.myserver.com --non-interactive
         
-    python3 tools/provision_fresh_pi.py 192.168.199 1.4.3 "RpiCam1" "BeeHive1"
+    python3 tools/provision_fresh_pi.py 192.168.199 1.5.0 "RpiCam1" "BeeHive1"
 
     # Production hardening with SSH key (key-only SSH posture) and using defaults
-    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --non-interactive --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+    python3 tools/provision_fresh_pi.py 192.168.1.99 1.5.0 "Camera-Prod" "Warehouse" --non-interactive --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
 
     # Production hardening with SSH key (key-only SSH posture) and interactive hwconfig
-    python3 tools/provision_fresh_pi.py 192.168.1.99 1.4.3 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/id_ed25519.pub --ssh-posture key-only --production
+    python3 tools/provision_fresh_pi.py 192.168.1.139 1.5.0 "Camera-Prod" "TestCam" --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
     
 
 """
@@ -43,6 +43,13 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+
+DEFAULT_SSH_PUBKEY_CANDIDATES = [
+    Path.home() / ".ssh" / "id_ed25519.pub",
+    Path.home() / ".ssh" / "pyrpi_prov_ed25519.pub",
+    Path.home() / ".ssh" / "id_rsa.pub",
+]
 
 
 class ProvisioningError(Exception):
@@ -118,6 +125,19 @@ class ProvisioningManager:
         if not version_str.startswith('v'):
             return f"v{version_str}"
         return version_str
+
+    @staticmethod
+    def _parse_semver(version_str):
+        """Parse semantic version string into (major, minor, patch)."""
+        cleaned = version_str.strip().removeprefix("v")
+        parts = cleaned.split(".")
+        if len(parts) != 3:
+            raise ValueError(f"Invalid semantic version: {version_str}")
+        return tuple(int(part) for part in parts)
+
+    def _version_at_least(self, minimum_version):
+        """Return True if target release version is >= minimum_version."""
+        return self._parse_semver(self.release_version) >= self._parse_semver(minimum_version)
 
     def _get_cached_password(self):
         """
@@ -733,6 +753,9 @@ class ProvisioningManager:
 
         self.wait_for_service_active("camcontroller.service", "Camera controller service")
         self.wait_for_service_active("camcontroller-update.service", "OTA update daemon")
+        self.wait_for_service_active("camcontroller-web.service", "Web GUI service")
+
+        self.verify_installed_version()
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
@@ -752,7 +775,25 @@ class ProvisioningManager:
         else:
             print("  → OTA settings in settings_manager... skipped (enrollment disabled)")
 
+        if self._version_at_least("1.5.6"):
+            self.verify_ota_unit_sync_prerequisites()
+
         print("\n  ✓ All verification checks passed")
+
+    def verify_installed_version(self):
+        """Ensure the installed VERSION matches requested release."""
+        version_check_cmd = (
+            "cd ~/PyRpiCamController && "
+            "python3 -c \""
+            "from pathlib import Path; "
+            "import sys; "
+            "installed = Path('VERSION').read_text(encoding='utf-8').strip(); "
+            f"expected = '{self.release_version}'; "
+            "print(f'installed={installed} expected={expected}'); "
+            "sys.exit(0 if installed == expected else 2)"
+            "\""
+        )
+        self.ssh_run(version_check_cmd, "Installed VERSION matches requested release", check=True)
 
     def apply_post_provision_hardening(self):
         """Apply v1 security baseline controls after successful provisioning."""
@@ -815,6 +856,22 @@ class ProvisioningManager:
             "\""
         )
         self.ssh_run(ota_check_cmd, "OTA settings in settings_manager", check=True)
+
+    def verify_ota_unit_sync_prerequisites(self):
+        """Ensure updater unit can write systemd units for future OTA service sync."""
+        prereq_cmd = (
+            "python3 -c \""
+            "from pathlib import Path; "
+            "import re, sys; "
+            "unit = Path('/etc/systemd/system/camcontroller-update.service').read_text(encoding='utf-8'); "
+            "matches = re.findall(r'^ReadWritePaths=(.*)$', unit, re.MULTILINE); "
+            "line = matches[-1] if matches else ''; "
+            "ok = '/etc/systemd/system' in line.split(); "
+            "print('OK: updater unit ReadWritePaths includes /etc/systemd/system' if ok else 'ERROR: updater unit missing /etc/systemd/system write path'); "
+            "sys.exit(0 if ok else 2)"
+            "\""
+        )
+        self.ssh_run(prereq_cmd, "OTA updater unit has service-sync write path", check=True)
 
     def wait_for_service_active(self, service_name, label, timeout=180, interval=5):
         """Wait for a systemd service to become active with retries."""
@@ -1062,6 +1119,30 @@ Examples:
 
     args = parser.parse_args()
 
+    def resolve_ssh_pubkey(pubkey_arg, require_key=False):
+        """Resolve and validate SSH public key path before provisioning starts."""
+        if pubkey_arg:
+            key_path = Path(pubkey_arg).expanduser()
+            if not key_path.exists():
+                available = [str(p) for p in DEFAULT_SSH_PUBKEY_CANDIDATES if p.exists()]
+                hint = ""
+                if available:
+                    hint = "\nAvailable keys:\n  - " + "\n  - ".join(available)
+                parser.error(f"--ssh-pubkey file not found: {key_path}{hint}")
+            return str(key_path)
+
+        if require_key:
+            for candidate in DEFAULT_SSH_PUBKEY_CANDIDATES:
+                if candidate.exists():
+                    print(f"Using auto-detected SSH public key: {candidate}")
+                    return str(candidate)
+            parser.error(
+                "No SSH public key found in default locations. "
+                "Provide --ssh-pubkey (for example ~/.ssh/pyrpi_prov_ed25519.pub)."
+            )
+
+        return None
+
     if args.production:
         if args.ssh_posture == "keep":
             parser.error(
@@ -1071,6 +1152,12 @@ Examples:
             parser.error(
                 "--production does not allow --no-lock-password"
             )
+
+    # Validate explicit key paths early, but only require an auto-detected key
+    # for real provisioning runs. `--validate-only` is used in CI policy checks
+    # where no local SSH key may exist.
+    key_required = args.ssh_posture in ("key-only", "disable") and not args.validate_only
+    args.ssh_pubkey = resolve_ssh_pubkey(args.ssh_pubkey, require_key=key_required)
 
     if args.validate_only:
         print("Argument and policy validation successful")

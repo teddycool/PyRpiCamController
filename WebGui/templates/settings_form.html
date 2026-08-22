@@ -456,6 +456,148 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             background: linear-gradient(135deg, #e9ecef, #f1f3f4);
             color: #6c757d;
         }
+
+        .device-actions-panel {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.06) 0%, rgba(39, 174, 96, 0.06) 100%) !important;
+            border: 2px solid rgba(231, 76, 60, 0.22) !important;
+            margin-bottom: 20px;
+        }
+        .device-actions-panel .section-title {
+            background: linear-gradient(135deg, #c0392b 0%, #e67e22 100%) !important;
+            color: white !important;
+        }
+        .device-actions-intro {
+            margin: 0 0 18px 0;
+            color: var(--dark-text);
+        }
+        .device-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .device-action-card {
+            padding: 16px;
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            background: var(--background-white);
+            box-shadow: 0 2px 8px rgba(44, 90, 160, 0.08);
+        }
+        .device-action-button {
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+        .device-action-button:hover {
+            transform: translateY(-1px);
+        }
+        .device-action-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .device-action-button.reboot {
+            background: linear-gradient(135deg, #f39c12 0%, #d35400 100%);
+        }
+        .device-action-button.pause {
+            background: linear-gradient(135deg, #2980b9 0%, #1f5f85 100%);
+        }
+        .device-action-button.play {
+            background: linear-gradient(135deg, #27ae60 0%, #1e8b4d 100%);
+        }
+        .device-action-button.shutdown {
+            background: linear-gradient(135deg, #c0392b 0%, #8e2a2a 100%);
+        }
+        .device-action-desc {
+            margin: 10px 0 0 0;
+            font-size: 13px;
+            color: var(--light-text);
+            line-height: 1.5;
+        }
+        .device-actions-status {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: rgba(44, 90, 160, 0.08);
+            border-left: 4px solid var(--secondary-color);
+            font-size: 14px;
+            color: var(--dark-text);
+        }
+
+        .confirm-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.68);
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 20px;
+        }
+        .confirm-modal-overlay.show {
+            display: flex;
+        }
+        .confirm-modal {
+            width: min(560px, 100%);
+            background: var(--background-white);
+            border-radius: 16px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .confirm-modal-header {
+            padding: 18px 22px;
+            background: linear-gradient(135deg, #c0392b 0%, #e67e22 100%);
+            color: white;
+        }
+        .confirm-modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .confirm-modal-body {
+            padding: 22px;
+            color: var(--dark-text);
+            line-height: 1.6;
+        }
+        .confirm-modal-warning {
+            margin: 0 0 14px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            color: #856404;
+        }
+        .confirm-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 0 22px 22px;
+            flex-wrap: wrap;
+        }
+        .confirm-modal-button {
+            min-width: 130px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .confirm-modal-button.cancel {
+            background: #e9ecef;
+            color: var(--dark-text);
+        }
+        .confirm-modal-button.confirm {
+            background: linear-gradient(135deg, #c0392b 0%, #8e2a2a 100%);
+            color: white;
+        }
         
         /* Flash Messages */
         .flash-messages {
@@ -742,6 +884,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     <span class="temp-label">⚙️ CPU Load:</span>
                     <span class="temp-value" id="cpuLoadHeaderValue">Loading...</span>
                 </div>
+                <div class="temp-header-widget temp-unknown" id="awbModeHeaderWidget">
+                    <span class="temp-label">🎨 AWB:</span>
+                    <span class="temp-value" id="awbModeHeaderValue">Loading...</span>
+                </div>
             </div>
         </div>
         
@@ -750,13 +896,14 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             <a href="/?level=status" class="tab {% if current_level == 'status' %}active{% endif %}">Status</a>
             <a href="/?level=basic" class="tab {% if current_level == 'basic' %}active{% endif %}">Basic Settings</a>
             <a href="/?level=advanced" class="tab {% if current_level == 'advanced' %}active{% endif %}">Advanced Settings</a>
+            <a href="/?level=tools" class="tab {% if current_level == 'tools' %}active{% endif %}">🔧 Tools</a>
             <a href="/?level=docs" class="tab {% if current_level == 'docs' %}active{% endif %}">📖 Docs</a>
         </div>
         
-        <div style="background-color: {% if current_level == 'status' %}#e6f4ff{% elif current_level == 'basic' %}#d4edda{% elif current_level == 'advanced' %}#fff3cd{% else %}#f0e6ff{% endif %}; 
-                    color: {% if current_level == 'status' %}#0c5460{% elif current_level == 'basic' %}#155724{% elif current_level == 'advanced' %}#856404{% else %}#4a235a{% endif %}; 
+        <div style="background-color: {% if current_level == 'status' %}#e6f4ff{% elif current_level == 'basic' %}#d4edda{% elif current_level == 'advanced' %}#fff3cd{% elif current_level == 'tools' %}#fdecea{% else %}#f0e6ff{% endif %}; 
+                    color: {% if current_level == 'status' %}#0c5460{% elif current_level == 'basic' %}#155724{% elif current_level == 'advanced' %}#856404{% elif current_level == 'tools' %}#7a1f1f{% else %}#4a235a{% endif %}; 
                     padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <strong>{% if current_level == 'status' %}Status{% elif current_level == 'basic' %}Basic Settings{% elif current_level == 'advanced' %}Advanced Settings{% else %}Documentation{% endif %}:</strong>
+            <strong>{% if current_level == 'status' %}Status{% elif current_level == 'basic' %}Basic Settings{% elif current_level == 'advanced' %}Advanced Settings{% elif current_level == 'tools' %}Tools{% else %}Documentation{% endif %}:</strong>
             {% if current_level == 'status' %}
                 Live status overview for streaming and OTA updates.
                 <a href="/?level=basic" style="color: #0c5460; text-decoration: underline;">Go to Basic Settings</a>
@@ -766,6 +913,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             {% elif current_level == 'advanced' %}
                 Advanced configuration options for experienced users.
                 <a href="/?level=basic" style="color: #856404; text-decoration: underline;">Back to Basic Settings</a>
+            {% elif current_level == 'tools' %}
+                Operational actions for camera service control and device power operations.
+                <a href="/?level=status" style="color: #7a1f1f; text-decoration: underline;">Back to Status</a>
             {% else %}
                 Browse guides and reference documentation.
             {% endif %}
@@ -913,6 +1063,34 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                 </div>
             </div>
+            {% elif current_level == 'tools' %}
+            <div class="section device-actions-panel">
+                <h3 class="section-title">🔧 Device Actions</h3>
+                <div class="section-content">
+                    <p class="device-actions-intro">Use these controls to stop/start the camera service, restart the whole device, or shut it down. Restart and shutdown require a confirmation step.</p>
+                    <div class="device-actions-grid">
+                        <div class="device-action-card">
+                            <button type="button" class="device-action-button pause" id="pauseCameraBtn" onclick="toggleCameraService()">
+                                ⏹ Stop Camera Service
+                            </button>
+                            <p class="device-action-desc" id="pauseCameraDesc">Stops only the camera service (camcontroller.service). Web GUI, SMB, and OTA services keep running.</p>
+                        </div>
+                        <div class="device-action-card">
+                            <button type="button" class="device-action-button reboot" id="rebootDeviceBtn" onclick="openDeviceActionDialog('reboot')">
+                                🔁 Restart Camera
+                            </button>
+                            <p class="device-action-desc">Performs a full reboot of the camera device and returns it to normal operation after it starts again.</p>
+                        </div>
+                        <div class="device-action-card">
+                            <button type="button" class="device-action-button shutdown" id="shutdownDeviceBtn" onclick="openDeviceActionDialog('shutdown')">
+                                ⏻ Shut Down Camera
+                            </button>
+                            <p class="device-action-desc">Powers the camera device off completely. After it is off, unplug it and plug it back in to restart it.</p>
+                        </div>
+                    </div>
+                    <div class="device-actions-status" id="deviceActionsStatus">Ready to stop/start the camera service, restart, or shut down the camera device.</div>
+                </div>
+            </div>
             {% elif current_level == 'docs' %}
             <!-- Documentation Tab -->
             <div class="section docs-panel">
@@ -1055,6 +1233,19 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         </div>
     </div>
 
+    <div class="confirm-modal-overlay" id="deviceActionModal" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="deviceActionModalTitle">
+            <div class="confirm-modal-header">
+                <h3 class="confirm-modal-title" id="deviceActionModalTitle">Confirm action</h3>
+            </div>
+            <div class="confirm-modal-body" id="deviceActionModalBody"></div>
+            <div class="confirm-modal-actions">
+                <button type="button" class="confirm-modal-button cancel" id="deviceActionCancelBtn" onclick="closeDeviceActionDialog()">Cancel</button>
+                <button type="button" class="confirm-modal-button confirm" id="deviceActionConfirmBtn" onclick="confirmDeviceAction()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Streaming control functionality
         let streamStatus = {
@@ -1065,6 +1256,26 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             framerate: 15
         };
 
+        let pendingDeviceAction = null;
+        let cameraServiceActive = null;
+
+        const DEVICE_ACTION_CONFIG = {
+            reboot: {
+                title: 'Restart Camera Device',
+                buttonLabel: 'OK, reboot',
+                endpoint: '/api/service/reboot-device',
+                statusText: 'Reboot requested. The camera device will restart shortly.',
+                warningHtml: 'This will force the camera device to reboot. The web interface and stream will disconnect briefly while the device restarts. Click OK only if you want to continue.'
+            },
+            shutdown: {
+                title: 'Shut Down Camera Device',
+                buttonLabel: 'OK, shut down',
+                endpoint: '/api/service/shutdown-device',
+                statusText: 'Shutdown requested. After the camera powers off, unplug it and plug it back in to start it again.',
+                warningHtml: 'This will power the camera device off completely. It will not restart on its own. After it is fully off, unplug the camera and plug it back in to start it again. Click OK only if you want to continue.'
+            }
+        };
+
         // Initialize streaming controls when page loads
         document.addEventListener('DOMContentLoaded', function() {
             setupAutoSave();
@@ -1073,6 +1284,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             updateStreamStatus();
             updateTemperatureStatus();
             updatePendingChanges();
+            updateDeviceActionStatus('Ready to stop/start the camera service, restart, or shut down the camera device.');
+            refreshCameraServiceState();
 
             // OTA panel is rendered on status tab only.
             if (document.getElementById('checkUpdatesBtn')) {
@@ -1085,7 +1298,181 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             setInterval(updateStreamStatus, 10000);
             setInterval(updateTemperatureStatus, 10000);
             setInterval(updatePendingChanges, 10000);
+            setInterval(refreshCameraServiceState, 10000);
         });
+
+        function updatePauseButtonUi(isActive) {
+            const button = document.getElementById('pauseCameraBtn');
+            const description = document.getElementById('pauseCameraDesc');
+            if (!button) {
+                return;
+            }
+
+            if (isActive) {
+                button.classList.remove('play');
+                button.classList.add('pause');
+                button.textContent = '⏹ Stop Camera Service';
+                if (description) {
+                    description.textContent = 'Stops only the camera service (camcontroller.service). Web GUI, SMB, and OTA services keep running.';
+                }
+            } else {
+                button.classList.remove('pause');
+                button.classList.add('play');
+                button.textContent = '▶️ Start Camera Service';
+                if (description) {
+                    description.textContent = 'Starts only the camera service (camcontroller.service) again. Web GUI, SMB, and OTA services stay unaffected.';
+                }
+            }
+        }
+
+        async function refreshCameraServiceState() {
+            try {
+                const response = await fetch('/api/service/camera-service-state');
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.success) {
+                    cameraServiceActive = Boolean(data.active);
+                    updatePauseButtonUi(cameraServiceActive);
+                    return;
+                }
+            } catch (error) {
+                console.error('Failed to load camera service state:', error);
+            }
+        }
+
+        async function toggleCameraService() {
+            const pauseButton = document.getElementById('pauseCameraBtn');
+            if (!pauseButton) {
+                return;
+            }
+
+            if (cameraServiceActive === null) {
+                await refreshCameraServiceState();
+                if (cameraServiceActive === null) {
+                    updateDeviceActionStatus('Could not read camera service state. Please try again.');
+                    return;
+                }
+            }
+
+            const action = cameraServiceActive ? 'pause' : 'play';
+            pauseButton.disabled = true;
+            updateDeviceActionStatus(action === 'pause'
+                ? 'Stopping camera service...'
+                : 'Starting camera service...');
+
+            try {
+                const response = await fetch('/api/service/camera-service-toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.success) {
+                    cameraServiceActive = Boolean(data.target_active);
+                    updatePauseButtonUi(cameraServiceActive);
+                    updateDeviceActionStatus(data.message || 'Camera service action requested.');
+                    setTimeout(refreshCameraServiceState, 2500);
+                } else {
+                    updateDeviceActionStatus(data.error || data.message || 'Failed to toggle camera service.');
+                    await refreshCameraServiceState();
+                }
+            } catch (error) {
+                console.error('Failed to toggle camera service:', error);
+                updateDeviceActionStatus('Failed to toggle camera service. Please try again.');
+                await refreshCameraServiceState();
+            } finally {
+                pauseButton.disabled = false;
+            }
+        }
+
+        function openDeviceActionDialog(action) {
+            const config = DEVICE_ACTION_CONFIG[action];
+            const modal = document.getElementById('deviceActionModal');
+            const title = document.getElementById('deviceActionModalTitle');
+            const body = document.getElementById('deviceActionModalBody');
+            const confirmButton = document.getElementById('deviceActionConfirmBtn');
+
+            if (!config || !modal || !title || !body || !confirmButton) {
+                return;
+            }
+
+            pendingDeviceAction = action;
+            title.textContent = config.title;
+            body.innerHTML = `<p class="confirm-modal-warning">${config.warningHtml}</p><p>Press OK to continue or Cancel to stop.</p>`;
+            confirmButton.textContent = config.buttonLabel;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDeviceActionDialog() {
+            const modal = document.getElementById('deviceActionModal');
+            if (!modal) {
+                return;
+            }
+
+            pendingDeviceAction = null;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        async function confirmDeviceAction() {
+            const action = pendingDeviceAction;
+            const config = action ? DEVICE_ACTION_CONFIG[action] : null;
+
+            if (!action || !config) {
+                closeDeviceActionDialog();
+                return;
+            }
+
+            closeDeviceActionDialog();
+            setDeviceActionButtonsDisabled(true);
+            updateDeviceActionStatus(config.statusText);
+
+            try {
+                const response = await fetch(config.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.success) {
+                    updateDeviceActionStatus(data.message || config.statusText);
+                    if (action === 'reboot') {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 5000);
+                    }
+                } else {
+                    updateDeviceActionStatus(data.error || data.message || 'Failed to complete the device action.');
+                    setDeviceActionButtonsDisabled(false);
+                }
+            } catch (error) {
+                console.error('Device action failed:', error);
+                updateDeviceActionStatus('Failed to complete the device action. Please try again.');
+                setDeviceActionButtonsDisabled(false);
+            }
+        }
+
+        function updateDeviceActionStatus(message) {
+            const status = document.getElementById('deviceActionsStatus');
+            if (status) {
+                status.textContent = message;
+            }
+        }
+
+        function setDeviceActionButtonsDisabled(disabled) {
+            const pauseButton = document.getElementById('pauseCameraBtn');
+            const rebootButton = document.getElementById('rebootDeviceBtn');
+            const shutdownButton = document.getElementById('shutdownDeviceBtn');
+            if (pauseButton) pauseButton.disabled = disabled;
+            if (rebootButton) rebootButton.disabled = disabled;
+            if (shutdownButton) shutdownButton.disabled = disabled;
+        }
 
         // Auto-save functionality with change tracking
         
@@ -1360,6 +1747,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const diskSpaceHeaderValue = document.getElementById('diskSpaceHeaderValue');
             const cpuLoadHeaderWidget = document.getElementById('cpuLoadHeaderWidget');
             const cpuLoadHeaderValue = document.getElementById('cpuLoadHeaderValue');
+            const awbModeHeaderWidget = document.getElementById('awbModeHeaderWidget');
+            const awbModeHeaderValue = document.getElementById('awbModeHeaderValue');
 
             // Helper to safely update optional (tab-specific) widgets.
             const setOptionalWidget = (valueEl, widgetEl, text, className) => {
@@ -1382,6 +1771,8 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = 'temp-header-widget temp-unknown';
                 if (cpuLoadHeaderValue) cpuLoadHeaderValue.textContent = 'Error';
                 if (cpuLoadHeaderWidget) cpuLoadHeaderWidget.className = 'temp-header-widget temp-unknown';
+                if (awbModeHeaderValue) awbModeHeaderValue.textContent = 'Error';
+                if (awbModeHeaderWidget) awbModeHeaderWidget.className = 'temp-header-widget temp-unknown';
                 return;
             }
             
@@ -1460,6 +1851,16 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             } else {
                 if (diskSpaceHeaderValue) diskSpaceHeaderValue.textContent = 'Not available';
                 if (diskSpaceHeaderWidget) diskSpaceHeaderWidget.className = 'temp-header-widget temp-unknown';
+            }
+
+            // Update AWB mode header status
+            const awbDisplayText = data.awb_mode_display || data.awb_mode;
+            if (awbDisplayText) {
+                if (awbModeHeaderValue) awbModeHeaderValue.textContent = awbDisplayText;
+                if (awbModeHeaderWidget) awbModeHeaderWidget.className = 'temp-header-widget temp-normal';
+            } else {
+                if (awbModeHeaderValue) awbModeHeaderValue.textContent = 'Not available';
+                if (awbModeHeaderWidget) awbModeHeaderWidget.className = 'temp-header-widget temp-unknown';
             }
         }
         

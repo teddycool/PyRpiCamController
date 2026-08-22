@@ -495,6 +495,109 @@
         "web_editable": true,
         "level": "advanced"
       },
+      "white_balance_mode": {
+        "value": "auto",
+        "type": "enum",
+        "options": [
+          "auto",
+          "daylight",
+          "cloudy",
+          "tungsten",
+          "fluorescent",
+          "indoor",
+          "incandescent"
+        ],
+        "ui": {
+          "name": "White Balance Mode",
+          "section": "Camera",
+          "description": "Auto or fixed white-balance preset used for stream and still capture",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "awb_enable": {
+        "value": true,
+        "type": "bool",
+        "ui": {
+          "name": "Auto White Balance",
+          "section": "Camera",
+          "description": "Enable automatic white balance. Disable to use manual red/blue gains",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "white_balance_red_gain": {
+        "value": 1.9,
+        "type": "float",
+        "min": 0.5,
+        "max": 8.0,
+        "ui": {
+          "name": "WB Red Gain",
+          "section": "Camera",
+          "description": "Manual red gain when Auto White Balance is disabled",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "white_balance_blue_gain": {
+        "value": 1.5,
+        "type": "float",
+        "min": 0.5,
+        "max": 8.0,
+        "ui": {
+          "name": "WB Blue Gain",
+          "section": "Camera",
+          "description": "Manual blue gain when Auto White Balance is disabled",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "saturation": {
+        "value": 1.0,
+        "type": "float",
+        "min": 0.0,
+        "max": 2.0,
+        "ui": {
+          "name": "Saturation",
+          "section": "Camera",
+          "description": "Color saturation for stream and still capture",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "contrast": {
+        "value": 1.0,
+        "type": "float",
+        "min": 0.0,
+        "max": 2.0,
+        "ui": {
+          "name": "Contrast",
+          "section": "Camera",
+          "description": "Image contrast for stream and still capture",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "sharpness": {
+        "value": 1.0,
+        "type": "float",
+        "min": 0.0,
+        "max": 4.0,
+        "ui": {
+          "name": "Sharpness",
+          "section": "Camera",
+          "description": "Edge sharpness for stream and still capture",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
       "timeschedule": {
         "value": [
           6,
@@ -636,6 +739,20 @@
           "name": "JPEG Quality",
           "section": "Stream",
           "description": "JPEG quality for the MJPEG stream (higher values improve quality but increase CPU load)",
+          "level": "advanced"
+        },
+        "web_editable": true,
+        "level": "advanced"
+      },
+      "mjpeg_bitrate_mbps": {
+        "value": 0,
+        "type": "int",
+        "min": 0,
+        "max": 120,
+        "ui": {
+          "name": "MJPEG Bitrate (Mbps)",
+          "section": "Stream",
+          "description": "MJPEG encoder bitrate in Mbps. Set 0 for automatic bitrate based on resolution/FPS/quality.",
           "level": "advanced"
         },
         "web_editable": true,

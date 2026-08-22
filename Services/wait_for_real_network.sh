@@ -9,6 +9,39 @@ SLEEP_SECONDS="${CAM_WAIT_NET_SLEEP_SECONDS:-5}"
 TIMEOUT_SECONDS="${CAM_WAIT_NET_TIMEOUT_SECONDS:-0}"
 START_TS="$(date +%s)"
 
+sync_comitup_state() {
+  local has_real_network="$1"
+
+  [[ "$(id -u)" -eq 0 ]] || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+
+  if [[ "${has_real_network}" == "yes" ]]; then
+    if systemctl list-unit-files comitup-web.service >/dev/null 2>&1; then
+      if systemctl is-active --quiet comitup-web.service; then
+        systemctl stop comitup-web.service || true
+      fi
+    fi
+
+    if systemctl list-unit-files comitup.service >/dev/null 2>&1; then
+      if systemctl is-active --quiet comitup.service; then
+        systemctl stop comitup.service || true
+      fi
+    fi
+  else
+    if systemctl list-unit-files comitup.service >/dev/null 2>&1; then
+      if ! systemctl is-active --quiet comitup.service; then
+        systemctl start comitup.service || true
+      fi
+    fi
+
+    if systemctl list-unit-files comitup-web.service >/dev/null 2>&1; then
+      if ! systemctl is-active --quiet comitup-web.service; then
+        systemctl start comitup-web.service || true
+      fi
+    fi
+  fi
+}
+
 is_real_network_connected() {
   if command -v nmcli >/dev/null 2>&1; then
     # Accept:
@@ -39,8 +72,11 @@ is_real_network_connected() {
 
 while true; do
   if is_real_network_connected; then
+    sync_comitup_state "yes"
     exit 0
   fi
+
+  sync_comitup_state "no"
 
   if [[ "${TIMEOUT_SECONDS}" -gt 0 ]]; then
     now_ts="$(date +%s)"

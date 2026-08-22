@@ -38,6 +38,39 @@ class PiCam3(CamBase.CamBase):
         self._camera_config = None
         self._logger = logger
 
+    def _setting_or_default(self, settings: dict[str, Any], path: str, default: Any) -> Any:
+        current: Any = settings
+        for part in path.split('.'):
+            if not isinstance(current, dict):
+                return default
+            current = current.get(part, default)
+
+        if isinstance(current, dict):
+            return current.get("value", default)
+        return current
+
+    def _resolve_awb_mode(self, settings: dict[str, Any]) -> Any:
+        awb_mode_raw = str(
+            self._setting_or_default(settings, "Cam.white_balance_mode", "auto") or "auto"
+        ).strip().lower()
+
+        mode_map = {
+            "auto": libcamera.controls.AwbModeEnum.Auto,
+            "daylight": libcamera.controls.AwbModeEnum.Daylight,
+            "cloudy": libcamera.controls.AwbModeEnum.Cloudy,
+            "tungsten": libcamera.controls.AwbModeEnum.Tungsten,
+            "fluorescent": libcamera.controls.AwbModeEnum.Fluorescent,
+            "indoor": libcamera.controls.AwbModeEnum.Indoor,
+            "incandescent": libcamera.controls.AwbModeEnum.Incandescent,
+        }
+        return mode_map.get(awb_mode_raw, libcamera.controls.AwbModeEnum.Auto)
+
+    def _video_color_space(self):
+        color_space_factory = getattr(getattr(libcamera, "ColorSpace", None), "Sycc", None)
+        if callable(color_space_factory):
+            return color_space_factory()
+        return None
+
     def _resolve_image_resolution(self, settings: dict[str, Any]) -> CamBase.Resolution:
         camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
         requested_res = camera_cfg.resolution
@@ -70,14 +103,34 @@ class PiCam3(CamBase.CamBase):
 
     def _get_common_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
         camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
+
+        awb_enable = bool(self._setting_or_default(settings, "Cam.awb_enable", True))
         controls = {
-            "AwbMode": libcamera.controls.AwbModeEnum.Auto,
+            "AwbMode": self._resolve_awb_mode(settings),
             "AeEnable": True,
-            "AwbEnable": True,
+            "AwbEnable": awb_enable,
         }
 
         if camera_cfg.brightness is not None:
             controls["Brightness"] = camera_cfg.brightness
+
+        saturation = self._setting_or_default(settings, "Cam.saturation", None)
+        if saturation is not None:
+            controls["Saturation"] = float(saturation)
+
+        contrast = self._setting_or_default(settings, "Cam.contrast", None)
+        if contrast is not None:
+            controls["Contrast"] = float(contrast)
+
+        sharpness = self._setting_or_default(settings, "Cam.sharpness", None)
+        if sharpness is not None:
+            controls["Sharpness"] = float(sharpness)
+
+        if not awb_enable:
+            red_gain = self._setting_or_default(settings, "Cam.white_balance_red_gain", None)
+            blue_gain = self._setting_or_default(settings, "Cam.white_balance_blue_gain", None)
+            if red_gain is not None and blue_gain is not None:
+                controls["ColourGains"] = (float(red_gain), float(blue_gain))
 
         return controls
 
@@ -91,6 +144,45 @@ class PiCam3(CamBase.CamBase):
         return {
             "FrameRate": stream_cfg.framerate,
         }
+
+    def _resolve_stream_mjpeg_bitrate(
+        self,
+        settings: dict[str, Any],
+        resolution: CamBase.Resolution,
+        framerate: int,
+    ) -> int:
+        manual_mbps = self._setting_or_default(settings, "Stream.mjpeg_bitrate_mbps", 0)
+        try:
+            manual_mbps_int = int(manual_mbps)
+        except (TypeError, ValueError):
+            manual_mbps_int = 0
+
+        if manual_mbps_int > 0:
+            bitrate = max(8_000_000, min(120_000_000, manual_mbps_int * 1_000_000))
+            self._logger.info("%s MJPEG bitrate: manual %s Mbps", self._camera_name, bitrate // 1_000_000)
+            return bitrate
+
+        jpeg_quality = self._setting_or_default(settings, "Stream.jpeg_quality", 80)
+        try:
+            jpeg_quality_int = int(jpeg_quality)
+        except (TypeError, ValueError):
+            jpeg_quality_int = 80
+
+        jpeg_quality_int = max(40, min(95, jpeg_quality_int))
+        quality_factor = max(0.65, min(1.45, jpeg_quality_int / 80.0))
+        width, height = int(resolution[0]), int(resolution[1])
+        auto_bitrate = int(width * height * max(1, int(framerate)) * quality_factor)
+        bitrate = max(8_000_000, min(80_000_000, auto_bitrate))
+        self._logger.info(
+            "%s MJPEG bitrate auto=%s Mbps (res=%sx%s fps=%s quality=%s)",
+            self._camera_name,
+            bitrate // 1_000_000,
+            width,
+            height,
+            framerate,
+            jpeg_quality_int,
+        )
+        return bitrate
 
     def _apply_runtime_controls(self, settings: dict[str, Any]) -> None:
         if self._cam is None:
@@ -133,9 +225,13 @@ class PiCam3(CamBase.CamBase):
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
         self._cam = Picamera2()
+        stream_color_space = self._video_color_space()
+        stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
+        if stream_color_space is not None:
+            stream_config_kwargs["colour_space"] = stream_color_space
         self._camera_config = self._cam.create_video_configuration(
             main={"format": "RGB888", "size": stream_res},
-            controls=self._get_stream_controls(settings),
+            **stream_config_kwargs,
         )
         self._logger.info("%s stream config: %s", self._camera_name, str(self._camera_config.get("main")))
         self._cam.configure(self._camera_config)
@@ -159,10 +255,17 @@ class PiCam3(CamBase.CamBase):
         """Start camera with Picamera2 MJPEG encoder output for low CPU usage."""
         try:
             stream_res = self._resolve_stream_resolution(settings)
+            stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
+            stream_fps = max(1, int(stream_cfg.framerate))
+            stream_bitrate = self._resolve_stream_mjpeg_bitrate(settings, stream_res, stream_fps)
             self._cam = Picamera2()
+            stream_color_space = self._video_color_space()
+            stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
+            if stream_color_space is not None:
+                stream_config_kwargs["colour_space"] = stream_color_space
             self._camera_config = self._cam.create_video_configuration(
                 main={"format": "YUV420", "size": stream_res},
-                controls=self._get_stream_controls(settings),
+                **stream_config_kwargs,
             )
             self._logger.info(
                 "%s encoded stream config: %s",
@@ -170,7 +273,7 @@ class PiCam3(CamBase.CamBase):
                 str(self._camera_config.get("main")),
             )
             self._cam.configure(self._camera_config)
-            encoder = MJPEGEncoder(bitrate=10000000)
+            encoder = MJPEGEncoder(bitrate=stream_bitrate)
             self._cam.start_recording(encoder, FileOutput(output))
             self._apply_runtime_controls(settings)
             return True
