@@ -260,6 +260,14 @@ def _derive_fs_health_from_logs(max_signals: int = 40):
         re.compile(r"\bfailed to (write|save|persist)\b", re.IGNORECASE),
     ]
 
+    # Skip structured OTA payload dumps that include release notes or metadata.
+    # Those lines often contain words like "rollback" in a non-error context and
+    # otherwise create noisy false positives in the health view.
+    ignore_patterns = [
+        re.compile(r"release_notes['\"]?\s*:", re.IGNORECASE),
+        re.compile(r"Update available:\s*\{", re.IGNORECASE),
+    ]
+
     signals = []
     scanned_files = []
     scanned_line_count = 0
@@ -278,6 +286,9 @@ def _derive_fs_health_from_logs(max_signals: int = 40):
         for raw_line in lines:
             line = raw_line.strip()
             if not line:
+                continue
+
+            if any(pattern.search(line) for pattern in ignore_patterns):
                 continue
 
             severity = None

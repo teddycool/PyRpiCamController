@@ -1127,9 +1127,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                     
                     <div class="changelog" id="changelogContainer" style="display: none;">
-                        <h4>📋 Changelog</h4>
+                        <h4>📋 Release Notes</h4>
                         <div class="changelog-content" id="changelogContent">
-                            Loading changelog...
+                            No release notes available.
                         </div>
                     </div>
                     
@@ -2222,12 +2222,19 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 changelogBtn.style.display = 'inline-block';
                 applyBtn.style.display = 'inline-block';
                 backupInfo.style.display = 'block';
+
+                // Show the release notes for the available update immediately.
+                changelogContainer.style.display = 'block';
+                changelogBtn.textContent = '📄 Hide Release Notes';
+                changelogContent.textContent = updateInfo.changelog || 'No release notes available.';
             } else {
                 availableVersionDiv.style.display = 'none';
                 updateNotification.style.display = 'none';
                 changelogBtn.style.display = 'none';
                 applyBtn.style.display = 'none';
                 backupInfo.style.display = 'none';
+                changelogContainer.style.display = 'none';
+                changelogContent.textContent = 'No release notes available.';
             }
 
             // Handle status-specific UI updates
@@ -2371,20 +2378,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const changelogBtn = document.getElementById('viewChangelogBtn');
             
             if (changelogContainer.style.display === 'none') {
-                changelogBtn.textContent = '📄 Hide Changelog';
+                changelogBtn.textContent = '📄 Hide Release Notes';
                 changelogContainer.style.display = 'block';
-                
-                // Load changelog if not already loaded
-                fetch('/api/updates/changelog')
-                    .then(response => response.json())
-                    .then(data => {
-                        changelogContent.textContent = data.changelog || 'No changelog available';
-                    })
-                    .catch(error => {
-                        changelogContent.textContent = 'Failed to load changelog';
-                    });
             } else {
-                changelogBtn.textContent = '📄 View Changelog';
+                changelogBtn.textContent = '📄 View Release Notes';
                 changelogContainer.style.display = 'none';
             }
         }
