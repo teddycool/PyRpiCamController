@@ -181,6 +181,19 @@ class ProvisioningManager:
         except OSError as e:
             print(f"  ⚠  Could not cache password: {e}")
 
+    def _build_askpass_env(self, password: str) -> tuple[dict[str, str], str]:
+        """Return env vars and a temporary askpass script that prints password."""
+        env = os.environ.copy()
+        askpass_script = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".sh")
+        askpass_script.write("#!/bin/sh\n")
+        askpass_script.write(f"printf '%s\\n' {shlex.quote(password)}\n")
+        askpass_script.close()
+        os.chmod(askpass_script.name, 0o700)
+        env["SSH_ASKPASS"] = askpass_script.name
+        env["SSH_ASKPASS_REQUIRE"] = "force"
+        env["DISPLAY"] = ":0"
+        return env, askpass_script.name
+
     def _clear_cached_password(self):
         """Remove cached password for this Pi from cache file."""
         if not self.CACHE_FILE.exists():
@@ -230,13 +243,11 @@ class ProvisioningManager:
         
         # If we have a cached password, use SSH_ASKPASS to provide it programmatically
         if cached_password:
-            askpass_script = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.sh')
-            askpass_script.write(f"#!/bin/sh\necho '{shlex.quote(cached_password)}'\n")
-            askpass_script.close()
-            os.chmod(askpass_script.name, 0o700)
-            env["SSH_ASKPASS"] = askpass_script.name
-            env["SSH_ASKPASS_REQUIRE"] = "force"
-            env["DISPLAY"] = ":0"  # Required for SSH_ASKPASS to work
+            env, askpass_path = self._build_askpass_env(cached_password)
+            askpass_script = type("_Askpass", (), {"name": askpass_path})()
+        elif self.ssh_password:
+            env, askpass_path = self._build_askpass_env(self.ssh_password)
+            askpass_script = type("_Askpass", (), {"name": askpass_path})()
         
         try:
             result = subprocess.run(
@@ -736,6 +747,12 @@ class ProvisioningManager:
         # without an interactive password prompt.
         self._install_pubkey_on_pi()
 
+        enroll_env = os.environ.copy()
+        enroll_askpass = None
+        if self.ssh_password:
+            enroll_env, enroll_askpass_path = self._build_askpass_env(self.ssh_password)
+            enroll_askpass = enroll_askpass_path
+
         enroll_cmd = [
             sys.executable,
             str(self.repo_dir / "tools" / "secure_enroll_device.py"),
@@ -760,7 +777,7 @@ class ProvisioningManager:
             enroll_cmd.extend(["--backend-url", self.backend_url])
 
         try:
-            subprocess.run(enroll_cmd, check=True, timeout=180)
+            subprocess.run(enroll_cmd, check=True, timeout=180, env=enroll_env)
             print("\n  ✓ Device enrollment successful")
         except subprocess.CalledProcessError as e:
             raise ProvisioningError(
@@ -770,6 +787,12 @@ class ProvisioningManager:
             raise ProvisioningError(
                 "Device enrollment timed out (180s)"
             )
+        finally:
+            if enroll_askpass:
+                try:
+                    os.unlink(enroll_askpass)
+                except OSError:
+                    pass
 
     def verify_installation(self):
         """Verify installation success."""
