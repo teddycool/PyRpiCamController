@@ -116,6 +116,7 @@ class ProvisioningManager:
         self.ssh_password = ssh_password
         self.ota_admin_username = ota_admin_username
         self.ota_admin_password = ota_admin_password
+        self._temp_ssh_key_priv = None
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -193,6 +194,37 @@ class ProvisioningManager:
         env["SSH_ASKPASS_REQUIRE"] = "force"
         env["DISPLAY"] = ":0"
         return env, askpass_script.name
+
+    def _ensure_temp_ssh_keypair(self) -> None:
+        """Generate a temporary SSH keypair for enrollment when only a password is available."""
+        if self.ssh_pubkey or self._temp_ssh_key_priv or not self.ssh_password:
+            return
+
+        key_dir = Path(tempfile.mkdtemp(prefix="prov_key_"))
+        privkey = key_dir / "prov_ed25519"
+        result = subprocess.run(
+            [
+                "ssh-keygen",
+                "-q",
+                "-t",
+                "ed25519",
+                "-N",
+                "",
+                "-f",
+                str(privkey),
+                "-C",
+                f"pyrpi-prov-{self.pi_ip}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        pubkey = Path(f"{privkey}.pub")
+        if result.returncode != 0 or not privkey.exists() or not pubkey.exists():
+            raise ProvisioningError(f"Could not generate temporary SSH keypair: {result.stderr}")
+
+        self.ssh_pubkey = pubkey
+        self._temp_ssh_key_priv = privkey
 
     def _clear_cached_password(self):
         """Remove cached password for this Pi from cache file."""
@@ -1013,6 +1045,10 @@ class ProvisioningManager:
             print(f"Location: {self.location}")
             print("=" * 60)
 
+            # If only a password is available, create a temporary keypair so
+            # enrollment can switch to key-based SSH without prompting.
+            self._ensure_temp_ssh_keypair()
+
             # If --cache-password is set, prompt for password now
             if self.cache_password:
                 import getpass
@@ -1052,6 +1088,20 @@ class ProvisioningManager:
             return 1
         finally:
             self.close_ssh_session()
+            if self._temp_ssh_key_priv:
+                try:
+                    key_dir = self._temp_ssh_key_priv.parent
+                    for path in key_dir.iterdir():
+                        try:
+                            path.unlink()
+                        except OSError:
+                            pass
+                    try:
+                        key_dir.rmdir()
+                    except OSError:
+                        pass
+                except OSError:
+                    pass
 
 
 def main():
