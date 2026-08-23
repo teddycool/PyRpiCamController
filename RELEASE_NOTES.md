@@ -18,31 +18,7 @@ Release date: 2026-08-23
 
 - [Add validation notes]
 
-## v1.5.10
-
-Release date: 2026-08-23
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.5.9
-
-Release date: 2026-08-23
-
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.5.9
+## v1.5.11
 
 Release date: 2026-08-23
 
