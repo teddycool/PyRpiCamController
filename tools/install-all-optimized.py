@@ -900,7 +900,18 @@ def prompt_choice(prompt_text, options, default_value, interactive):
         print(f"Please choose one of: {option_text}")
 
 
-def configure_hwconfig(interactive=True):
+def normalize_cam_interface(value, default=0):
+    """Normalize camera interface index to a non-negative integer."""
+    if value is None:
+        return default
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        return default
+    return normalized if normalized >= 0 else default
+
+
+def configure_hwconfig(interactive=True, cam_interface=None):
     """Generate device-unique hwconfig.py from template with prompts/defaults."""
     template_path = Path(PROJECT_ROOT) / "CamController" / "hwconfig.template.py"
     output_path = Path(PROJECT_ROOT) / "CamController" / "hwconfig.py"
@@ -921,6 +932,15 @@ def configure_hwconfig(interactive=True):
         print("\nHardware profile setup (device-unique)")
         print(f"Detected board: {detected_board}")
         print(f"Detected memory: {model_info.get('memory_gb', 1)}GB")
+
+    default_cam_interface = normalize_cam_interface(cam_interface, default=0)
+    if interactive and cam_interface is None and detected_board == "Rpi5":
+        default_cam_interface = prompt_int(
+            "Camera interface index (RPi5 CSI port)",
+            default_cam_interface,
+            interactive,
+        )
+        default_cam_interface = normalize_cam_interface(default_cam_interface, default=0)
 
     cam_chip = prompt_choice(
         "Camera module",
@@ -945,6 +965,7 @@ def configure_hwconfig(interactive=True):
         "{{DESCRIPTION}}": description,
         "{{RPI_BOARD}}": detected_board,
         "{{CAM_CHIP}}": cam_chip,
+        "{{CAM_INTERFACE}}": str(default_cam_interface),
         "{{LIGHTBOX}}": "True" if lightbox_enabled else "False",
         "{{LIGHT_GPIO}}": "None" if light_gpio is None else str(light_gpio),
         "{{DISPLAY_GPIO}}": "None" if display_gpio is None else str(display_gpio),
@@ -988,6 +1009,11 @@ def main():
         "--skip-hwconfig",
         action="store_true",
         help="Skip hwconfig generation step",
+    )
+    parser.add_argument(
+        "--cam-interface",
+        type=int,
+        help="Picamera2 camera interface index to store in hwconfig (e.g. 0 or 1 on Raspberry Pi 5)",
     )
     args = parser.parse_args()
 
@@ -1051,7 +1077,10 @@ def main():
         if args.skip_hwconfig:
             log_step("HWCONFIG", "Skipping hwconfig generation (--skip-hwconfig)")
         else:
-            configure_hwconfig(interactive=(not args.non_interactive and sys.stdin.isatty()))
+            configure_hwconfig(
+                interactive=(not args.non_interactive and sys.stdin.isatty()),
+                cam_interface=args.cam_interface,
+            )
 
         # GPU memory for camera DMA allocation
         setup_camera_boot_config()

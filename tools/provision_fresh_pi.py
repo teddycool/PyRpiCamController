@@ -54,7 +54,7 @@ DEFAULT_SSH_PUBKEY_CANDIDATES = [
 
 class ProvisioningError(Exception):
     """Base exception for provisioning errors."""
-    pass
+    ...
 
 
 class ProvisioningManager:
@@ -67,7 +67,7 @@ class ProvisioningManager:
                  skip_enrollment=False, ssh_timeout=60, local=False,
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
                  lock_password=True, use_cached_password=False, cache_password=False,
-                 production=False):
+                 production=False, cam_interface=None, ssh_password=None):
         """
         Initialize provisioning manager.
 
@@ -87,6 +87,8 @@ class ProvisioningManager:
             ssh_posture: Post-provision SSH posture: keep, key-only, or disable
             ssh_pubkey: Optional path to local public key to install on Pi
             lock_password: Lock the Pi user's password after provisioning
+            cam_interface: Optional Picamera2 camera interface index (RPi5 CSI port: 0 or 1)
+            ssh_password: Optional initial SSH password for the Pi (test only; not cached)
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -107,6 +109,8 @@ class ProvisioningManager:
         self.use_cached_password = use_cached_password
         self.cache_password = cache_password
         self.production = production
+        self.cam_interface = cam_interface
+        self.ssh_password = ssh_password
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -168,7 +172,7 @@ class ProvisioningManager:
         try:
             self.CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
             self.CACHE_FILE.chmod(0o600)  # readable/writable only by owner
-            print(f"  ℹ  Password cached for future use (~/.provision_cache.json)")
+            print("  ℹ  Password cached for future use (~/.provision_cache.json)")
         except OSError as e:
             print(f"  ⚠  Could not cache password: {e}")
 
@@ -211,6 +215,10 @@ class ProvisioningManager:
                 print("[0/5] Opening SSH session (no cached password found; you may be prompted)...")
         else:
             print("[0/5] Opening SSH session (you may be prompted for password once)...")
+
+        if self.ssh_password and not cached_password:
+            cached_password = self.ssh_password
+            print("[0/5] Opening SSH session (using provided SSH password)...")
         
         env = os.environ.copy()
         askpass_script = None
@@ -241,6 +249,7 @@ class ProvisioningManager:
                     f"{self.pi_user}@{self.pi_ip}",
                 ],
                 env=env,
+                check=False,
             )
             if result.returncode != 0:
                 # If cached password failed, clear it and raise error
@@ -273,6 +282,7 @@ class ProvisioningManager:
                 ["ssh", "-o", f"ControlPath={self._ctl_socket}", "-O", "exit",
                  f"{self.pi_user}@{self.pi_ip}"],
                 capture_output=True,
+                check=False,
             )
             self._ctl_socket = None
 
@@ -657,6 +667,9 @@ class ProvisioningManager:
             installer_args.append("--skip-hwconfig")
         elif self.non_interactive:
             installer_args.append("--non-interactive")
+
+        if self.cam_interface is not None:
+            installer_args.extend(["--cam-interface", str(self.cam_interface)])
 
         cmd = f"cd ~/PyRpiCamController && {' '.join(installer_args)}"
 
@@ -1112,12 +1125,24 @@ Examples:
         help="Enable production policy checks (requires hardened SSH posture and password lock)"
     )
     parser.add_argument(
+        "--cam-interface",
+        type=int,
+        help="Picamera2 camera interface index to use (RPi5 CSI port: usually 0 or 1)"
+    )
+    parser.add_argument(
+        "--ssh-password",
+        help="Temporary SSH password for the Pi (test use only; not cached)"
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate CLI arguments and policy checks, then exit without provisioning"
     )
 
     args = parser.parse_args()
+
+    if args.cam_interface is not None and args.cam_interface < 0:
+        parser.error("--cam-interface must be a non-negative integer (for RPi5 use 0 or 1)")
 
     def resolve_ssh_pubkey(pubkey_arg, require_key=False):
         """Resolve and validate SSH public key path before provisioning starts."""
@@ -1193,6 +1218,8 @@ Examples:
         use_cached_password=args.use_cached_password,
         cache_password=args.cache_password,
         production=args.production,
+        cam_interface=args.cam_interface,
+        ssh_password=args.ssh_password,
     )
 
     return manager.provision()
