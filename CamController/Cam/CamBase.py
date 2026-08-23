@@ -20,6 +20,16 @@ class CamBase(ABC):
         self._current_metadata: dict[str, Any] | None = None
         self._supported_image_resolutions: list[Resolution] = []
         self._supported_video_resolutions: list[Resolution] = []
+        self._last_started_at: float | None = None
+        self._last_update_at: float | None = None
+        self._last_error: str | None = None
+        self._current_mode: str | None = None
+        self._current_image_resolution: Resolution | None = None
+        self._current_stream_resolution: Resolution | None = None
+        self._current_stream_framerate: int | None = None
+        self._current_stream_bitrate: int | None = None
+        self._capture_count: int = 0
+        self._stream_capture_count: int = 0
 
     @property
     def current_image(self) -> Any:
@@ -63,7 +73,7 @@ class CamBase(ABC):
     def capture_stream_frame(self) -> Any:  # Capture one frame for streaming path
         raise NotImplementedError
 
-    def start_stream_encoded(self, settings: dict[str, Any], output: Any) -> bool:
+    def start_stream_encoded(self, _settings: dict[str, Any], _output: Any) -> bool:
         """Optional fast path: camera handles encoded stream output directly.
 
         Return True when encoded streaming started successfully, otherwise False
@@ -71,7 +81,7 @@ class CamBase(ABC):
         """
         return False
 
-    def set_stream_framerate(self, framerate: int) -> bool:
+    def set_stream_framerate(self, _framerate: int) -> bool:
         """Optional runtime framerate update for encoded streaming paths."""
         return False
 
@@ -84,6 +94,40 @@ class CamBase(ABC):
 
     def dispose(self) -> None:
         self.stop()
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return common camera metrics for the active backend instance."""
+        metadata_keys = None
+        if isinstance(self._current_metadata, dict):
+            metadata_keys = sorted(self._current_metadata.keys())
+
+        image_shape = None
+        if self._current_image is not None and hasattr(self._current_image, "shape"):
+            try:
+                image_shape = list(self._current_image.shape)
+            except (AttributeError, TypeError, ValueError):
+                image_shape = None
+
+        return {
+            "camera": {
+                "type": type(self).__name__,
+                "camera_name": type(self).__name__,
+                "mode": self._current_mode,
+                "started_at": self._last_started_at,
+                "last_update_at": self._last_update_at,
+                "last_error": self._last_error,
+                "current_image_present": self._current_image is not None,
+                "current_image_shape": image_shape,
+                "current_metadata_keys": metadata_keys,
+                "image_resolution": list(self._current_image_resolution) if self._current_image_resolution else None,
+                "stream_resolution": list(self._current_stream_resolution) if self._current_stream_resolution else None,
+                "stream_framerate": self._current_stream_framerate,
+                "stream_bitrate": self._current_stream_bitrate,
+                "capture_count": self._capture_count,
+                "stream_capture_count": self._stream_capture_count,
+                "backend_specific": {},
+            }
+        }
 
 
 def get_cam(camtype: str) -> CamBase:

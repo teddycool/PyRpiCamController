@@ -16,6 +16,7 @@ import shutil
 import logging
 import threading
 import re
+from typing import Any
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 # Add parent directory to path to access Settings module
@@ -27,8 +28,10 @@ OTA_WEB_BACKUP_DIR = OTA_SHARED_DIR / 'web_backups'
 OTA_CHANGELOG_FILE = OTA_SHARED_DIR / 'ota_changelog.txt'
 WEB_LOG_DIR = Path('/home/pi/shared/logs')
 WEB_LOG_FILE = WEB_LOG_DIR / 'camcontroller_web.log'
+DEFAULT_METRICS_LOG_FILE = WEB_LOG_DIR / 'cam-metrics.log'
 FS_HEALTH_SOURCES = [
     WEB_LOG_DIR / 'cam.log',
+    WEB_LOG_DIR / 'cam-metrics.log',
     WEB_LOG_DIR / 'camcontroller_update.log',
     WEB_LOG_DIR / 'camcontroller_web.log',
     WEB_LOG_DIR / 'camcontroller_update_recovery.log',
@@ -238,6 +241,319 @@ def _tail_lines(path: Path, max_lines: int = 1200):
         return []
 
 
+def _get_metrics_log_path() -> Path:
+    """Return the active metrics log path used by the controller."""
+    try:
+        configured_path = settings_manager.get('MetricsLogFilePath')
+        if configured_path:
+            return Path(str(configured_path))
+    except Exception:
+        pass
+    return DEFAULT_METRICS_LOG_FILE
+
+
+def _extract_temperature_fields(payload: dict, prefix: str = '') -> dict[str, float]:
+    """Extract all numeric temperature fields from a nested metrics payload."""
+    results = {}
+
+    for key, value in payload.items():
+        path = f'{prefix}.{key}' if prefix else key
+        if isinstance(value, dict):
+            results.update(_extract_temperature_fields(value, path))
+        elif isinstance(value, (int, float)) and 'temperature' in key.lower():
+            results[path] = float(value)
+
+    return results
+
+
+def _format_temperature_label(field_path: str) -> str:
+    """Map metrics field paths to short user-friendly chart labels."""
+    label_map = {
+        'cpu_temperature': 'CPU',
+        'sensors.environment_temperature': 'Environment',
+    }
+
+    if field_path in label_map:
+        return label_map[field_path]
+
+    parts = [part.replace('_', ' ').strip() for part in field_path.split('.') if part]
+    return ' / '.join(part.title() for part in parts)
+
+
+def _estimate_sample_interval_seconds(timestamps: list[float]) -> float | None:
+    """Estimate sample interval from monotonic timestamps using median delta."""
+    if len(timestamps) < 3:
+        return None
+
+    sorted_ts = sorted(set(timestamps))
+    deltas = []
+    for idx in range(1, len(sorted_ts)):
+        delta = sorted_ts[idx] - sorted_ts[idx - 1]
+        if delta > 0:
+            deltas.append(delta)
+
+    if not deltas:
+        return None
+
+    deltas.sort()
+    middle = len(deltas) // 2
+    if len(deltas) % 2 == 0:
+        return (deltas[middle - 1] + deltas[middle]) / 2.0
+    return deltas[middle]
+
+
+def _build_status_transitions(status_timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return condensed mode/YouTube transition events from timeline points."""
+    transitions = []
+    previous_mode = None
+    previous_youtube = None
+
+    for point in status_timeline:
+        timestamp = point.get('timestamp')
+        mode = point.get('mode')
+        youtube_active = point.get('youtube_live_active')
+
+        mode_changed = mode != previous_mode
+        youtube_changed = youtube_active != previous_youtube
+
+        if mode_changed or youtube_changed:
+            transitions.append({
+                'timestamp': timestamp,
+                'mode': mode,
+                'youtube_live_active': youtube_active,
+                'mode_changed': mode_changed,
+                'youtube_changed': youtube_changed,
+            })
+
+        previous_mode = mode
+        previous_youtube = youtube_active
+
+    return transitions
+
+
+def _load_metrics_dashboard_history(window_minutes: int = 24 * 60, max_lines: int = 25000) -> dict:
+    """Read recent metrics history for dashboard widgets over a fixed 24-hour window."""
+    window_minutes = max(60, min(int(window_minutes), 24 * 60))
+    metrics_log_path = _get_metrics_log_path()
+    now_ts = time.time()
+    window_start_ts = now_ts - (window_minutes * 60)
+
+    temperature_points_by_field = {}
+    cpu_load_points = []
+    storage_free_points = []
+    storage_used_points = []
+    sampled_timestamps = []
+
+    samples_seen = 0
+    newest_sample_ts = None
+    oldest_sample_ts = None
+    latest_mode = None
+    latest_youtube_active = None
+    status_timeline = []
+
+    lines = _tail_lines(metrics_log_path, max_lines=max_lines)
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        try:
+            entry = json_module.loads(line)
+        except Exception:
+            continue
+
+        payload = entry.get('data')
+        if not isinstance(payload, dict):
+            continue
+
+        sample_ts = payload.get('sample_timestamp', entry.get('timestamp'))
+        try:
+            sample_ts = float(sample_ts)
+        except Exception:
+            continue
+
+        if sample_ts < window_start_ts:
+            continue
+
+        sampled_timestamps.append(sample_ts)
+
+        mode_value = payload.get('mode')
+        mode = None
+        if isinstance(mode_value, str):
+            mode_candidate = mode_value.strip().lower()
+            if mode_candidate in ('cam', 'stream'):
+                mode = mode_candidate
+
+        youtube_active = None
+        if mode == 'stream':
+            components = payload.get('components')
+            youtube_info = components.get('youtube') if isinstance(components, dict) else None
+            if isinstance(youtube_info, dict):
+                youtube_active = bool(youtube_info.get('enabled')) and bool(youtube_info.get('running'))
+            else:
+                youtube_active = False
+
+        temperature_fields = _extract_temperature_fields(payload)
+
+        cpu_load_info = payload.get('cpu_load') if isinstance(payload.get('cpu_load'), dict) else {}
+        cpu_load_per_cpu = cpu_load_info.get('load_per_cpu_1m')
+        try:
+            cpu_load_percent = float(cpu_load_per_cpu) * 100.0 if cpu_load_per_cpu is not None else None
+        except Exception:
+            cpu_load_percent = None
+
+        storage_info = payload.get('storage') if isinstance(payload.get('storage'), dict) else {}
+        total_bytes = storage_info.get('total_bytes')
+        free_bytes = storage_info.get('free_bytes')
+        used_bytes = storage_info.get('used_bytes')
+
+        try:
+            total_bytes = float(total_bytes) if total_bytes is not None else None
+        except Exception:
+            total_bytes = None
+        try:
+            free_bytes = float(free_bytes) if free_bytes is not None else None
+        except Exception:
+            free_bytes = None
+        try:
+            used_bytes = float(used_bytes) if used_bytes is not None else None
+        except Exception:
+            used_bytes = None
+
+        if used_bytes is None and total_bytes is not None and free_bytes is not None:
+            used_bytes = max(0.0, total_bytes - free_bytes)
+
+        has_any_metric = bool(temperature_fields) or cpu_load_percent is not None or free_bytes is not None or used_bytes is not None
+        if not has_any_metric:
+            continue
+
+        samples_seen += 1
+        oldest_sample_ts = sample_ts if oldest_sample_ts is None else min(oldest_sample_ts, sample_ts)
+        newest_sample_ts = sample_ts if newest_sample_ts is None else max(newest_sample_ts, sample_ts)
+
+        if mode is not None:
+            latest_mode = mode
+            latest_youtube_active = youtube_active
+
+        status_timeline.append({
+            'timestamp': round(sample_ts, 3),
+            'mode': mode,
+            'youtube_live_active': youtube_active,
+        })
+
+        for field_path, value in temperature_fields.items():
+            temperature_points_by_field.setdefault(field_path, []).append({
+                'timestamp': round(sample_ts, 3),
+                'value': round(float(value), 2),
+            })
+
+        if cpu_load_percent is not None:
+            cpu_load_points.append({
+                'timestamp': round(sample_ts, 3),
+                'value': round(float(cpu_load_percent), 2),
+            })
+
+        if free_bytes is not None:
+            storage_free_points.append({
+                'timestamp': round(sample_ts, 3),
+                'value': round(float(free_bytes), 2),
+            })
+        if used_bytes is not None:
+            storage_used_points.append({
+                'timestamp': round(sample_ts, 3),
+                'value': round(float(used_bytes), 2),
+            })
+
+    sort_priority = {
+        'cpu_temperature': 0,
+        'sensors.environment_temperature': 1,
+    }
+
+    series = []
+    for field_path, points in sorted(
+        temperature_points_by_field.items(),
+        key=lambda item: (sort_priority.get(item[0], 99), _format_temperature_label(item[0]).lower()),
+    ):
+        points.sort(key=lambda point: point['timestamp'])
+        series.append({
+            'key': field_path,
+            'label': _format_temperature_label(field_path),
+            'points': points,
+            'latest_value': points[-1]['value'] if points else None,
+        })
+
+    cpu_load_points.sort(key=lambda point: point['timestamp'])
+    storage_free_points.sort(key=lambda point: point['timestamp'])
+    storage_used_points.sort(key=lambda point: point['timestamp'])
+    status_timeline.sort(key=lambda point: point['timestamp'])
+    status_transitions = _build_status_transitions(status_timeline)
+
+    mode_label = 'Unknown'
+    if latest_mode == 'cam':
+        mode_label = 'Cam'
+    elif latest_mode == 'stream':
+        mode_label = 'Stream'
+
+    if latest_mode == 'stream':
+        youtube_label = 'Active' if latest_youtube_active else 'Inactive'
+    elif latest_mode == 'cam':
+        youtube_label = 'N/A (Cam mode)'
+    else:
+        youtube_label = 'Unknown'
+
+    return {
+        'window_minutes': window_minutes,
+        'window_start_timestamp': round(window_start_ts, 3),
+        'window_end_timestamp': round(now_ts, 3),
+        'oldest_sample_timestamp': round(oldest_sample_ts, 3) if oldest_sample_ts is not None else None,
+        'newest_sample_timestamp': round(newest_sample_ts, 3) if newest_sample_ts is not None else None,
+        'sample_interval_seconds_estimate': _estimate_sample_interval_seconds(sampled_timestamps),
+        'sample_count': samples_seen,
+        'status': {
+            'mode': latest_mode,
+            'mode_label': mode_label,
+            'youtube_live_active': latest_youtube_active,
+            'youtube_live_label': youtube_label,
+        },
+        'status_timeline': status_timeline,
+        'status_transitions': status_transitions,
+        'widgets': {
+            'temperature': {
+                'series': series,
+            },
+            'cpu_load': {
+                'series': [
+                    {
+                        'key': 'cpu_load_percent',
+                        'label': 'CPU Load',
+                        'points': cpu_load_points,
+                        'latest_value': cpu_load_points[-1]['value'] if cpu_load_points else None,
+                    }
+                ],
+            },
+            'storage': {
+                'series': [
+                    {
+                        'key': 'storage_free_bytes',
+                        'label': 'Free',
+                        'points': storage_free_points,
+                        'latest_value': storage_free_points[-1]['value'] if storage_free_points else None,
+                    },
+                    {
+                        'key': 'storage_used_bytes',
+                        'label': 'Used',
+                        'points': storage_used_points,
+                        'latest_value': storage_used_points[-1]['value'] if storage_used_points else None,
+                    },
+                ],
+            },
+        },
+        'source': str(metrics_log_path),
+        'source_exists': metrics_log_path.exists(),
+        'generated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+    }
+
+
 def _derive_fs_health_from_logs(max_signals: int = 40):
     """Derive filesystem risk signals from shared log files only (SMB-visible sources)."""
     critical_patterns = [
@@ -345,7 +661,7 @@ def _derive_fs_health_from_logs(max_signals: int = 40):
 def index():
     """Main settings form with basic/advanced tabs."""
     level = request.args.get('level', 'status')  # Default to status overview
-    if level not in {'status', 'basic', 'advanced', 'tools', 'docs'}:
+    if level not in {'status', 'basic', 'advanced', 'metrics', 'docs'}:
         level = 'status'
     settings_manager.load_user_settings()
     
@@ -908,6 +1224,17 @@ def get_fs_health_signals():
     except Exception as exc:
         WEB_LOGGER.exception("Filesystem health signal analysis failed")
         return jsonify({'error': f'Failed to analyze filesystem health: {exc}'}), 500
+
+
+@app.route("/api/metrics/temperature-history", methods=["GET"])
+def get_temperature_history():
+    """Return dashboard metrics history from the last 24 hours."""
+    try:
+        payload = _load_metrics_dashboard_history(window_minutes=24 * 60)
+        return jsonify(payload)
+    except Exception as exc:
+        WEB_LOGGER.exception("Temperature history metrics request failed")
+        return jsonify({'error': f'Failed to load temperature history: {exc}'}), 500
 
 
 @app.route("/api/settings/debug", methods=["GET"])

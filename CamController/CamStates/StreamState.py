@@ -221,6 +221,33 @@ class StreamState(BaseState.BaseState):
         youtube_stats = self.get_youtube_stats()
         return {"youtube": youtube_stats} if youtube_stats else {}
 
+    def get_metrics(self):
+        """Return stream metrics owned by the streaming state."""
+        stream_metrics = None
+        if self._streaming_server and hasattr(self._streaming_server, "get_metrics"):
+            try:
+                stream_metrics = self._streaming_server.get_metrics()
+            except Exception as e:
+                logger.debug("Failed to collect streaming metrics: %s", e)
+
+        camera_metrics = None
+        if self._streaming_server and getattr(self._streaming_server, "cam", None) is not None:
+            camera = self._streaming_server.cam
+            if hasattr(camera, "get_metrics"):
+                try:
+                    camera_metrics = camera.get_metrics()
+                except Exception as e:
+                    logger.debug("Failed to collect camera metrics from StreamState camera: %s", e)
+
+        youtube_stats = self.get_youtube_stats()
+
+        metrics = {
+            "stream": stream_metrics,
+            "camera": camera_metrics,
+            "youtube": youtube_stats,
+        }
+        return {key: value for key, value in metrics.items() if value is not None}
+
     def update(self, context):
         """Update streaming state - camera runs in background"""
         now = time.time()

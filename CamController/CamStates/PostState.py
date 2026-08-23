@@ -144,6 +144,32 @@ class PostState(BaseState.BaseState):
                 self._lastsent = time.time()
                 context._display.off()
         return
+
+    def get_metrics(self):
+        """Return publisher metrics for the still-image pipeline."""
+        publisher_metrics = {}
+        for publisher in getattr(self, "_publishers", []):
+            try:
+                metrics = publisher.get_metrics() if hasattr(publisher, "get_metrics") else {}
+            except Exception as e:
+                logger.debug("Failed to collect metrics from %s: %s", type(publisher).__name__, e)
+                metrics = {}
+
+            publisher_metrics[type(publisher).__name__] = metrics
+
+        camera_metrics = None
+        if self._cam is not None and hasattr(self._cam, "get_metrics"):
+            try:
+                camera_metrics = self._cam.get_metrics()
+            except Exception as e:
+                logger.debug("Failed to collect camera metrics from PostState camera: %s", e)
+
+        return {
+            "camera_type": type(self._cam).__name__ if self._cam is not None else None,
+            "publisher_count": len(getattr(self, "_publishers", [])),
+            "camera": camera_metrics,
+            "publishers": publisher_metrics,
+        }
     
    
     def cleanup(self):

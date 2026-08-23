@@ -14,12 +14,16 @@ logger = logging.getLogger("cam.state.initstate")
 class InitState(BaseState.BaseState):
     def __init__(self):
         super(InitState, self).__init__()
+        self._last_connection_check = None
+        self._last_connection_result = None
         return
 
     def initialize(self, settings):
         super().initialize(settings)
         logger.info("InitState initialize..")        
         self._lastconcheck = 0
+        self._last_connection_check = None
+        self._last_connection_result = None
         self._wifi = WiFi.WiFi()
         return
 
@@ -27,7 +31,9 @@ class InitState(BaseState.BaseState):
         logger.info ("InitState update..")
         if time.time() - self._lastconcheck > 1: 
             self._lastconcheck = time.time()
-            if (self._wifi.connection_check()):
+            self._last_connection_check = self._lastconcheck
+            self._last_connection_result = bool(self._wifi.connection_check())
+            if self._last_connection_result:
                 context._display.wifi_connected()
                 logger.info ("Connected")
                 if self._settings.get("Mode") == "Cam":
@@ -39,6 +45,13 @@ class InitState(BaseState.BaseState):
             logger.info ("Not connected yet...")
             context._display.no_internet()
         return
+
+    def get_metrics(self):
+        """Return boot/network readiness metrics."""
+        return {
+            "wifi_connected": self._last_connection_result,
+            "last_connection_check": self._last_connection_check,
+        }
 
     def cleanup(self):
         """Release state resources."""

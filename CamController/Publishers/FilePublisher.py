@@ -30,6 +30,13 @@ class FilePublisher(PublisherBase):
         self.threshold_value = 500
         self.threshold_unit = "MB"  # "MB" or "percent"
         self.save_metadata_json = False
+
+        self._publish_attempts = 0
+        self._publish_successes = 0
+        self._publish_failures = 0
+        self._last_publish_at = None
+        self._last_error = None
+        self._bytes_saved_total = 0
         
         logger.debug("Init FilePublisher")
 
@@ -245,6 +252,7 @@ class FilePublisher(PublisherBase):
         temp_img_filename = None
         temp_meta_filename = None
         date_dir = None
+        self._publish_attempts += 1
         try:
             # Check and manage storage space before saving
             if not self.manage_storage_space():
@@ -277,6 +285,10 @@ class FilePublisher(PublisherBase):
             self._sync_parent_directory(img_filename)
             self._ensure_smb_permissions(img_filename, is_directory=False)
             logger.debug(f"Saved image to {img_filename}")
+            self._publish_successes += 1
+            self._last_publish_at = time.time()
+            self._last_error = None
+            self._bytes_saved_total += len(image_bytes)
 
             if self.save_metadata_json and metadata is not None:
                 meta_filename = os.path.join(date_dir, f"{timestamp}.json")
@@ -312,7 +324,26 @@ class FilePublisher(PublisherBase):
                     pass
 
             logger.error(f"FilePublisher failed to save image or metadata: {e}", exc_info=True)
+            self._publish_failures += 1
+            self._last_error = str(e)
             return False
+
+    def get_metrics(self) -> dict[str, object]:
+        """Return structured metrics for the file publisher."""
+        return {
+            "location": self.location,
+            "img_format": self.img_format,
+            "storage_enabled": self.storage_enabled,
+            "storage_mode": self.storage_mode,
+            "threshold_value": self.threshold_value,
+            "threshold_unit": self.threshold_unit,
+            "publish_attempts": self._publish_attempts,
+            "publish_successes": self._publish_successes,
+            "publish_failures": self._publish_failures,
+            "last_publish_at": self._last_publish_at,
+            "last_error": self._last_error,
+            "bytes_saved_total": self._bytes_saved_total,
+        }
 
     def cleanup(self) -> None:
         """Release publisher resources."""
