@@ -63,6 +63,7 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 ## OTA Architecture
 
 The OTA system is split between device-side update logic and backend release management.
+For detailed daemon/update flow, settings, trigger paths, and failure modes, see `OTA_DAEMON_GUIDE.md`.
 
 ### Device-side OTA
 
@@ -76,8 +77,8 @@ The OTA system is split between device-side update logic and backend release man
   - post-update health verification
   - rollback on failure
 - Manual triggers are file-based:
-  - `/tmp/ota_check_trigger`
-  - `/tmp/ota_apply_trigger`
+  - `/home/pi/ota/commands/ota_check_trigger`
+  - `/home/pi/ota/commands/ota_apply_trigger`
 
 ### Backend OTA
 

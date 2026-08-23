@@ -200,6 +200,8 @@ Recommended channel model:
 - Most devices: backend channel `stable`, update group `production`
 - 1–2 test devices only: backend channel `testing`/`beta`, update group `development`
 
+See [OTA_DAEMON_GUIDE.md](OTA_DAEMON_GUIDE.md) for the full release-channel and test-device workflow.
+
 ## Release Readiness Checklist
 
 - Validate installer on Raspberry Pi 3B+, 4B, and 5

@@ -6,6 +6,32 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
+## v1.5.8
+
+Release date: 2026-08-23
+
+### Highlights
+
+- Public follow-up release after `v1.5.6`.
+- Internal `v1.5.7` was release-engineering and verification work; user-facing improvements are summarized here in `v1.5.8`.
+- OTA observability and support documentation improvements:
+  - Added a dedicated `OTA_DAEMON_GUIDE.md` with trigger paths, flow details, failure modes, and a filesystem/unit-sync decision tree.
+  - Embedded full OTA workflow flowchart image in the guide.
+  - Updated related docs (`ARCHITECTURE.md`, `INSTALLATION.md`, `TROUBLESHOOTING.md`) to align with current trigger paths and OTA behavior.
+- Web GUI OTA/status improvements:
+  - OTA update widget now surfaces release notes for the available update directly in the same panel.
+  - Filesystem health signal parsing was hardened to avoid false positives from embedded OTA release-note payload lines in logs.
+- OTA backend/admin hardening:
+  - `api/ota/report` now accepts the status values emitted by current device update code, removing non-fatal 400 report noise.
+  - `api/ota/check` and OTA Logs messaging were improved so “up to date” vs “update available” outcomes are clearer.
+  - OTA admin dashboard release management now includes an edit action/modal for release channel/status updates (for testing-to-stable promotion flow).
+
+### Validation
+
+- OTA apply path validated to `1.5.7`/`1.5.8` package level with successful checksum verification, service-health verification, and unit-sync handling.
+- Admin dashboard release/device/log tabs verified after UI updates and script fixes.
+- Web GUI status/tools behavior verified with OTA release-note display and filesystem health panel adjustments.
+
 ## v1.5.6
 
 Release date: 2026-08-21

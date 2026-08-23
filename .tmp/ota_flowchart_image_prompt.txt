@@ -1,0 +1,116 @@
+Create a clean, professional flowchart image titled:
+“PyRpiCamController OTA Workflow (User-Initiated Apply)”
+
+Goal:
+Show the complete OTA workflow starting from “New version detected in Web GUI” and the user clicking “Apply Update”.
+
+Diagram style requirements:
+- White background, modern technical style
+- High readability, suitable for architecture docs
+- Clear directional arrows (top-to-bottom)
+- Use swimlanes for these actors:
+  1) User
+  2) Web GUI
+  3) OTA Daemon (camcontroller-update.service)
+  4) Update Manager (camcontroller_update_manager.py)
+  5) Systemd / Services
+  6) OTA Backend
+- Use standard flowchart shapes:
+  - Rounded rectangles for start/end
+  - Rectangles for actions
+  - Diamonds for decisions
+  - Document shape for logs/status updates
+- Use color coding:
+  - Blue for normal actions
+  - Green for success states
+  - Orange for warnings
+  - Red for failure/rollback paths
+- Add a small legend in one corner
+
+Flow content to include exactly:
+
+START
+1) Web GUI already shows update available (available_version != current_version)
+2) User clicks “Apply Update”
+3) Web GUI writes trigger file:
+   /home/pi/ota/commands/ota_apply_trigger
+4) OTA Daemon loop detects ota_apply_trigger
+5) Daemon sets runtime status:
+   OTA.update_status = applying
+6) Daemon calls UpdateManager.perform_update()
+
+CHECK & PREPARE
+7) UpdateManager checks backend endpoint:
+   GET {server_url}/api/ota/check
+8) Decision: “Update still available?”
+   - No -> set status idle, clear available_version, END (No update)
+   - Yes -> continue
+9) Best-effort status report to backend:
+   POST {server_url}/api/ota/report (status=started)
+10) Create backup tarball in:
+    /home/pi/ota/backups/
+11) Download release tarball to:
+    /home/pi/ota/downloads/
+12) Verify SHA-256 checksum
+13) Decision: “Checksum valid?”
+    - No -> fail path (report failed, attempt rollback if possible)
+    - Yes -> continue
+
+INSTALL
+14) Safe extract package to:
+    /home/pi/ota/temp/extract
+15) Validate required package structure
+16) Stop camera service:
+    systemctl stop camcontroller.service
+17) Copy payload into install path:
+    /home/pi/PyRpiCamController
+18) Update VERSION file
+19) Set file permissions
+
+VERIFY
+20) Start camera service:
+    systemctl start camcontroller.service
+21) Health-check loop until timeout (service active/healthy)
+22) Decision: “Health check passed?”
+    - No -> rollback path
+    - Yes -> success path
+
+SUCCESS PATH
+23) Report success to backend (best effort)
+24) Sync service units from payload to /etc/systemd/system:
+    - camcontroller.service
+    - camcontroller-web.service
+    - camcontroller-update.service
+25) Decision: “Unit sync successful?”
+    - Yes -> daemon-reload, apply safe restarts
+    - No -> WARNING path:
+      “Failed to sync service unit ... Read-only file system or permission issue”
+      (Code update may still be successful; active units may remain old)
+26) Restart web service to load updated UI/backend:
+    systemctl restart camcontroller-web.service
+27) Decision: “Backend says requires_reboot=true?”
+    - Yes -> delayed reboot (systemctl reboot)
+    - No -> no reboot
+28) Daemon sets status:
+    OTA.update_status = idle
+    OTA.available_version = ''
+    OTA.current_version updated
+29) END (Update completed)
+
+FAILURE / ROLLBACK PATH
+30) Attempt rollback from latest created backup
+31) Reinstall backup, restore permissions, restart service
+32) Decision: “Rollback successful?”
+    - Yes -> report failed_rollback_success, set status error/idle as applicable, END
+    - No -> report failed_rollback_failed, manual intervention required, END
+
+Side notes to show in callouts:
+- Trigger files are under /home/pi/ota/commands (not /tmp)
+- Main OTA file log: /home/pi/shared/logs/camcontroller_update.log
+- Journal view: journalctl -u camcontroller-update.service
+- If unit sync fails, next OTA may continue to run old unit definitions until manually synced
+
+Output format:
+- One single comprehensive flowchart image
+- 16:9 layout
+- Crisp text, readable at 1920x1080

@@ -208,6 +208,54 @@ $admin = current_admin();
     </div>
 </div>
 
+<!-- Edit Release Modal -->
+<div class="modal fade" id="editReleaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" id="edit-release-form">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Release</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-release-id">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Version</label>
+                    <input type="text" class="form-control" id="edit-release-version" readonly disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Channel</label>
+                    <select name="channel" class="form-select" id="edit-release-channel">
+                        <option value="stable">stable</option>
+                        <option value="testing">testing</option>
+                        <option value="beta">beta</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select" id="edit-release-status">
+                        <option value="draft">draft</option>
+                        <option value="testing">testing</option>
+                        <option value="stable">stable</option>
+                        <option value="deprecated">deprecated</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Min required current version</label>
+                    <input type="text" name="min_version" class="form-control" id="edit-release-min-version" placeholder="optional — e.g. 1.0.0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Release notes</label>
+                    <textarea name="release_notes" class="form-control" id="edit-release-notes" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Add Device Modal -->
 <div class="modal fade" id="addDeviceModal" tabindex="-1">
     <div class="modal-dialog">
@@ -401,6 +449,9 @@ async function loadReleases() {
                                 `<option value="${s}" ${s===r.status?'selected':''}>${s}</option>`
                             ).join('')}
                         </select>
+                        <button class="btn btn-sm btn-outline-warning"
+                            onclick="editRelease(${r.id})"
+                            title="Edit release"><i class="bi bi-pencil"></i></button>
                         <a href="../releases/${r.filename}" class="btn btn-sm btn-outline-secondary"
                             title="Download" target="_blank"><i class="bi bi-download"></i></a>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteRelease(${r.id}, '${r.version}')"
@@ -415,6 +466,15 @@ function statusColor(s) {
     return {draft:'#6c757d', testing:'#0d6efd', stable:'#198754', deprecated:'#dc3545'}[s] || '#aaa';
 }
 
+
+function eventLabel(row) {
+    if (row.event_type === 'check') {
+        if (row.message === 'newer update available') return 'check: update available';
+        if (row.message === 'already up to date') return 'check: up to date';
+        return 'check';
+    }
+    return row.event_type;
+}
 async function promoteRelease(id, status) {
     try {
         await api('POST', `../api/releases.php?id=${id}`, { _method: 'PATCH', status });
@@ -422,7 +482,6 @@ async function promoteRelease(id, status) {
         loadReleases();
     } catch(e) { toast(e.message, 'danger'); loadReleases(); }
 }
-
 async function deleteRelease(id, version) {
     if (!confirm(`Delete release ${version}? The file will be removed from disk.`)) return;
     try {
@@ -431,6 +490,41 @@ async function deleteRelease(id, version) {
         loadReleases();
     } catch(e) { toast(e.message, 'danger'); }
 }
+
+async function editRelease(id) {
+    try {
+        const rows = await api('GET', '../api/releases.php');
+        const r = rows.find(item => String(item.id) === String(id));
+        if (!r) throw new Error('Release not found');
+
+        document.getElementById('edit-release-id').value = r.id;
+        document.getElementById('edit-release-version').value = r.version || '';
+        document.getElementById('edit-release-channel').value = r.channel || 'stable';
+        document.getElementById('edit-release-status').value = r.status || 'draft';
+        document.getElementById('edit-release-min-version').value = r.min_version || '';
+        document.getElementById('edit-release-notes').value = r.release_notes || '';
+
+        new bootstrap.Modal(document.getElementById('editReleaseModal')).show();
+    } catch(e) { toast(e.message, 'danger'); }
+}
+
+document.getElementById('edit-release-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('edit-release-id').value;
+    const payload = {
+        _method: 'PATCH',
+        channel: document.getElementById('edit-release-channel').value,
+        status: document.getElementById('edit-release-status').value,
+        min_version: document.getElementById('edit-release-min-version').value,
+        release_notes: document.getElementById('edit-release-notes').value,
+    };
+    try {
+        await api('POST', `../api/releases.php?id=${id}`, payload);
+        toast('Release updated');
+        bootstrap.Modal.getInstance(document.getElementById('editReleaseModal')).hide();
+        loadReleases();
+    } catch(err) { toast(err.message, 'danger'); }
+});
 
 document.getElementById('upload-form').addEventListener('submit', async e => {
     e.preventDefault();

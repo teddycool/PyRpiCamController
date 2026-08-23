@@ -32,18 +32,34 @@ $status  = $body['status']        ?? null;
 $version = $body['version']       ?? null;
 $error   = $body['error_message'] ?? null;
 
-$allowed_statuses = ['check', 'download_start', 'install_ok', 'install_fail', 'rollback'];
+$allowed_statuses = [
+    'check',
+    'started',
+    'download_start',
+    'success',
+    'install_ok',
+    'install_fail',
+    'failed',
+    'failed_rollback_success',
+    'failed_rollback_failed',
+    'rollback',
+];
 if (!$status || !in_array($status, $allowed_statuses, true)) {
     json_error('Invalid or missing status. Allowed: ' . implode(', ', $allowed_statuses));
 }
 
 // Determine success flag
 $success = match ($status) {
+    'started'            => null,
+    'success'            => 1,
     'install_ok'      => 1,
     'install_fail'    => 0,
     'rollback'        => 0,
     'download_start'  => null,  // informational
     'check'           => null,
+    'failed'           => 0,
+    'failed_rollback_success' => 0,
+    'failed_rollback_failed'   => 0,
     default           => null,
 };
 

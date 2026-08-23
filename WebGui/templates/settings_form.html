@@ -530,6 +530,83 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             color: var(--dark-text);
         }
 
+        .fs-health-panel {
+            border: 2px solid rgba(13, 110, 253, 0.25) !important;
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.07) 0%, rgba(13, 110, 253, 0.02) 100%) !important;
+            margin-bottom: 20px;
+        }
+        .fs-health-panel .section-title {
+            background: linear-gradient(135deg, #0d6efd 0%, #3b82f6 100%) !important;
+            color: white !important;
+        }
+        .fs-health-summary {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        .fs-health-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #6c757d;
+        }
+        .fs-health-dot.ok { background: #198754; }
+        .fs-health-dot.warning { background: #fd7e14; }
+        .fs-health-dot.critical { background: #dc3545; }
+        .fs-health-dot.unknown { background: #6c757d; }
+        .fs-health-meta {
+            font-size: 13px;
+            color: var(--light-text);
+            margin-bottom: 10px;
+        }
+        .fs-health-signals {
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            background: var(--background-white);
+            max-height: 260px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .fs-health-signal {
+            border-left: 4px solid #6c757d;
+            margin: 6px 0;
+            padding: 8px 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 13px;
+            word-break: break-word;
+        }
+        .fs-health-signal.warning { border-left-color: #fd7e14; }
+        .fs-health-signal.critical { border-left-color: #dc3545; }
+        .fs-health-source {
+            font-weight: 700;
+            margin-right: 6px;
+        }
+        .fs-health-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .fs-health-button {
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            background: #0d6efd;
+        }
+        .fs-health-help {
+            font-size: 12px;
+            color: var(--light-text);
+            margin-top: 8px;
+        }
+
         .confirm-modal-overlay {
             display: none;
             position: fixed;
@@ -1050,9 +1127,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                     
                     <div class="changelog" id="changelogContainer" style="display: none;">
-                        <h4>📋 Changelog</h4>
+                        <h4>📋 Release Notes</h4>
                         <div class="changelog-content" id="changelogContent">
-                            Loading changelog...
+                            No release notes available.
                         </div>
                     </div>
                     
@@ -1064,6 +1141,26 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 </div>
             </div>
             {% elif current_level == 'tools' %}
+            <div class="section fs-health-panel">
+                <h3 class="section-title">🩺 Filesystem Health (shared logs)</h3>
+                <div class="section-content">
+                    <div class="fs-health-summary">
+                        <span class="fs-health-dot unknown" id="fsHealthDot"></span>
+                        <strong id="fsHealthSummary">Loading filesystem health signals...</strong>
+                    </div>
+                    <div class="fs-health-meta" id="fsHealthMeta">Please wait...</div>
+                    <div class="fs-health-signals" id="fsHealthSignals">
+                        <div class="fs-health-signal">Loading log signals...</div>
+                    </div>
+                    <div class="fs-health-actions">
+                        <button type="button" class="fs-health-button" id="refreshFsHealthBtn">🔄 Refresh health signals</button>
+                    </div>
+                    <div class="fs-health-help">
+                        This view uses shared log files only. Kernel-only disk errors may not be visible here.
+                    </div>
+                </div>
+            </div>
+
             <div class="section device-actions-panel">
                 <h3 class="section-title">🔧 Device Actions</h3>
                 <div class="section-content">
@@ -1293,6 +1390,12 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 updateUpdateStatus();
                 setInterval(updateUpdateStatus, 30000); // Check update status every 30 seconds
             }
+
+            if (document.getElementById('refreshFsHealthBtn')) {
+                initFsHealthPanel();
+                updateFsHealthSignals();
+                setInterval(updateFsHealthSignals, 30000);
+            }
             
             // Update statuses every 10 seconds
             setInterval(updateStreamStatus, 10000);
@@ -1300,6 +1403,58 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             setInterval(updatePendingChanges, 10000);
             setInterval(refreshCameraServiceState, 10000);
         });
+
+        function initFsHealthPanel() {
+            const refreshBtn = document.getElementById('refreshFsHealthBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', updateFsHealthSignals);
+            }
+        }
+
+        function updateFsHealthSignals() {
+            const summary = document.getElementById('fsHealthSummary');
+            const meta = document.getElementById('fsHealthMeta');
+            const signals = document.getElementById('fsHealthSignals');
+            const dot = document.getElementById('fsHealthDot');
+
+            if (!summary || !meta || !signals || !dot) {
+                return;
+            }
+
+            fetch(`/api/tools/fs-health?_t=${Date.now()}`, { cache: 'no-store' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    dot.className = `fs-health-dot ${data.overall || 'unknown'}`;
+                    summary.textContent = data.summary || 'Filesystem health status unavailable.';
+
+                    const scannedFiles = Array.isArray(data.scanned_files) ? data.scanned_files.length : 0;
+                    meta.textContent = `Critical: ${data.critical_count || 0} · Warning: ${data.warning_count || 0} · Signals: ${data.signal_count || 0} · Files scanned: ${scannedFiles} · Updated: ${data.generated_at || 'unknown'}`;
+
+                    const signalItems = Array.isArray(data.signals) ? data.signals : [];
+                    if (signalItems.length === 0) {
+                        signals.innerHTML = '<div class="fs-health-signal">No matching filesystem risk patterns found in scanned shared logs.</div>';
+                        return;
+                    }
+
+                    signals.innerHTML = signalItems.map(item => {
+                        const severityClass = (item.severity === 'critical' || item.severity === 'warning') ? item.severity : '';
+                        const source = item.source || 'unknown.log';
+                        const message = String(item.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const severity = (item.severity || 'unknown').toUpperCase();
+                        return `<div class="fs-health-signal ${severityClass}"><span class="fs-health-source">[${severity}] ${source}:</span>${message}</div>`;
+                    }).join('');
+                })
+                .catch(error => {
+                    dot.className = 'fs-health-dot unknown';
+                    summary.textContent = 'Failed to load filesystem health signals.';
+                    meta.textContent = error.message || 'Unknown error';
+                    signals.innerHTML = '<div class="fs-health-signal">Could not read or analyze shared logs.</div>';
+                });
+        }
 
         function updatePauseButtonUi(isActive) {
             const button = document.getElementById('pauseCameraBtn');
@@ -2067,12 +2222,19 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 changelogBtn.style.display = 'inline-block';
                 applyBtn.style.display = 'inline-block';
                 backupInfo.style.display = 'block';
+
+                // Show the release notes for the available update immediately.
+                changelogContainer.style.display = 'block';
+                changelogBtn.textContent = '📄 Hide Release Notes';
+                changelogContent.textContent = updateInfo.changelog || 'No release notes available.';
             } else {
                 availableVersionDiv.style.display = 'none';
                 updateNotification.style.display = 'none';
                 changelogBtn.style.display = 'none';
                 applyBtn.style.display = 'none';
                 backupInfo.style.display = 'none';
+                changelogContainer.style.display = 'none';
+                changelogContent.textContent = 'No release notes available.';
             }
 
             // Handle status-specific UI updates
@@ -2216,20 +2378,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             const changelogBtn = document.getElementById('viewChangelogBtn');
             
             if (changelogContainer.style.display === 'none') {
-                changelogBtn.textContent = '📄 Hide Changelog';
+                changelogBtn.textContent = '📄 Hide Release Notes';
                 changelogContainer.style.display = 'block';
-                
-                // Load changelog if not already loaded
-                fetch('/api/updates/changelog')
-                    .then(response => response.json())
-                    .then(data => {
-                        changelogContent.textContent = data.changelog || 'No changelog available';
-                    })
-                    .catch(error => {
-                        changelogContent.textContent = 'Failed to load changelog';
-                    });
             } else {
-                changelogBtn.textContent = '📄 View Changelog';
+                changelogBtn.textContent = '📄 View Release Notes';
                 changelogContainer.style.display = 'none';
             }
         }

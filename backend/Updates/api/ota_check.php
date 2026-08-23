@@ -73,7 +73,7 @@ try {
         $current_version ?: null,
         $release ? $release['version'] : null,
         $release ? $release['id']      : null,
-        $release ? 'update available'  : 'no update available',
+        $release ? 'update available'  : 'already up to date',
         $_SERVER['REMOTE_ADDR'] ?? null,
     ]);
 } catch (Exception $e) {
@@ -81,17 +81,55 @@ try {
 }
 
 if (!$release) {
+    // Log the check event even when there is no release for the channel.
+    try {
+        $pdo->prepare("
+            INSERT INTO cam_ota_logs
+                (device_id, event_type, from_version, to_version, release_id, success, message, client_ip)
+            VALUES (?, 'check', ?, ?, ?, 1, ?, ?)
+        ")->execute([
+            $device['device_id'],
+            $current_version ?: null,
+            null,
+            null,
+            'already up to date',
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (Exception $e) {
+        // Non-fatal — don't fail the check because logging failed
+    }
+
     json_ok(['update_available' => false]);
 }
 
 // Decide if the found release is actually newer
+$update_available = false;
 if (!$current_version || version_compare($release['version'], $current_version, '>')) {
     // Check min_version constraint
-    if ($release['min_version'] && version_compare($current_version, $release['min_version'], '<')) {
-        // Device is too old to receive this release
-        json_ok(['update_available' => false]);
+    if (!$release['min_version'] || version_compare($current_version, $release['min_version'], '>=')) {
+        $update_available = true;
     }
+}
 
+// Log the check event with the real availability result
+try {
+    $pdo->prepare("
+        INSERT INTO cam_ota_logs
+            (device_id, event_type, from_version, to_version, release_id, success, message, client_ip)
+        VALUES (?, 'check', ?, ?, ?, 1, ?, ?)
+    ")->execute([
+        $device['device_id'],
+        $current_version ?: null,
+        $update_available ? $release['version'] : null,
+        $update_available ? $release['id']      : null,
+        $update_available ? 'newer update available' : 'already up to date',
+        $_SERVER['REMOTE_ADDR'] ?? null,
+    ]);
+} catch (Exception $e) {
+    // Non-fatal — don't fail the check because logging failed
+}
+
+if ($update_available) {
     json_ok([
         'update_available' => true,
         'version'          => $release['version'],

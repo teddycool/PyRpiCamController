@@ -264,6 +264,8 @@ If FFmpeg exits immediately, the log usually shows whether the ingest URL, strea
 
 ## OTA Update Issues
 
+For full OTA daemon behavior and flow details, see `OTA_DAEMON_GUIDE.md`.
+
 ### 401 Unauthorized during OTA check (`cpu_id=unknown`)
 
 If logs show errors like:
@@ -303,14 +305,14 @@ python3 -c "from Settings.settings_manager import settings_manager; print('OtaEn
 
 The OTA daemon processes these files:
 
-- `/tmp/ota_check_trigger`
-- `/tmp/ota_apply_trigger`
+- `/home/pi/ota/commands/ota_check_trigger`
+- `/home/pi/ota/commands/ota_apply_trigger`
 
 Create triggers manually if needed:
 
 ```bash
-echo "manual check" | sudo tee /tmp/ota_check_trigger
-echo "manual apply" | sudo tee /tmp/ota_apply_trigger
+echo "manual check" | sudo tee /home/pi/ota/commands/ota_check_trigger
+echo "manual apply" | sudo tee /home/pi/ota/commands/ota_apply_trigger
 sudo journalctl -u camcontroller-update.service -n 100 --no-pager
 ```
 
