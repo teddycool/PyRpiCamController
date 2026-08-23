@@ -67,7 +67,8 @@ class ProvisioningManager:
                  skip_enrollment=False, ssh_timeout=60, local=False,
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
                  lock_password=True, use_cached_password=False, cache_password=False,
-                 production=False, cam_interface=None, ssh_password=None):
+                 production=False, cam_interface=None, ssh_password=None,
+                 ota_admin_username=None, ota_admin_password=None):
         """
         Initialize provisioning manager.
 
@@ -89,6 +90,8 @@ class ProvisioningManager:
             lock_password: Lock the Pi user's password after provisioning
             cam_interface: Optional Picamera2 camera interface index (RPi5 CSI port: 0 or 1)
             ssh_password: Optional initial SSH password for the Pi (test only; not cached)
+            ota_admin_username: Optional OTA admin username for enrollment
+            ota_admin_password: Optional OTA admin password for enrollment
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -111,6 +114,8 @@ class ProvisioningManager:
         self.production = production
         self.cam_interface = cam_interface
         self.ssh_password = ssh_password
+        self.ota_admin_username = ota_admin_username
+        self.ota_admin_password = ota_admin_password
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -739,6 +744,12 @@ class ProvisioningManager:
             "--location", self.location,
         ]
 
+        if self.ota_admin_username:
+            enroll_cmd.extend(["--admin-username", self.ota_admin_username])
+
+        if self.ota_admin_password:
+            enroll_cmd.extend(["--admin-password", self.ota_admin_password])
+
         # Pass private key derived from --ssh-pubkey (strip .pub suffix)
         if self.ssh_pubkey:
             privkey = Path(str(self.ssh_pubkey).removesuffix(".pub"))
@@ -1134,6 +1145,16 @@ Examples:
         help="Temporary SSH password for the Pi (test use only; not cached)"
     )
     parser.add_argument(
+        "--ota-admin-username",
+        default=os.environ.get("OTA_ADMIN_USERNAME", "admin"),
+        help="OTA admin username for enrollment (default: env OTA_ADMIN_USERNAME or admin)"
+    )
+    parser.add_argument(
+        "--ota-admin-password",
+        default=os.environ.get("OTA_ADMIN_PASSWORD", ""),
+        help="OTA admin password for enrollment (default: env OTA_ADMIN_PASSWORD)"
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate CLI arguments and policy checks, then exit without provisioning"
@@ -1220,6 +1241,8 @@ Examples:
         production=args.production,
         cam_interface=args.cam_interface,
         ssh_password=args.ssh_password,
+        ota_admin_username=args.ota_admin_username,
+        ota_admin_password=args.ota_admin_password,
     )
 
     return manager.provision()
