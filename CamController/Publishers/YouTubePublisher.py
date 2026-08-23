@@ -126,6 +126,13 @@ class YouTubePublisher(PublisherBase):
             "last_frame_bytes": stats.get("last_frame_bytes", 0),
         }
 
+    def get_metrics(self):
+        """Return structured metrics for the YouTube publisher."""
+        stats = self.get_stats()
+        stats["rtmps_url_configured"] = bool(self.rtmps_url)
+        stats["stream_key_configured"] = bool(self.stream_key)
+        return stats
+
     def initialize(self, settings):
         """
         Initialize YouTube publisher with settings.

@@ -9,6 +9,9 @@ from hwconfig import hwconfig1 as hwconfig
 
 import logging
 import os
+from pathlib import Path
+import subprocess
+import shutil
 import time
 from typing import Any
 
@@ -25,6 +28,7 @@ from IO import CpuTempMonitor
 from IO import DS18B20TempMonitor
 from Settings.settings_manager import settings_manager
 import json
+import MetricsLogger
 
 logger = logging.getLogger("cam.mainloop")
 
@@ -52,6 +56,9 @@ class MainLoop:
     def __init__(self, settings: Any = None, hardware_config: dict[str, Any] | None = None):
         self._settings = settings or settings_manager
         self._hardware_config = hardware_config or hwconfig
+        self._process_start_time = time.time()
+        self._metrics_interval = max(5.0, float(self._settings.get("MetricsInterval", 30)))
+        self._software_version = self._read_software_version()
 
         #TODO: add and check settings for IO enabled
         try:
@@ -75,6 +82,7 @@ class MainLoop:
         self._lasttempcheck = 0
         self._lastds18b20tempcheck = 0
         self._last_runtime_status_write = 0.0
+        self._last_metrics_write = 0.0
 
         # Main-loop workload throttling
         self._runtime_status_interval = 0.5
@@ -206,6 +214,8 @@ class MainLoop:
         else:
             logger.info("Starting in InitState (camera mode)")
             self.set_state(StateName.INIT)
+
+        self._emit_startup_metrics()
         
     def update(self):
         now = time.time()
@@ -247,6 +257,10 @@ class MainLoop:
         
         # Delegate state behavior to the active state implementation.
         self._currentstate.update(self)
+
+        if now - self._last_metrics_write >= self._metrics_interval:
+            self._emit_snapshot_metrics(now)
+            self._last_metrics_write = now
 
     def _update_runtime_status(self, timestamp: float | None = None):
         """Write current runtime status to file for web interface"""
@@ -298,6 +312,119 @@ class MainLoop:
                 
         except Exception as e:
             logger.debug("Failed to write runtime status: %s", str(e))      
+
+    def _read_software_version(self) -> str:
+        try:
+            version_file = Path(__file__).resolve().parent.parent / "VERSION"
+            if version_file.exists():
+                return version_file.read_text(encoding="utf-8").strip()
+        except Exception as e:
+            logger.debug("Failed to read VERSION file: %s", e)
+        return "unknown"
+
+    def _read_throttled_state(self) -> str | None:
+        try:
+            result = subprocess.run(
+                ["vcgencmd", "get_throttled"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=2,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception as e:
+            logger.debug("Failed to read throttled state: %s", e)
+        return None
+
+    def _collect_metrics_snapshot(self, timestamp: float | None = None) -> dict[str, Any]:
+        timestamp = timestamp if timestamp is not None else time.time()
+
+        load_1m = load_5m = load_15m = None
+        try:
+            load_1m, load_5m, load_15m = os.getloadavg()
+        except Exception:
+            pass
+
+        cpu_count = os.cpu_count() or 1
+
+        storage_total_bytes = None
+        storage_free_bytes = None
+        storage_used_bytes = None
+        storage_path = None
+        try:
+            storage_location = self._settings.get('Cam.publishers.file.location')
+            if not storage_location:
+                storage_location = '/'
+
+            usage_path = storage_location if os.path.isdir(storage_location) else os.path.dirname(storage_location) or '/'
+            usage = shutil.disk_usage(usage_path)
+            storage_total_bytes = usage.total
+            storage_free_bytes = usage.free
+            storage_used_bytes = usage.used
+            storage_path = usage_path
+        except Exception as e:
+            logger.debug("Failed to collect storage metrics: %s", e)
+
+        current_state = getattr(self, "_currentstate", None)
+        state_metrics = {}
+        if current_state is not None:
+            try:
+                state_metrics = current_state.get_metrics() if hasattr(current_state, "get_metrics") else {}
+            except Exception as e:
+                logger.debug("Failed to collect state metrics: %s", e)
+
+        snapshot = {
+            "sample_timestamp": timestamp,
+            "software_version": self._software_version,
+            "device_serial": self.mycpuserial,
+            "mode": self._settings.get("Mode", "Cam"),
+            "state": type(current_state).__name__ if current_state is not None else None,
+            "uptime_seconds": round(timestamp - self._process_start_time, 1),
+            "cpu_temperature": self._cputemp if self._cputemp is not None else None,
+            "cpu_load": {
+                "load_1m": load_1m,
+                "load_5m": load_5m,
+                "load_15m": load_15m,
+                "load_per_cpu_1m": (load_1m / cpu_count) if load_1m is not None else None,
+                "cpu_count": cpu_count,
+            },
+            "thermal": {
+                "throttled": self._read_throttled_state(),
+            },
+            "sensors": {
+                "ds18b20_available": self._ds18b20tempmonitor is not None,
+                "environment_temperature": self._ds18b20temp,
+            },
+            "storage": {
+                "path": storage_path,
+                "total_bytes": storage_total_bytes,
+                "free_bytes": storage_free_bytes,
+                "used_bytes": storage_used_bytes,
+            },
+            "components": state_metrics,
+        }
+
+        return snapshot
+
+    def _emit_startup_metrics(self) -> None:
+        try:
+            payload = self._collect_metrics_snapshot()
+            payload.update({
+                "metrics_interval_seconds": self._metrics_interval,
+                "metrics_log_path": self._settings.get("MetricsLogFilePath", "/home/pi/shared/logs/cam-metrics.log"),
+                "cpu_temp_check_interval_seconds": self._settings.get("CheckCpuTemp"),
+            })
+            MetricsLogger.emit_metrics("startup", data=payload)
+            self._last_metrics_write = time.time()
+        except Exception as e:
+            logger.debug("Failed to emit startup metrics: %s", e)
+
+    def _emit_snapshot_metrics(self, timestamp: float | None = None) -> None:
+        try:
+            MetricsLogger.emit_metrics("snapshot", data=self._collect_metrics_snapshot(timestamp))
+        except Exception as e:
+            logger.debug("Failed to emit snapshot metrics: %s", e)
 
     def _check_settings_reload_request(self):
         """Check for settings reload requests from web interface."""

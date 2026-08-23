@@ -22,6 +22,7 @@ from Connectivity import cpuserial
 import json
 # Import the new settings manager
 from Settings.settings_manager import settings_manager
+import MetricsLogger
 
 # TODO: check for OTA at start, if enabled start with new thread, close current and restart after install
 
@@ -96,6 +97,9 @@ if settings_manager.get("LogToFile"):
     )
     fh.setFormatter(jsonformatter)
     logger.addHandler(fh)
+
+
+MetricsLogger.setup_metrics_logger(settings_manager)
 
 
 class Main(object):

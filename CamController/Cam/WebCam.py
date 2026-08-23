@@ -22,16 +22,23 @@ class WebCam(CamBase.CamBase):
         self._supported_video_resolutions = [(1920, 1080), (1280, 720), (640, 480)]
         self._cam = None
         self._device_index = 0  # Default webcam device index
+        self._actual_fps = None
     
     #Cam mode   
     def start(self, settings: dict[str, Any]) -> None:
         camera_cfg = camera_settings.CameraSettings.from_settings(settings, self._supported_image_resolutions[0])
         res = camera_cfg.resolution
+        self._current_mode = "cam"
+        self._current_image_resolution = res
+        self._current_stream_resolution = None
+        self._current_stream_framerate = None
+        self._current_stream_bitrate = None
 
         if not self.is_image_resolution_supported(res):
             logger.warning("Cam resolution %s requested in config, but not supported!", str(res))
             logger.info("Setting first valid res from list %s", str(self._supported_image_resolutions))
             res = self._supported_image_resolutions[0]
+            self._current_image_resolution = res
 
         # Initialize the webcam
         self._cam = cv2.VideoCapture(self._device_index)
@@ -58,6 +65,9 @@ class WebCam(CamBase.CamBase):
         # Verify actual resolution set
         actual_width = int(self._cam.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self._cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self._current_image_resolution = (actual_width, actual_height)
+        self._last_started_at = time.time()
+        self._last_error = None
         logger.info("Webcam initialized with resolution: %sx%s", actual_width, actual_height)
         
         # Warm up the camera
@@ -83,6 +93,7 @@ class WebCam(CamBase.CamBase):
                 logger.error("Webcam is not initialized or opened")
                 self._current_image = None
                 self._current_metadata = None
+                self._last_error = "Webcam is not initialized or opened"
                 return
                 
             ret, frame = self._cam.read()
@@ -91,10 +102,14 @@ class WebCam(CamBase.CamBase):
                 logger.warning("Failed to capture frame from webcam")
                 self._current_image = None
                 self._current_metadata = None
+                self._last_error = "Failed to capture frame from webcam"
                 return
                 
             # Convert from BGR (OpenCV default) to RGB 
             self._current_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self._capture_count += 1
+            self._last_update_at = time.time()
+            self._last_error = None
             
             # Create metadata similar to Pi camera
             self._current_metadata = {
@@ -114,6 +129,7 @@ class WebCam(CamBase.CamBase):
             logger.warning("Failed to update image buffer: %s", str(e))
             self._current_image = None
             self._current_metadata = None
+            self._last_error = str(e)
         
     #Stream mode
     def start_stream(self, settings: dict[str, Any] | None = None) -> None:
@@ -122,6 +138,7 @@ class WebCam(CamBase.CamBase):
         # For webcam, streaming is essentially the same as regular mode
         # The camera is already continuously capturing
         self.start(settings)
+        self._current_mode = "stream"
         logger.info("Webcam streaming started")
 
     def capture_stream_frame(self) -> Any:
@@ -134,10 +151,34 @@ class WebCam(CamBase.CamBase):
                 return None
 
             self._current_image = frame
+            self._stream_capture_count += 1
+            self._last_update_at = time.time()
+            self._last_error = None
             return frame
         except Exception as e:
             logger.warning("Failed to capture stream frame: %s", str(e))
+            self._last_error = str(e)
             return None
+
+    def get_metrics(self) -> dict[str, Any]:
+        metrics = super().get_metrics()
+        if self._cam is not None and self._cam.isOpened():
+            actual_width = int(self._cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_height = int(self._cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = self._cam.get(cv2.CAP_PROP_FPS)
+        else:
+            actual_width = actual_height = None
+            actual_fps = None
+
+        metrics["camera"]["backend_specific"] = {
+            "camera_name": "WebCam",
+            "supports_autofocus": False,
+            "device_index": self._device_index,
+            "opened": bool(self._cam is not None and self._cam.isOpened()),
+            "actual_resolution": [actual_width, actual_height] if actual_width is not None and actual_height is not None else None,
+            "actual_fps": actual_fps,
+        }
+        return metrics
         
     def stop(self) -> None:
         """Clean up webcam resources"""

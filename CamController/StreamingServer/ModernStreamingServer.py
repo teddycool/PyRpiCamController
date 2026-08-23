@@ -696,6 +696,31 @@ class CameraStreamer:
         except Exception as e:
             logger.error(f"Failed to start streaming server: {e}")
             raise
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return structured metrics for the live streaming subsystem."""
+        actual_fps = None
+        clients = 0
+
+        if self.output is not None:
+            try:
+                actual_fps = self.output.get_fps()
+            except Exception:
+                actual_fps = None
+            clients = getattr(self.output, "clients", 0)
+
+        return {
+            "active": bool(self.running and self.server is not None),
+            "encoded_stream": bool(self._encoded_stream),
+            "camera_type": type(self.cam).__name__ if self.cam is not None else None,
+            "resolution": settings_manager.get('Stream.resolution'),
+            "target_fps": settings_manager.get('Stream.framerate'),
+            "idle_fps": settings_manager.get('Stream.idle_framerate', 2),
+            "current_fps": self._current_stream_framerate,
+            "actual_fps": actual_fps,
+            "clients": clients,
+            "port": settings_manager.get('Stream.port'),
+        }
     
     def stop(self):
         """Stop streaming and cleanup resources"""

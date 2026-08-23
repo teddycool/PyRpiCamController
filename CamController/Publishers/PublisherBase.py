@@ -24,3 +24,7 @@ class PublisherBase(ABC):
     @abstractmethod
     def cleanup(self) -> None:
         """Release publisher resources."""
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return structured publisher metrics."""
+        return {}

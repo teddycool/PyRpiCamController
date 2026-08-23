@@ -25,12 +25,39 @@ Release date: 2026-08-23
   - `api/ota/report` now accepts the status values emitted by current device update code, removing non-fatal 400 report noise.
   - `api/ota/check` and OTA Logs messaging were improved so “up to date” vs “update available” outcomes are clearer.
   - OTA admin dashboard release management now includes an edit action/modal for release channel/status updates (for testing-to-stable promotion flow).
+- Metrics logging and architecture refactor:
+  - Added dedicated structured metrics logging to `cam-metrics.log` (`cam.metrics` JSON events) with configurable file path/size/rotation and interval.
+  - Added component-owned metrics contracts (`get_metrics`) across states, stream server, publishers, and camera backends.
+  - Standardized camera metrics keys across camera types, while preserving backend-specific metrics under a dedicated `backend_specific` block (including PiCam3 autofocus metrics).
+- Web GUI metrics observability:
+  - Added a new **Metrics** tab with a fixed 24-hour window.
+  - Added 3 widgets: temperature, CPU load, and storage free/used, each with missing-data gaps rendered as breaks.
+  - Added historical mode and YouTubeLive transition indicators directly in each graph, including visible text labels (no hover dependency).
+- Web GUI operational UX changes:
+  - Removed the AWB top-header indicator.
+  - Moved the three device action buttons (stop service, restart device, shutdown) to the top area under runtime header widgets.
+  - Removed the **Tools** tab from navigation and routing.
+- Docs tab improvement:
+  - Added a GitHub quick action card linking directly to issue creation (`Report a problem` → `issues/new`).
+
+### End-user summary
+
+- You now get a dedicated **Metrics** tab showing the last 24 hours of:
+  - camera/environment temperature,
+  - CPU load,
+  - storage usage (free/used).
+- The graphs now show **when mode changed** (Cam/Stream) and **when YouTube Live state changed**, so it is easier to understand why temperatures or load changed.
+- Device control buttons (**Stop Camera Service**, **Restart Camera**, **Shut Down Camera**) are now easier to access at the top of the page.
+- The old **Tools** tab was removed to simplify navigation.
+- In **Docs**, there is now a direct **Report a problem** link that opens a new GitHub issue form.
 
 ### Validation
 
 - OTA apply path validated to `1.5.7`/`1.5.8` package level with successful checksum verification, service-health verification, and unit-sync handling.
 - Admin dashboard release/device/log tabs verified after UI updates and script fixes.
-- Web GUI status/tools behavior verified with OTA release-note display and filesystem health panel adjustments.
+- Web GUI metrics tab verified with 24-hour data rendering, mode/YouTube transition markers, and text labels in Firefox.
+- Metrics payload and logging verified on target Pi (`192.168.1.140`), including storage fields (`free_bytes`, `used_bytes`, `total_bytes`) emitted from runtime snapshots.
+- Deployed and restarted `camcontroller.service` and `camcontroller-web.service` on target Pi after branch updates; services confirmed active.
 
 ## v1.5.6
 

@@ -925,6 +925,72 @@
       "web_editable": true,
       "level": "advanced"
     },
+    "MetricsLogToFile": {
+      "value": true,
+      "type": "bool",
+      "ui": {
+        "name": "Log Metrics to File",
+        "section": "System",
+        "description": "Enable the dedicated structured metrics log",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "MetricsLogFilePath": {
+      "value": "/home/pi/shared/logs/cam-metrics.log",
+      "type": "text",
+      "ui": {
+        "name": "Metrics Log File Path",
+        "section": "System",
+        "description": "Path to the structured metrics log file",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "MetricsLogFileSize": {
+      "value": 1000000,
+      "type": "int",
+      "min": 10000,
+      "max": 10000000,
+      "ui": {
+        "name": "Metrics Log Max Size (bytes)",
+        "section": "System",
+        "description": "Maximum size before metrics log rotation",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "MetricsLogBackupCount": {
+      "value": 5,
+      "type": "int",
+      "min": 1,
+      "max": 20,
+      "ui": {
+        "name": "Metrics Log Backup Count",
+        "section": "System",
+        "description": "Number of rotated metrics log files to keep",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
+    "MetricsInterval": {
+      "value": 30,
+      "type": "int",
+      "min": 5,
+      "max": 3600,
+      "ui": {
+        "name": "Metrics Snapshot Interval (s)",
+        "section": "System",
+        "description": "How often to write structured runtime metrics",
+        "level": "advanced"
+      },
+      "web_editable": true,
+      "level": "advanced"
+    },
     "LogToServer": {
       "value": false,
       "type": "bool",

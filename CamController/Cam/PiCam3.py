@@ -10,6 +10,7 @@ from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder
 from picamera2.outputs import FileOutput
 import libcamera
+import time
 from typing import Any
 import logging
 logger = logging.getLogger("cam.PiCam3")
@@ -134,7 +135,8 @@ class PiCam3(CamBase.CamBase):
 
         return controls
 
-    def _get_camera_specific_controls(self, settings: dict[str, Any]) -> dict[str, Any]:
+    def _get_camera_specific_controls(self, _settings: dict[str, Any]) -> dict[str, Any]:
+        del _settings
         return {
             "AfMode": libcamera.controls.AfModeEnum.Continuous,
         }
@@ -194,12 +196,19 @@ class PiCam3(CamBase.CamBase):
     def start(self, settings: dict[str, Any]) -> None:
         res = self._resolve_image_resolution(settings)
         self._cam = Picamera2()
+        self._current_mode = "cam"
+        self._current_image_resolution = res
+        self._current_stream_resolution = None
+        self._current_stream_framerate = None
+        self._current_stream_bitrate = None
         self._camera_config = self._cam.create_still_configuration(
             main={"format": "RGB888", "size": res}
         )
         self._logger.info("%s still config: %s", self._camera_name, str(self._camera_config.get("main")))
         self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
+        self._last_started_at = time.time()
+        self._last_error = None
         self._apply_runtime_controls(settings)
 
     def initialize(self, settings: dict[str, Any]) -> None:
@@ -212,6 +221,9 @@ class PiCam3(CamBase.CamBase):
             self._current_metadata = request.get_metadata()
             self._current_image = request.make_array("main")
             request.release()
+            self._capture_count += 1
+            self._last_update_at = time.time()
+            self._last_error = None
 
             self._logger.debug("Current image size: %s", str(self._current_image.size))
             self._logger.debug("Current image buffer updated")
@@ -219,12 +231,18 @@ class PiCam3(CamBase.CamBase):
             self._logger.warning("Failed to update image buffer", exc_info=True)
             self._current_image = None
             self._current_metadata = None
+            self._last_error = "Failed to update image buffer"
 
     def start_stream(self, settings: dict[str, Any] | None = None) -> None:
         if settings is None:
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
+        stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
         self._cam = Picamera2()
+        self._current_mode = "stream"
+        self._current_stream_resolution = stream_res
+        self._current_stream_framerate = int(stream_cfg.framerate)
+        self._current_stream_bitrate = None
         stream_color_space = self._video_color_space()
         stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
         if stream_color_space is not None:
@@ -236,6 +254,8 @@ class PiCam3(CamBase.CamBase):
         self._logger.info("%s stream config: %s", self._camera_name, str(self._camera_config.get("main")))
         self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
+        self._last_started_at = time.time()
+        self._last_error = None
         self._apply_runtime_controls(settings)
 
     def capture_stream_frame(self) -> Any:
@@ -246,9 +266,13 @@ class PiCam3(CamBase.CamBase):
             frame = request.make_array("main")
             request.release()
             self._current_image = frame
+            self._stream_capture_count += 1
+            self._last_update_at = time.time()
+            self._last_error = None
             return frame
         except Exception:
             self._logger.warning("Failed to capture stream frame", exc_info=True)
+            self._last_error = "Failed to capture stream frame"
             return None
 
     def start_stream_encoded(self, settings: dict[str, Any], output: Any) -> bool:
@@ -259,6 +283,10 @@ class PiCam3(CamBase.CamBase):
             stream_fps = max(1, int(stream_cfg.framerate))
             stream_bitrate = self._resolve_stream_mjpeg_bitrate(settings, stream_res, stream_fps)
             self._cam = Picamera2()
+            self._current_mode = "stream"
+            self._current_stream_resolution = stream_res
+            self._current_stream_framerate = stream_fps
+            self._current_stream_bitrate = stream_bitrate
             stream_color_space = self._video_color_space()
             stream_config_kwargs = {"controls": self._get_stream_controls(settings)}
             if stream_color_space is not None:
@@ -275,10 +303,13 @@ class PiCam3(CamBase.CamBase):
             self._cam.configure(self._camera_config)
             encoder = MJPEGEncoder(bitrate=stream_bitrate)
             self._cam.start_recording(encoder, FileOutput(output))
+            self._last_started_at = time.time()
+            self._last_error = None
             self._apply_runtime_controls(settings)
             return True
         except Exception:
             self._logger.warning("Failed to start encoded stream path", exc_info=True)
+            self._last_error = "Failed to start encoded stream path"
             return False
 
     def set_stream_framerate(self, framerate: int) -> bool:
@@ -286,10 +317,34 @@ class PiCam3(CamBase.CamBase):
             return False
         try:
             self._cam.set_controls({"FrameRate": int(framerate)})
+            self._current_stream_framerate = int(framerate)
             return True
         except Exception:
             self._logger.warning("Failed to set stream framerate", exc_info=True)
+            self._last_error = "Failed to set stream framerate"
             return False
+
+    def _extract_autofocus_metrics(self) -> dict[str, Any]:
+        metadata = self._current_metadata if isinstance(self._current_metadata, dict) else {}
+        af_state = metadata.get("AfState")
+        lens_position = metadata.get("LensPosition")
+        focus_fom = metadata.get("FocusFoM")
+        return {
+            "autofocus_enabled": True,
+            "af_mode": "continuous",
+            "af_state": af_state,
+            "lens_position": lens_position,
+            "focus_fom": focus_fom,
+        }
+
+    def get_metrics(self) -> dict[str, Any]:
+        metrics = super().get_metrics()
+        metrics["camera"]["backend_specific"] = {
+            "camera_name": self._camera_name,
+            "supports_autofocus": True,
+            "autofocus": self._extract_autofocus_metrics(),
+        }
+        return metrics
 
     def stop(self) -> None:
         if self._cam is not None:

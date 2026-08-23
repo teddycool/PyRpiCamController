@@ -36,3 +36,7 @@ class BaseState(ABC):
     def get_runtime_status(self) -> dict[str, Any]:
         """Return state-owned runtime status for the generic status writer."""
         return {}
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return structured metrics owned by this state."""
+        return {}
