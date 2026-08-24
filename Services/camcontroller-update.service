@@ -1,8 +1,8 @@
 [Unit]
 Description=PyRpiCamController Update Daemon
 Documentation=https://github.com/teddycool/PyRpiCamController
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -10,6 +10,7 @@ User=root
 Group=root
 WorkingDirectory=/home/pi/PyRpiCamController
 Environment=PYTHONPATH=/home/pi/PyRpiCamController
+ExecStartPre=/bin/bash /home/pi/PyRpiCamController/Services/wait_for_real_network.sh
 ExecStart=/usr/bin/python3 /home/pi/PyRpiCamController/Updates/camcontroller_update_daemon.py --daemon
 Restart=on-failure
 RestartSec=30
