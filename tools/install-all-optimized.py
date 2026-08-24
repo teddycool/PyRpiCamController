@@ -175,6 +175,35 @@ def run_cmd_with_retry(cmd, capture=False, check=True, retries=3, retry_delay=5,
 
     return False
 
+def wait_for_apt_lock(timeout=300, poll=10):
+    """Block until the dpkg/apt frontend lock is free, or raise after timeout seconds."""
+    lock_files = [
+        "/var/lib/dpkg/lock-frontend",
+        "/var/lib/dpkg/lock",
+        "/var/cache/apt/archives/lock",
+    ]
+    deadline = time.time() + timeout
+    warned = False
+    while time.time() < deadline:
+        held = []
+        for lf in lock_files:
+            result = subprocess.run(
+                f"sudo fuser {lf} 2>/dev/null",
+                shell=True, capture_output=True, text=True,
+            )
+            if result.stdout.strip():
+                held.append(lf)
+        if not held:
+            return
+        if not warned:
+            log_step("PACKAGES", f"Waiting for apt lock (held by another process)...")
+            warned = True
+        time.sleep(poll)
+    raise RuntimeError(
+        f"apt/dpkg lock not released within {timeout}s. "
+        "Check if another package manager is running."
+    )
+
 def recover_package_manager():
     """Try to recover apt/dpkg state after interrupted installs."""
     log_step("PACKAGES", "Attempting package manager recovery...")
@@ -187,6 +216,7 @@ def recover_package_manager():
 
 def run_apt_command(args, retries=3, timeout=None):
     """Run apt-get with network-friendly defaults and recovery between attempts."""
+    wait_for_apt_lock()
     apt_cmd = (
         "sudo env DEBIAN_FRONTEND=noninteractive apt-get "
         "-o Acquire::Retries=5 "
@@ -203,6 +233,7 @@ def run_apt_command(args, retries=3, timeout=None):
         recover_package_manager()
         if attempt < retries:
             log_step("PACKAGES", f"Retrying apt command ({attempt + 1}/{retries})...")
+            wait_for_apt_lock()
             time.sleep(5)
 
     return False
