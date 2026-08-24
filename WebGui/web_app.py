@@ -252,6 +252,59 @@ def _get_metrics_log_path() -> Path:
     return DEFAULT_METRICS_LOG_FILE
 
 
+def _get_rotated_metrics_log_paths(base_path: Path) -> list[Path]:
+    """Return available metrics log files in newest-to-oldest rotation order."""
+    candidates = [base_path]
+
+    try:
+        pattern = f"{base_path.name}.*"
+        for candidate in base_path.parent.glob(pattern):
+            suffix = candidate.name[len(base_path.name):]
+            if not suffix.startswith('.'):
+                continue
+            rotation_token = suffix[1:]
+            if not rotation_token.isdigit():
+                continue
+            candidates.append(candidate)
+    except Exception:
+        return [base_path]
+
+    def _rotation_rank(path: Path) -> int:
+        if path == base_path:
+            return 0
+        suffix = path.name[len(base_path.name):]
+        if suffix.startswith('.') and suffix[1:].isdigit():
+            return int(suffix[1:])
+        return 10_000
+
+    return sorted(set(candidates), key=_rotation_rank)
+
+
+def _tail_lines_from_rotated_logs(base_path: Path, max_lines: int = 25000) -> tuple[list[str], list[Path]]:
+    """Read bounded tail lines across metrics log rotations, newest file first."""
+    max_lines = max(100, int(max_lines))
+    selected_paths: list[Path] = []
+    collected_lines: list[str] = []
+    remaining = max_lines
+
+    all_paths = _get_rotated_metrics_log_paths(base_path)
+    for log_path in all_paths:
+        if remaining <= 0:
+            break
+        if not log_path.exists():
+            continue
+
+        lines = _tail_lines(log_path, max_lines=remaining)
+        if not lines:
+            continue
+
+        selected_paths.append(log_path)
+        collected_lines.extend(lines)
+        remaining -= len(lines)
+
+    return collected_lines, selected_paths
+
+
 def _extract_temperature_fields(payload: dict, prefix: str = '') -> dict[str, float]:
     """Extract all numeric temperature fields from a nested metrics payload."""
     results = {}
@@ -351,7 +404,7 @@ def _load_metrics_dashboard_history(window_minutes: int = 24 * 60, max_lines: in
     latest_youtube_active = None
     status_timeline = []
 
-    lines = _tail_lines(metrics_log_path, max_lines=max_lines)
+    lines, source_paths = _tail_lines_from_rotated_logs(metrics_log_path, max_lines=max_lines)
     for raw_line in lines:
         line = raw_line.strip()
         if not line:
@@ -550,6 +603,7 @@ def _load_metrics_dashboard_history(window_minutes: int = 24 * 60, max_lines: in
         },
         'source': str(metrics_log_path),
         'source_exists': metrics_log_path.exists(),
+        'source_files': [str(path) for path in source_paths],
         'generated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
     }
 

@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Generate test SSH key
+        run: ssh-keygen -t ed25519 -N "" -f /tmp/provision_test_key
+
       - name: Fail insecure production invocation
         run: |
           set +e
@@ -39,7 +42,7 @@ jobs:
       - name: Pass secure production invocation (key-only)
         run: |
           python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab \
-            --production --ssh-posture key-only --validate-only
+            --production --ssh-posture key-only --ssh-pubkey /tmp/provision_test_key.pub --validate-only
 
       - name: Fail production invocation without password lock
         run: |
@@ -61,4 +64,4 @@ jobs:
       - name: Pass secure production invocation (disable SSH)
         run: |
           python3 tools/provision_fresh_pi.py 127.0.0.1 1.0.0 TestCam Lab \
-            --production --ssh-posture disable --validate-only
+            --production --ssh-posture disable --ssh-pubkey /tmp/provision_test_key.pub --validate-only
