@@ -495,11 +495,33 @@ enable_nuke: 0
     
     # Enable the service (don't force start - let it start when needed)
     log_step("COMITUP", "Enabling ComitUp service...")
+    condition_script = f"{PROJECT_ROOT}/Services/comitup_no_network_condition.sh"
+    if os.path.exists(condition_script):
+        run_cmd(f"sudo chmod +x {condition_script}", check=False)
+        run_cmd("sudo mkdir -p /etc/systemd/system/comitup.service.d", check=False)
+        dropin = """[Unit]
+    After=NetworkManager-wait-online.service
+    Wants=NetworkManager-wait-online.service
+
+    [Service]
+ExecCondition=
+ExecCondition=/bin/bash /home/pi/PyRpiCamController/Services/comitup_no_network_condition.sh
+"""
+        with open('/tmp/10-no-real-network.conf', 'w', encoding='utf-8') as f:
+            f.write(dropin)
+        run_cmd("sudo mv /tmp/10-no-real-network.conf /etc/systemd/system/comitup.service.d/10-no-real-network.conf", check=False)
+        run_cmd("sudo chown root:root /etc/systemd/system/comitup.service.d/10-no-real-network.conf", check=False)
+        run_cmd("sudo chmod 644 /etc/systemd/system/comitup.service.d/10-no-real-network.conf", check=False)
+        run_cmd("sudo systemctl daemon-reload", check=False)
+    else:
+        log_step("WARNING", f"ComitUp network condition script not found: {condition_script}")
+
     run_cmd("sudo systemctl enable comitup")
     
-    # Ensure network-online.target works properly for camera services
+    # Ensure network-online.target works properly for NetworkManager-managed systems
     log_step("COMITUP", "Configuring network wait services...")
-    run_cmd("sudo systemctl enable systemd-networkd-wait-online.service", check=False)
+    run_cmd("sudo systemctl enable NetworkManager-wait-online.service", check=False)
+    run_cmd("sudo systemctl disable systemd-networkd-wait-online.service", check=False)
     
     log_step("COMITUP", "ComitUp setup completed - WiFi unblocked and will start when no network is available")
     return True
@@ -821,6 +843,12 @@ def setup_services():
         run_cmd(f"sudo chmod +x {wait_network_script}", check=False)
     else:
         log_step("WARNING", f"Network wait script not found: {wait_network_script}")
+
+    comitup_condition_script = f"{PROJECT_ROOT}/Services/comitup_no_network_condition.sh"
+    if os.path.exists(comitup_condition_script):
+        run_cmd(f"sudo chmod +x {comitup_condition_script}", check=False)
+    else:
+        log_step("WARNING", f"ComitUp condition script not found: {comitup_condition_script}")
     
     services = [
         ("camcontroller.service", "Services/camcontroller.service"),

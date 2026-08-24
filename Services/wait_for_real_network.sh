@@ -26,19 +26,14 @@ sync_comitup_state() {
       if systemctl is-active --quiet comitup.service; then
         systemctl stop comitup.service || true
       fi
-    fi
-  else
-    if systemctl list-unit-files comitup.service >/dev/null 2>&1; then
-      if ! systemctl is-active --quiet comitup.service; then
-        systemctl start comitup.service || true
-      fi
+      systemctl reset-failed comitup.service || true
     fi
 
     if systemctl list-unit-files comitup-web.service >/dev/null 2>&1; then
-      if ! systemctl is-active --quiet comitup-web.service; then
-        systemctl start comitup-web.service || true
-      fi
+      systemctl reset-failed comitup-web.service || true
     fi
+  else
+    :
   fi
 }
 
