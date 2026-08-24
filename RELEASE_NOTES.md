@@ -6,9 +6,9 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
-## v1.5.11
+## v1.5.12
 
-Release date: 2026-08-23
+Release date: 2026-08-24
 
 ### Highlights
 
@@ -17,6 +17,22 @@ Release date: 2026-08-23
 ### Validation
 
 - [Add validation notes]
+
+## v1.5.12
+
+Release date: 2026-08-23
+
+### Highlights
+
+- Bugfix release for Web GUI metrics history parsing.
+- Fixed metrics graph data loading so it reads both the active metrics log (`cam-metrics.log`) and rotated files (`cam-metrics.log.1`, `.2`, etc.).
+- Restored expected 24-hour graph continuity when older samples have already rotated out of the active log file.
+- Added retention sizing safeguards for metrics log rotation so configured file size/rotation can reliably preserve ~24 hours of metrics data.
+
+### Validation
+
+- Added and ran unit tests covering rotated metrics log parsing and 24-hour filtering behavior.
+- Verified existing metrics Web GUI tests continue to pass.
 
 ## v1.5.11
 
