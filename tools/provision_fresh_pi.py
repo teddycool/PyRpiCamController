@@ -42,6 +42,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import tarfile
+import shutil
 from pathlib import Path
 
 
@@ -116,6 +118,7 @@ class ProvisioningManager:
         self.ssh_password = ssh_password
         self.ota_admin_username = ota_admin_username
         self.ota_admin_password = ota_admin_password
+        self.skip_version_check = False
         self._temp_ssh_key_priv = None
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
@@ -422,21 +425,49 @@ class ProvisioningManager:
             raise ProvisioningError(f"SCP pull failed: {result.stderr}")
 
     def _build_local_tarball(self, out_path: Path):
-        """Produce a tar.gz build artifact into out_path (git archive HEAD)."""
-        result = subprocess.run(
-            [
-                "git", "archive",
-                "--format=tar.gz",
-                f"--output={out_path}",
-                "--prefix=PyRpiCamController/",
-                "HEAD",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=self.repo_dir,
-        )
-        if result.returncode != 0:
-            raise ProvisioningError(f"git archive failed: {result.stderr}")
+        """Produce a tar.gz build artifact from the current worktree.
+
+        The local build path must reflect the current checked-out files, including
+        uncommitted changes, while keeping the packaged VERSION aligned to the
+        requested release version so working-tree experiments do not alter the
+        release identity.
+        """
+        with tempfile.TemporaryDirectory() as stage_dir:
+            stage_root = Path(stage_dir) / "PyRpiCamController"
+            stage_root.mkdir(parents=True, exist_ok=True)
+
+            def _ignore_build_artifacts(_directory: str, names: list[str]) -> set[str]:
+                ignored = set()
+                for name in names:
+                    full_path = Path(_directory) / name
+                    rel_name = name.replace("\\", "/")
+                    if rel_name.startswith("."):
+                        ignored.add(name)
+                        continue
+                    if full_path.is_symlink():
+                        ignored.add(name)
+                        continue
+                    if rel_name in {".git", ".venv", "venv", "dist", "releases", "__pycache__", "_logs"}:
+                        ignored.add(name)
+                    elif rel_name == "debug_packaging.py":
+                        ignored.add(name)
+                    elif rel_name.endswith((".pyc", ".pyo", ".log", ".tmp")):
+                        ignored.add(name)
+                return ignored
+
+            shutil.copytree(
+                self.repo_dir,
+                stage_root,
+                dirs_exist_ok=True,
+                ignore=_ignore_build_artifacts,
+            )
+
+            version_file = stage_root / "VERSION"
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text(f"{self.release_version}\n", encoding="utf-8")
+
+            with tarfile.open(out_path, "w:gz") as tf:
+                tf.add(stage_root, arcname="PyRpiCamController")
 
     def _sha256_of(self, path: Path):
         import hashlib
@@ -834,7 +865,10 @@ class ProvisioningManager:
         self.wait_for_service_active("camcontroller-update.service", "OTA update daemon")
         self.wait_for_service_active("camcontroller-web.service", "Web GUI service")
 
-        self.verify_installed_version()
+        if self.skip_version_check:
+            print("  → Installed VERSION matches requested release... skipped (test mode)")
+        else:
+            self.verify_installed_version()
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
@@ -1232,6 +1266,11 @@ Examples:
         action="store_true",
         help="Validate CLI arguments and policy checks, then exit without provisioning"
     )
+    parser.add_argument(
+        "--skip-version-check",
+        action="store_true",
+        help="Do not fail provisioning when the installed VERSION differs from the requested release"
+    )
 
     args = parser.parse_args()
 
@@ -1317,6 +1356,7 @@ Examples:
         ota_admin_username=args.ota_admin_username,
         ota_admin_password=args.ota_admin_password,
     )
+    manager.skip_version_check = args.skip_version_check or args.local
 
     return manager.provision()
 

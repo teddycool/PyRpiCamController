@@ -61,15 +61,27 @@ class StreamState(BaseState.BaseState):
                 self._youtube_forward_frames_sent = 0
                 self._youtube_forward_frames_skipped = 0
                 self._youtube_forward_errors = 0
-            self._youtube_frame_interval = float(settings.get("Stream.youtube_frame_interval", 0.1))
+            self._youtube_frame_interval = float(settings.get("Stream.youtube_frame_interval", 0.0))
             self._youtube_frame_interval_with_clients = float(
-                settings.get("Stream.youtube_frame_interval_with_clients", 0.2)
+                settings.get("Stream.youtube_frame_interval_with_clients", 0.0)
             )
-            # Sanity-clamp: keep within 4–10 FPS range for YouTube compatibility
-            self._youtube_frame_interval = max(0.1, min(self._youtube_frame_interval, 0.25))
-            self._youtube_frame_interval_with_clients = max(
-                self._youtube_frame_interval, self._youtube_frame_interval_with_clients
-            )
+
+            # Derive frame interval from configured YouTube FPS if not explicitly set.
+            youtube_fps_raw = settings.get("Cam", {}).get("publishers", {}).get("youtube", {}).get("fps", {})
+            if isinstance(youtube_fps_raw, dict):
+                youtube_fps_raw = youtube_fps_raw.get("value", 10)
+            try:
+                youtube_fps = max(1, int(youtube_fps_raw))
+            except (TypeError, ValueError):
+                youtube_fps = 10
+            derived_interval = round(1.0 / youtube_fps, 6)
+
+            if self._youtube_frame_interval <= 0:
+                self._youtube_frame_interval = derived_interval
+            # Clamp: never faster than configured fps, never slower than 1 fps
+            self._youtube_frame_interval = max(derived_interval, min(self._youtube_frame_interval, 1.0))
+            # Relaxed-client interval is unused now but kept for stats display
+            self._youtube_frame_interval_with_clients = self._youtube_frame_interval
 
             youtube_settings = settings.get("Cam", {}).get("publishers", {}).get("youtube", {})
             youtube_enabled = False
@@ -117,6 +129,11 @@ class StreamState(BaseState.BaseState):
 
         def _forward_loop():
             logger.info("YouTube forwarder thread started")
+            # Track the last frame object we forwarded by identity to avoid
+            # re-processing the same frame when condition.notify_all() wakes us
+            # due to an MJPEG client poll rather than a genuinely new frame.
+            last_forwarded_frame = None
+
             while self._youtube_forward_running and self._youtube_publisher:
                 try:
                     output = self._streaming_server.output if self._streaming_server else None
@@ -124,33 +141,27 @@ class StreamState(BaseState.BaseState):
                         time.sleep(0.1)
                         continue
 
-                    # Wait for a new frame from the MJPEG buffer
+                    # Wait for a new frame. Use a short timeout so we stay
+                    # responsive to stop requests without polling too hard.
                     with output.condition:
-                        output.condition.wait(timeout=1.0)
+                        output.condition.wait(timeout=0.5)
                         frame = output.frame
 
-                    if frame is None:
+                    if frame is None or frame is last_forwarded_frame:
+                        # No new frame yet — loop back without counting a skip.
                         continue
 
                     with self._youtube_stats_lock:
                         self._youtube_forward_frames_seen += 1
 
-                    frame_time = time.monotonic()
-                    local_clients = getattr(output, "clients", 0)
-                    frame_interval = (
-                        self._youtube_frame_interval_with_clients
-                        if local_clients > 0
-                        else self._youtube_frame_interval
-                    )
-
-                    if self._last_youtube_frame and (frame_time - self._last_youtube_frame) < frame_interval:
-                        with self._youtube_stats_lock:
-                            self._youtube_forward_frames_skipped += 1
-                        continue
-
+                    # Send every frame to FFmpeg — no Python-side rate limiting.
+                    # FFmpeg has `-r <fps>` on the output side and will pick the
+                    # right frames and assign perfectly-spaced PTS timestamps.
+                    # Python-side skipping introduces irregular delivery intervals
+                    # which cause PTS drift and YouTube quality degradation.
                     published = self._youtube_publisher.publish(frame, metadata={"mode": "stream"})
                     if published:
-                        self._last_youtube_frame = frame_time
+                        last_forwarded_frame = frame
                         with self._youtube_stats_lock:
                             self._youtube_forward_frames_sent += 1
 

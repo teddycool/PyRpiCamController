@@ -58,6 +58,34 @@ For the connection to work, use the address and credetials on the provided stick
 
 ---
 
+## ⚪ White Balance Calibration (Important)
+
+White balance calibration is important for correct colors and stable image quality, especially when lighting conditions vary.
+
+### When to calibrate
+- Calibrate after first installation if your camera module is not factory-calibrated
+- Calibrate again if the camera is moved to a different environment/light source
+- Recalibrate if images look too warm (yellow/red) or too cold (blue)
+
+### Sensorwebben devices
+- If the camera is purchased from **sensorwebben.se**, white balance calibration is already done.
+- You can still recalibrate if your local lighting differs from the original setup.
+
+### How to run calibration in Web UI
+1. Open the Web UI at `http://[device-name].local`
+2. Go to **Advanced Settings**
+3. In the Camera section, use **Calibrate White Balance** (above **White Balance Mode**)
+4. Hold a white paper so it fills most of the camera view
+5. Start calibration and wait for completion
+
+### What happens automatically
+- Camera service is stopped temporarily if running
+- New manual WB gains are measured and saved
+- Auto White Balance is set to **off** (`Cam.awb_enable = false`)
+- Camera service starts again and continues in previous mode
+
+---
+
 ## 🔄 Network Behavior
 
 Your camera system intelligently handles network connectivity:

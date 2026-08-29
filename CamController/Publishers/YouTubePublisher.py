@@ -11,6 +11,22 @@ import threading
 import time
 import queue
 from urllib.parse import urlparse, urlunparse
+
+
+def _detect_pi_generation() -> int:
+    """Return Raspberry Pi generation (4, 5, …) or 4 as safe default."""
+    try:
+        with open("/proc/device-tree/model", "r") as f:
+            model = f.read()
+        if "Raspberry Pi 5" in model:
+            return 5
+        if "Raspberry Pi 4" in model:
+            return 4
+        if "Raspberry Pi 3" in model:
+            return 3
+    except Exception:
+        pass
+    return 4  # safe default
 from .PublisherBase import PublisherBase
 
 logger = logging.getLogger("cam.publisher.youtube")
@@ -48,9 +64,10 @@ class YouTubePublisher(PublisherBase):
         self._stats_lock = threading.Lock()
         
         # Phase 2: Async frame publishing via queue (always initialized, worker thread started on demand)
-        self._publish_queue = queue.Queue(maxsize=30)  # Drop frames if network/encoder can't keep up
+        self._publish_queue = queue.Queue(maxsize=10)  # 0.5s at 20fps input; drain on overflow
         self._publish_thread = None
         self._publish_thread_stop = False
+        self._stderr_reader_thread = None
         
         self._stats = {
             "started_at": None,
@@ -259,33 +276,56 @@ class YouTubePublisher(PublisherBase):
             # Phase 1: ultrafast preset + lower bitrate for Pi 3B+ optimization
             # Keep the known-working libx264 path for reliability; hardware encoders can be revisited later.
             bitrate_int = int(''.join(filter(str.isdigit, self.bitrate)) or '1500')
-            gop_size = max(10, self.fps * 2)
+            # GOP: 2-second keyframe interval; keyint_min = fps allows earlier keyframes
+            gop_size = max(self.fps, self.fps * 2)
+            keyint_min = self.fps
+            # VBV buffer: 2× bitrate — large enough for bursty frames but not so large
+            # that the rate-controller fights the encoder.
+            bufsize = f"{bitrate_int * 2}k"
+            # Preset: Pi5 has enough CPU for "fast"; Pi4 and below need "ultrafast"
+            # to stay below 150% CPU and avoid thermal throttling at 80°C+.
+            pi_gen = _detect_pi_generation()
+            x264_preset = "fast" if pi_gen >= 5 else "ultrafast"
+            logger.info("Detected Pi generation %d — using x264 preset '%s'", pi_gen, x264_preset)
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-hide_banner",
                 "-loglevel", "warning",
-                "-re",                          # Read input at native framerate
-                "-f", "mjpeg",                  # Input format: MJPEG
-                "-r", str(self.fps),             # Input framerate (FPS setting)
-                "-thread_queue_size", "512",   # Avoid blocking the MJPEG input queue
-                "-i", "pipe:0",                 # Read from stdin
+                # NOTE: No -re flag here. -re is for file playback and causes FFmpeg to
+                # artificially throttle a live stdin pipe, leading to internal queue
+                # build-up and PTS drift → YouTube buffering after ~30–60 s.
+                #
+                # -use_wallclock_as_timestamps 1: anchor PTS to real wall-clock time.
+                # Without this, FFmpeg generates PTS from frame-arrival deltas, which
+                # accumulate drift over minutes → YouTube ingest buffer fills up →
+                # quality downgrade. Wall-clock PTS keeps the stream locked to real-time.
+                #
+                # -r on OUTPUT only: let FFmpeg downsample from camera fps (20) to
+                # target fps (10) using its own fps filter with clean PTS.
+                "-use_wallclock_as_timestamps", "1",
+                "-f", "mjpeg",                  # Input format: MJPEG from camera pipe
+                "-thread_queue_size", "16",     # Small value — pipe:0 is always ready
+                "-i", "pipe:0",                 # Read MJPEG frames from stdin
                 "-f", "lavfi",
-                "-thread_queue_size", "64",    # Keep the audio side buffered too
+                "-thread_queue_size", "16",
                 "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",  # Silent audio
-                "-c:v", "libx264",              # Video codec: H.264 (software fallback)
+                "-c:v", "libx264",              # H.264 software encode
                 "-pix_fmt", "yuv420p",          # YouTube-compatible pixel format
+                "-color_range", "1",            # Explicitly limited/TV range — silences swscaler warnings
                 "-profile:v", "main",
-                "-g", str(gop_size),             # 2 s GOP at configured fps
-                "-keyint_min", str(gop_size),
-                "-sc_threshold", "0",
+                "-level", "4.0",
+                "-r", str(self.fps),            # OUTPUT framerate (downsamples 20fps → 10fps)
+                "-vsync", "cfr",                # Constant frame rate — no timestamp gaps or duplicates
+                "-g", str(gop_size),            # Max keyframe interval (2 s)
+                "-keyint_min", str(keyint_min), # Allow keyframe every 1 s if needed
+                "-sc_threshold", "0",           # Disable scene-cut keyframes (stable PTS)
                 "-b:v", self.bitrate,           # Target video bitrate
                 "-maxrate", self.bitrate,
-                "-bufsize", f"{bitrate_int * 4}k",  # Buffer = 4× bitrate for smooth output
-                "-preset", "ultrafast",         # Maximum speed for Pi 3B+
-                "-tune", "zerolatency",         # Low-latency streaming behaviour
+                "-bufsize", bufsize,            # VBV buffer = 2× bitrate
+                "-preset", x264_preset,         # Pi5: fast; Pi4/older: ultrafast (CPU budget)
                 "-c:a", "aac",                  # Audio codec
-                "-b:a", "96k",                  # Audio bitrate (silent source)
-                "-f", "flv",                    # Output container: FLV (RTMPS-compatible)
+                "-b:a", "96k",
+                "-f", "flv",                    # FLV container for RTMPS
                 full_url,
             ]
 
@@ -301,8 +341,8 @@ class YouTubePublisher(PublisherBase):
             self._connection_active = True
             self._retry_count = 0
             logger.info(
-                "FFmpeg process started (PID: %d) for YouTube streaming using libx264 (ultrafast)",
-                self._ffmpeg_process.pid
+                "FFmpeg process started (PID: %d) for YouTube streaming using libx264 (%s)",
+                self._ffmpeg_process.pid, x264_preset
             )
             
             # Phase 2: Start background publish thread for async frame delivery
@@ -339,9 +379,10 @@ class YouTubePublisher(PublisherBase):
         """Start the background thread that publishes frames from queue to FFmpeg."""
         if self._publish_thread is not None and self._publish_thread.is_alive():
             return  # Already running
-        
-        # Create frame queue: max 30 frames (3 sec at 10 FPS) to allow burst but drop old frames on overflow
-        self._publish_queue = queue.Queue(maxsize=30)
+
+        # 10-frame queue = ~0.5 s at 20 fps input. On overflow we drain stale
+        # frames so FFmpeg never receives a burst of backlogged content.
+        self._publish_queue = queue.Queue(maxsize=10)
         self._publish_thread_stop = False
         self._publish_thread = threading.Thread(
             target=self._publish_worker,
@@ -350,6 +391,27 @@ class YouTubePublisher(PublisherBase):
         )
         self._publish_thread.start()
         logger.info("YouTube publish worker thread started")
+
+        # Start a background stderr reader so FFmpeg warnings are visible in logs
+        self._stderr_reader_thread = threading.Thread(
+            target=self._stderr_reader,
+            daemon=True,
+            name="YouTubeFFmpegStderr"
+        )
+        self._stderr_reader_thread.start()
+
+    def _stderr_reader(self):
+        """Continuously drain FFmpeg stderr and log it so warnings are visible."""
+        try:
+            proc = self._ffmpeg_process
+            if proc is None or proc.stderr is None:
+                return
+            for raw_line in proc.stderr:
+                line = raw_line.decode("utf-8", errors="replace").rstrip()
+                if line:
+                    logger.warning("[ffmpeg] %s", line)
+        except Exception:
+            pass  # Process exited — normal shutdown path
 
     def _publish_worker(self):
         """Background worker thread: consume frames from queue and write to FFmpeg stdin."""
@@ -496,18 +558,36 @@ class YouTubePublisher(PublisherBase):
         # Convert to bytes if needed
         frame_data = bytes(jpgimagedata) if isinstance(jpgimagedata, bytearray) else jpgimagedata
         
-        # Try to queue frame without blocking the main thread
-        # If queue is full (backpressure), drop the oldest frame via Full exception
+        # Try to queue frame without blocking the main thread.
+        # When the queue is full, drain ALL stale frames and send only the latest.
+        # Keeping old frames causes FFmpeg to receive a burst of backlogged content
+        # delivered too fast, which YouTube's ingest server interprets as network
+        # instability and triggers a quality downgrade.
         try:
             self._publish_queue.put(frame_data, block=False)
             return True
         except queue.Full:
-            # Queue full: network/encoder can't keep up, drop frame
+            # Drain stale frames, then enqueue the fresh one
+            drained = 0
+            while True:
+                try:
+                    self._publish_queue.get_nowait()
+                    drained += 1
+                except queue.Empty:
+                    break
+            try:
+                self._publish_queue.put(frame_data, block=False)
+            except queue.Full:
+                drained += 1  # Extremely unlikely; count it
             with self._stats_lock:
-                self._stats["frame_dropped"] += 1
+                self._stats["frame_dropped"] += drained
                 self._stats["publish_errors"] += 1
-                self._stats["last_error"] = "queue_full_dropped"
-            logger.debug("YouTube publish queue full, dropping frame (network congestion)")
+                self._stats["last_error"] = f"queue_drained_{drained}"
+            logger.warning(
+                "YouTube publish queue backed up — drained %d stale frame(s). "
+                "Check network or encoder throughput.",
+                drained,
+            )
             return False
         except Exception as e:
             logger.error("Failed to queue frame to YouTube: %s", e, exc_info=True)

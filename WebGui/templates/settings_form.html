@@ -48,10 +48,17 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         h1 {
             color: var(--primary-color);
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 8px;
             font-size: 2.2rem;
             font-weight: 600;
             text-shadow: 0 2px 4px rgba(44, 90, 160, 0.1);
+        }
+        .device-hostname {
+            text-align: center;
+            font-size: 1rem;
+            color: var(--secondary-color);
+            margin-bottom: 22px;
+            font-weight: 500;
         }
         .section {
             margin-bottom: 30px;
@@ -513,6 +520,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
         }
         .device-action-button.shutdown {
             background: linear-gradient(135deg, #c0392b 0%, #8e2a2a 100%);
+        }
+        .device-action-button.calibrate {
+            background: linear-gradient(135deg, #16a085 0%, #1f6f8b 100%);
         }
         .device-action-desc {
             margin: 10px 0 0 0;
@@ -1177,6 +1187,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
 <body>
     <div class="container">
         <h1>Camera Controller Settings</h1>
+        <div class="device-hostname">Camera: {{ hostname }}</div>
         
         <!-- Temperature Status Header -->
         <div class="temperature-header">
@@ -1220,6 +1231,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 <p class="device-action-desc">Powers the camera device off completely. After it is off, unplug it and plug it back in to restart it.</p>
             </div>
         </div>
+        <div class="device-actions-status" id="deviceActionsStatus">Ready to stop/start the camera service, restart, or shut down the camera device.</div>
         
         <!-- Status/Basic/Advanced/Docs Tabs -->
         <div class="tabs">
@@ -1279,7 +1291,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     </div>
                     
                     <p class="status-note">Streaming is controlled by the Mode setting above. Set Mode to "Stream" and restart the service to enable streaming.</p>
-                    
+
                     <div class="stream-info" id="streamInfo" style="display: none;">
                         <div class="info-item">
                             <label>Stream URL:</label>
@@ -1505,6 +1517,15 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 <h2 class="section-title">{{ section_name }}</h2>
                 <div class="section-content">
                     {% for field_path, field_info in section_fields %}
+                    {% if current_level == 'advanced' and field_path == 'Cam.white_balance_mode' %}
+                    <div class="device-action-card" style="margin: 2px 0 18px 0;">
+                        <button type="button" class="device-action-button calibrate" id="wbCalibrateBtn">
+                            🎯 Calibrate White Balance
+                        </button>
+                        <p class="device-action-desc">Place a white paper in front of the camera (filling most of the frame), then start calibration. The camera service is stopped automatically during calibration and restarted afterwards if it was running.</p>
+                        <div class="device-actions-status" id="wbCalibrationStatus" style="margin-top: 10px;">Ready for white balance calibration.</div>
+                    </div>
+                    {% endif %}
                     <div class="form-group">
                         <label for="{{ field_path }}">{{ field_info.name }}</label>
                         
@@ -1657,6 +1678,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             setupAutoSave();
             initStreamingControls();
             initApplyControls();
+            initWbCalibrationControls();
             updateStreamStatus();
             updateTemperatureStatus();
             updatePendingChanges();
@@ -2292,13 +2314,108 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             }
         }
 
+        function updateWbCalibrationStatus(message, isError = false) {
+            const status = document.getElementById('wbCalibrationStatus');
+            if (!status) {
+                return;
+            }
+
+            status.textContent = message;
+            status.style.borderLeftColor = isError ? '#dc3545' : 'var(--secondary-color)';
+            status.style.backgroundColor = isError ? 'rgba(220, 53, 69, 0.12)' : 'rgba(44, 90, 160, 0.08)';
+        }
+
+        function initWbCalibrationControls() {
+            const calibrateBtn = document.getElementById('wbCalibrateBtn');
+            if (!calibrateBtn) {
+                return;
+            }
+
+            calibrateBtn.addEventListener('click', startWhiteBalanceCalibration);
+        }
+
+        async function startWhiteBalanceCalibration() {
+            const calibrateBtn = document.getElementById('wbCalibrateBtn');
+            if (!calibrateBtn) {
+                return;
+            }
+
+            const confirmed = window.confirm(
+                'Place a white paper so it fills most of the frame, keep normal lighting, then click OK to start white balance calibration. The camera service will be temporarily stopped and restarted automatically.'
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            calibrateBtn.disabled = true;
+            updateDeviceActionStatus('White balance calibration in progress. Camera service will be restored automatically.');
+            updateWbCalibrationStatus('Calibrating white balance... this can take around 10-20 seconds.');
+
+            try {
+                const response = await fetch('/api/tools/wb-calibrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.success) {
+                    const red = Number(data.white_balance_red_gain).toFixed(4);
+                    const blue = Number(data.white_balance_blue_gain).toFixed(4);
+                    const restartText = data.service_restarted
+                        ? 'camera service restarted in previous mode.'
+                        : 'camera service was not running, no restart required.';
+
+                    const redField = document.getElementById('Cam.white_balance_red_gain');
+                    const blueField = document.getElementById('Cam.white_balance_blue_gain');
+                    const awbField = document.getElementById('Cam.awb_enable');
+
+                    if (redField) {
+                        redField.value = red;
+                    }
+                    if (blueField) {
+                        blueField.value = blue;
+                    }
+                    if (awbField && awbField.type === 'checkbox') {
+                        awbField.checked = false;
+                    }
+
+                    const statusMessage = `Calibration complete. Manual WB set to R=${red}, B=${blue}; ${restartText}`;
+                    updateWbCalibrationStatus(statusMessage);
+                    updateDeviceActionStatus(data.message || 'White balance calibration completed.');
+                    showMessage(statusMessage, 'success');
+
+                    await refreshCameraServiceState();
+                    updateStreamStatus();
+                    updateTemperatureStatus();
+                    updatePendingChanges();
+                } else {
+                    const errorMessage = data.error || data.message || 'White balance calibration failed.';
+                    updateWbCalibrationStatus(`Calibration failed: ${errorMessage}`, true);
+                    updateDeviceActionStatus('White balance calibration failed.');
+                    showMessage(errorMessage, 'error');
+                    await refreshCameraServiceState();
+                }
+            } catch (error) {
+                console.error('WB calibration failed:', error);
+                updateWbCalibrationStatus('Calibration failed due to connection or server error.', true);
+                updateDeviceActionStatus('White balance calibration failed. Please try again.');
+                showMessage('White balance calibration failed. Please try again.', 'error');
+                await refreshCameraServiceState();
+            } finally {
+                calibrateBtn.disabled = false;
+            }
+        }
+
         function setDeviceActionButtonsDisabled(disabled) {
             const pauseButton = document.getElementById('pauseCameraBtn');
             const rebootButton = document.getElementById('rebootDeviceBtn');
             const shutdownButton = document.getElementById('shutdownDeviceBtn');
+            const calibrateButton = document.getElementById('wbCalibrateBtn');
             if (pauseButton) pauseButton.disabled = disabled;
             if (rebootButton) rebootButton.disabled = disabled;
             if (shutdownButton) shutdownButton.disabled = disabled;
+            if (calibrateButton) calibrateButton.disabled = disabled;
         }
 
         // Auto-save functionality with change tracking
