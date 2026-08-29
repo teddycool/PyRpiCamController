@@ -16,6 +16,8 @@ import shutil
 import logging
 import threading
 import re
+import statistics
+import importlib
 from typing import Any
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -129,6 +131,165 @@ def _run_systemctl_for_camera(action: str, timeout_seconds: int = 20):
         return False, 'systemctl command timed out'
     except Exception as exc:
         return False, str(exc)
+
+
+def _normalize_resolution(value: Any, fallback: tuple[int, int] = (1280, 720)) -> tuple[int, int]:
+    """Return a safe (width, height) resolution tuple for camera calibration."""
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        try:
+            width = int(value[0])
+            height = int(value[1])
+            if width > 0 and height > 0:
+                return (width, height)
+        except (TypeError, ValueError):
+            pass
+    return fallback
+
+
+def _extract_colour_gains(metadata: Any) -> tuple[float, float] | None:
+    """Extract ColourGains from libcamera metadata when available."""
+    if not isinstance(metadata, dict):
+        return None
+
+    gains = metadata.get("ColourGains")
+    if gains is None:
+        gains = metadata.get("ColorGains")
+
+    if not isinstance(gains, (list, tuple)) or len(gains) < 2:
+        return None
+
+    try:
+        return float(gains[0]), float(gains[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def _compute_center_luma(rgb_frame: Any) -> float | None:
+    """Estimate center-frame luma to detect too dark/overexposed calibration scenes."""
+    try:
+        if rgb_frame is None or len(rgb_frame.shape) < 3:
+            return None
+
+        height, width = int(rgb_frame.shape[0]), int(rgb_frame.shape[1])
+        if height <= 0 or width <= 0:
+            return None
+
+        x0 = int(width * 0.25)
+        x1 = int(width * 0.75)
+        y0 = int(height * 0.25)
+        y1 = int(height * 0.75)
+        roi = rgb_frame[y0:y1, x0:x1]
+
+        if roi is None or getattr(roi, 'size', 0) == 0:
+            return None
+
+        channel_means = roi.mean(axis=(0, 1))
+        if len(channel_means) < 3:
+            return None
+
+        red = float(channel_means[0])
+        green = float(channel_means[1])
+        blue = float(channel_means[2])
+        return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+    except Exception:
+        return None
+
+
+def _capture_white_balance_gains_from_reference() -> dict[str, Any]:
+    """Capture AWB-derived colour gains from a white reference scene."""
+    try:
+        picamera2_module = importlib.import_module('picamera2')
+        Picamera2 = getattr(picamera2_module, 'Picamera2')
+    except Exception as exc:
+        raise RuntimeError(f"Picamera2 is unavailable for WB calibration: {exc}") from exc
+
+    try:
+        libcamera = importlib.import_module('libcamera')
+    except Exception:
+        libcamera = None
+
+    camera_index_raw = settings_manager.get('CamInterface', 0)
+    try:
+        camera_index = max(0, int(camera_index_raw))
+    except (TypeError, ValueError):
+        camera_index = 0
+
+    resolution = _normalize_resolution(settings_manager.get('Cam.resolution', [1280, 720]))
+
+    cam = None
+    samples: list[tuple[float, float]] = []
+    luma_samples: list[float] = []
+
+    try:
+        try:
+            cam = Picamera2(camera_num=camera_index)
+        except TypeError:
+            cam = Picamera2()
+
+        still_config = cam.create_still_configuration(main={"format": "RGB888", "size": resolution})
+        cam.configure(still_config)
+        cam.start(show_preview=False)
+
+        controls: dict[str, Any] = {"AwbEnable": True}
+        if libcamera is not None:
+            controls["AwbMode"] = libcamera.controls.AwbModeEnum.Auto
+        cam.set_controls(controls)
+
+        time.sleep(1.2)
+
+        for _ in range(14):
+            request_obj = cam.capture_request()
+            metadata = request_obj.get_metadata()
+            frame = request_obj.make_array("main")
+            request_obj.release()
+
+            gains = _extract_colour_gains(metadata)
+            if gains is not None:
+                samples.append(gains)
+
+            luma = _compute_center_luma(frame)
+            if luma is not None:
+                luma_samples.append(luma)
+
+            time.sleep(0.05)
+
+    finally:
+        if cam is not None:
+            try:
+                cam.stop()
+            except Exception:
+                pass
+            try:
+                cam.close()
+            except Exception:
+                pass
+
+    if not samples:
+        raise RuntimeError("Could not read AWB colour gains from camera metadata. Try again with white paper filling most of the image.")
+
+    if luma_samples:
+        avg_luma = float(sum(luma_samples) / len(luma_samples))
+        if avg_luma < 40:
+            raise RuntimeError("Calibration scene is too dark. Increase light and try again.")
+        if avg_luma > 248:
+            raise RuntimeError("Calibration scene is overexposed. Reduce light/exposure and try again.")
+    else:
+        avg_luma = None
+
+    red_gain = float(statistics.median(sample[0] for sample in samples))
+    blue_gain = float(statistics.median(sample[1] for sample in samples))
+
+    red_gain = max(0.5, min(8.0, red_gain))
+    blue_gain = max(0.5, min(8.0, blue_gain))
+
+    return {
+        'red_gain': round(red_gain, 4),
+        'blue_gain': round(blue_gain, 4),
+        'sample_count': len(samples),
+        'avg_luma': round(avg_luma, 2) if avg_luma is not None else None,
+        'resolution': [int(resolution[0]), int(resolution[1])],
+        'camera_index': camera_index,
+    }
 
 
 WEB_LOGGER = _setup_web_logger()
@@ -717,6 +878,7 @@ def index():
     level = request.args.get('level', 'status')  # Default to status overview
     if level not in {'status', 'basic', 'advanced', 'metrics', 'docs'}:
         level = 'status'
+    hostname = socket.gethostname()
     settings_manager.load_user_settings()
     
     # Display form
@@ -750,7 +912,8 @@ def index():
         "settings_form.html",
         grouped_schema=filtered_schema,
         current_values=current_values,
-        current_level=level
+        current_level=level,
+        hostname=hostname,
     )
 
 def convert_form_value(raw_value, schema_info):
@@ -1267,6 +1430,95 @@ def camera_service_toggle():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/tools/wb-calibrate", methods=["POST"])
+def calibrate_white_balance():
+    """Calibrate manual WB gains using a white reference and restart service if needed."""
+    service_was_active = False
+    service_stopped_for_calibration = False
+    service_restarted = False
+
+    try:
+        settings_manager.load_user_settings()
+        service_was_active = _is_camera_service_active()
+
+        if service_was_active:
+            stop_ok, stop_err = _run_systemctl_for_camera('stop', timeout_seconds=30)
+            if not stop_ok:
+                stop_message = stop_err or 'Failed to stop camera service before calibration.'
+                return jsonify({'error': stop_message}), 500
+
+            time.sleep(1.0)
+            if _is_camera_service_active():
+                return jsonify({'error': 'Camera service is still running and blocks calibration.'}), 409
+
+            service_stopped_for_calibration = True
+
+        calibration = _capture_white_balance_gains_from_reference()
+
+        red_gain = calibration['red_gain']
+        blue_gain = calibration['blue_gain']
+
+        settings_manager.set('Cam.white_balance_red_gain', red_gain, save=True)
+        settings_manager.set('Cam.white_balance_blue_gain', blue_gain, save=True)
+        settings_manager.set('Cam.awb_enable', False, save=True)
+        settings_manager.set('Cam.white_balance_mode', 'auto', save=True)
+
+        WEB_LOGGER.info(
+            'WB calibration completed red_gain=%s blue_gain=%s samples=%s luma=%s',
+            red_gain,
+            blue_gain,
+            calibration.get('sample_count'),
+            calibration.get('avg_luma'),
+        )
+
+        if service_was_active:
+            start_ok, start_err = _run_systemctl_for_camera('start', timeout_seconds=30)
+            if not start_ok:
+                start_message = start_err or 'Failed to restart camera service after calibration.'
+                raise RuntimeError(start_message)
+
+            time.sleep(1.0)
+            if not _is_camera_service_active():
+                raise RuntimeError('Camera service restart did not reach active state after calibration.')
+
+            service_restarted = True
+
+        clear_pending_changes()
+
+        restart_text = 'Camera service restarted and resumed previous mode.' if service_restarted else 'Camera service was not running, so no restart was needed.'
+
+        return jsonify({
+            'success': True,
+            'message': f'White balance calibrated. {restart_text}',
+            'white_balance_red_gain': red_gain,
+            'white_balance_blue_gain': blue_gain,
+            'awb_enable': False,
+            'service_was_active': service_was_active,
+            'service_restarted': service_restarted,
+            'calibration': calibration,
+        })
+    except Exception as exc:
+        recovery_started = False
+        recovery_error = None
+
+        if service_was_active and service_stopped_for_calibration and not service_restarted:
+            recovery_started, recovery_error = _run_systemctl_for_camera('start', timeout_seconds=30)
+            if recovery_started:
+                time.sleep(1.0)
+
+        error_message = str(exc)
+        if recovery_started:
+            error_message = f'{error_message} Camera service was restarted as recovery.'
+        elif recovery_error:
+            error_message = f'{error_message} Recovery start failed: {recovery_error}'
+
+        WEB_LOGGER.exception('WB calibration failed')
+        return jsonify({
+            'error': error_message,
+            'service_recovered': recovery_started,
+        }), 500
 
 
 @app.route("/api/tools/fs-health", methods=["GET"])

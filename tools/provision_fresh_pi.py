@@ -42,6 +42,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import tarfile
+import shutil
 from pathlib import Path
 
 
@@ -54,7 +56,7 @@ DEFAULT_SSH_PUBKEY_CANDIDATES = [
 
 class ProvisioningError(Exception):
     """Base exception for provisioning errors."""
-    pass
+    ...
 
 
 class ProvisioningManager:
@@ -67,7 +69,8 @@ class ProvisioningManager:
                  skip_enrollment=False, ssh_timeout=60, local=False,
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
                  lock_password=True, use_cached_password=False, cache_password=False,
-                 production=False):
+                 production=False, cam_interface=None, ssh_password=None,
+                 ota_admin_username=None, ota_admin_password=None):
         """
         Initialize provisioning manager.
 
@@ -87,6 +90,10 @@ class ProvisioningManager:
             ssh_posture: Post-provision SSH posture: keep, key-only, or disable
             ssh_pubkey: Optional path to local public key to install on Pi
             lock_password: Lock the Pi user's password after provisioning
+            cam_interface: Optional Picamera2 camera interface index (RPi5 CSI port: 0 or 1)
+            ssh_password: Optional initial SSH password for the Pi (test only; not cached)
+            ota_admin_username: Optional OTA admin username for enrollment
+            ota_admin_password: Optional OTA admin password for enrollment
         """
         self.pi_ip = pi_ip
         self.pi_user = pi_user
@@ -107,6 +114,12 @@ class ProvisioningManager:
         self.use_cached_password = use_cached_password
         self.cache_password = cache_password
         self.production = production
+        self.cam_interface = cam_interface
+        self.ssh_password = ssh_password
+        self.ota_admin_username = ota_admin_username
+        self.ota_admin_password = ota_admin_password
+        self.skip_version_check = False
+        self._temp_ssh_key_priv = None
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
 
@@ -168,9 +181,53 @@ class ProvisioningManager:
         try:
             self.CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
             self.CACHE_FILE.chmod(0o600)  # readable/writable only by owner
-            print(f"  ℹ  Password cached for future use (~/.provision_cache.json)")
+            print("  ℹ  Password cached for future use (~/.provision_cache.json)")
         except OSError as e:
             print(f"  ⚠  Could not cache password: {e}")
+
+    def _build_askpass_env(self, password: str) -> tuple[dict[str, str], str]:
+        """Return env vars and a temporary askpass script that prints password."""
+        env = os.environ.copy()
+        askpass_script = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".sh")
+        askpass_script.write("#!/bin/sh\n")
+        askpass_script.write(f"printf '%s\\n' {shlex.quote(password)}\n")
+        askpass_script.close()
+        os.chmod(askpass_script.name, 0o700)
+        env["SSH_ASKPASS"] = askpass_script.name
+        env["SSH_ASKPASS_REQUIRE"] = "force"
+        env["DISPLAY"] = ":0"
+        return env, askpass_script.name
+
+    def _ensure_temp_ssh_keypair(self) -> None:
+        """Generate a temporary SSH keypair for enrollment when only a password is available."""
+        if self.ssh_pubkey or self._temp_ssh_key_priv or not self.ssh_password:
+            return
+
+        key_dir = Path(tempfile.mkdtemp(prefix="prov_key_"))
+        privkey = key_dir / "prov_ed25519"
+        result = subprocess.run(
+            [
+                "ssh-keygen",
+                "-q",
+                "-t",
+                "ed25519",
+                "-N",
+                "",
+                "-f",
+                str(privkey),
+                "-C",
+                f"pyrpi-prov-{self.pi_ip}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        pubkey = Path(f"{privkey}.pub")
+        if result.returncode != 0 or not privkey.exists() or not pubkey.exists():
+            raise ProvisioningError(f"Could not generate temporary SSH keypair: {result.stderr}")
+
+        self.ssh_pubkey = pubkey
+        self._temp_ssh_key_priv = privkey
 
     def _clear_cached_password(self):
         """Remove cached password for this Pi from cache file."""
@@ -211,19 +268,21 @@ class ProvisioningManager:
                 print("[0/5] Opening SSH session (no cached password found; you may be prompted)...")
         else:
             print("[0/5] Opening SSH session (you may be prompted for password once)...")
+
+        if self.ssh_password and not cached_password:
+            cached_password = self.ssh_password
+            print("[0/5] Opening SSH session (using provided SSH password)...")
         
         env = os.environ.copy()
         askpass_script = None
         
         # If we have a cached password, use SSH_ASKPASS to provide it programmatically
         if cached_password:
-            askpass_script = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.sh')
-            askpass_script.write(f"#!/bin/sh\necho '{shlex.quote(cached_password)}'\n")
-            askpass_script.close()
-            os.chmod(askpass_script.name, 0o700)
-            env["SSH_ASKPASS"] = askpass_script.name
-            env["SSH_ASKPASS_REQUIRE"] = "force"
-            env["DISPLAY"] = ":0"  # Required for SSH_ASKPASS to work
+            env, askpass_path = self._build_askpass_env(cached_password)
+            askpass_script = type("_Askpass", (), {"name": askpass_path})()
+        elif self.ssh_password:
+            env, askpass_path = self._build_askpass_env(self.ssh_password)
+            askpass_script = type("_Askpass", (), {"name": askpass_path})()
         
         try:
             result = subprocess.run(
@@ -241,6 +300,7 @@ class ProvisioningManager:
                     f"{self.pi_user}@{self.pi_ip}",
                 ],
                 env=env,
+                check=False,
             )
             if result.returncode != 0:
                 # If cached password failed, clear it and raise error
@@ -273,6 +333,7 @@ class ProvisioningManager:
                 ["ssh", "-o", f"ControlPath={self._ctl_socket}", "-O", "exit",
                  f"{self.pi_user}@{self.pi_ip}"],
                 capture_output=True,
+                check=False,
             )
             self._ctl_socket = None
 
@@ -364,21 +425,49 @@ class ProvisioningManager:
             raise ProvisioningError(f"SCP pull failed: {result.stderr}")
 
     def _build_local_tarball(self, out_path: Path):
-        """Produce a tar.gz build artifact into out_path (git archive HEAD)."""
-        result = subprocess.run(
-            [
-                "git", "archive",
-                "--format=tar.gz",
-                f"--output={out_path}",
-                "--prefix=PyRpiCamController/",
-                "HEAD",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=self.repo_dir,
-        )
-        if result.returncode != 0:
-            raise ProvisioningError(f"git archive failed: {result.stderr}")
+        """Produce a tar.gz build artifact from the current worktree.
+
+        The local build path must reflect the current checked-out files, including
+        uncommitted changes, while keeping the packaged VERSION aligned to the
+        requested release version so working-tree experiments do not alter the
+        release identity.
+        """
+        with tempfile.TemporaryDirectory() as stage_dir:
+            stage_root = Path(stage_dir) / "PyRpiCamController"
+            stage_root.mkdir(parents=True, exist_ok=True)
+
+            def _ignore_build_artifacts(_directory: str, names: list[str]) -> set[str]:
+                ignored = set()
+                for name in names:
+                    full_path = Path(_directory) / name
+                    rel_name = name.replace("\\", "/")
+                    if rel_name.startswith("."):
+                        ignored.add(name)
+                        continue
+                    if full_path.is_symlink():
+                        ignored.add(name)
+                        continue
+                    if rel_name in {".git", ".venv", "venv", "dist", "releases", "__pycache__", "_logs"}:
+                        ignored.add(name)
+                    elif rel_name == "debug_packaging.py":
+                        ignored.add(name)
+                    elif rel_name.endswith((".pyc", ".pyo", ".log", ".tmp")):
+                        ignored.add(name)
+                return ignored
+
+            shutil.copytree(
+                self.repo_dir,
+                stage_root,
+                dirs_exist_ok=True,
+                ignore=_ignore_build_artifacts,
+            )
+
+            version_file = stage_root / "VERSION"
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text(f"{self.release_version}\n", encoding="utf-8")
+
+            with tarfile.open(out_path, "w:gz") as tf:
+                tf.add(stage_root, arcname="PyRpiCamController")
 
     def _sha256_of(self, path: Path):
         import hashlib
@@ -658,6 +747,9 @@ class ProvisioningManager:
         elif self.non_interactive:
             installer_args.append("--non-interactive")
 
+        if self.cam_interface is not None:
+            installer_args.extend(["--cam-interface", str(self.cam_interface)])
+
         cmd = f"cd ~/PyRpiCamController && {' '.join(installer_args)}"
 
         print("  (Output streamed live — this can take 15–20 min on a Pi 3)\n")
@@ -718,6 +810,12 @@ class ProvisioningManager:
         # without an interactive password prompt.
         self._install_pubkey_on_pi()
 
+        enroll_env = os.environ.copy()
+        enroll_askpass = None
+        if self.ssh_password:
+            enroll_env, enroll_askpass_path = self._build_askpass_env(self.ssh_password)
+            enroll_askpass = enroll_askpass_path
+
         enroll_cmd = [
             sys.executable,
             str(self.repo_dir / "tools" / "secure_enroll_device.py"),
@@ -725,6 +823,12 @@ class ProvisioningManager:
             "--name", self.device_name,
             "--location", self.location,
         ]
+
+        if self.ota_admin_username:
+            enroll_cmd.extend(["--admin-username", self.ota_admin_username])
+
+        if self.ota_admin_password:
+            enroll_cmd.extend(["--admin-password", self.ota_admin_password])
 
         # Pass private key derived from --ssh-pubkey (strip .pub suffix)
         if self.ssh_pubkey:
@@ -736,7 +840,7 @@ class ProvisioningManager:
             enroll_cmd.extend(["--backend-url", self.backend_url])
 
         try:
-            subprocess.run(enroll_cmd, check=True, timeout=180)
+            subprocess.run(enroll_cmd, check=True, timeout=180, env=enroll_env)
             print("\n  ✓ Device enrollment successful")
         except subprocess.CalledProcessError as e:
             raise ProvisioningError(
@@ -746,6 +850,12 @@ class ProvisioningManager:
             raise ProvisioningError(
                 "Device enrollment timed out (180s)"
             )
+        finally:
+            if enroll_askpass:
+                try:
+                    os.unlink(enroll_askpass)
+                except OSError:
+                    pass
 
     def verify_installation(self):
         """Verify installation success."""
@@ -755,7 +865,10 @@ class ProvisioningManager:
         self.wait_for_service_active("camcontroller-update.service", "OTA update daemon")
         self.wait_for_service_active("camcontroller-web.service", "Web GUI service")
 
-        self.verify_installed_version()
+        if self.skip_version_check:
+            print("  → Installed VERSION matches requested release... skipped (test mode)")
+        else:
+            self.verify_installed_version()
 
         checks = [
             ("[[ -f ~/PyRpiCamController/CamController/hwconfig.py ]]", "Hardware config file"),
@@ -966,6 +1079,10 @@ class ProvisioningManager:
             print(f"Location: {self.location}")
             print("=" * 60)
 
+            # If only a password is available, create a temporary keypair so
+            # enrollment can switch to key-based SSH without prompting.
+            self._ensure_temp_ssh_keypair()
+
             # If --cache-password is set, prompt for password now
             if self.cache_password:
                 import getpass
@@ -1005,6 +1122,20 @@ class ProvisioningManager:
             return 1
         finally:
             self.close_ssh_session()
+            if self._temp_ssh_key_priv:
+                try:
+                    key_dir = self._temp_ssh_key_priv.parent
+                    for path in key_dir.iterdir():
+                        try:
+                            path.unlink()
+                        except OSError:
+                            pass
+                    try:
+                        key_dir.rmdir()
+                    except OSError:
+                        pass
+                except OSError:
+                    pass
 
 
 def main():
@@ -1112,12 +1243,39 @@ Examples:
         help="Enable production policy checks (requires hardened SSH posture and password lock)"
     )
     parser.add_argument(
+        "--cam-interface",
+        type=int,
+        help="Picamera2 camera interface index to use (RPi5 CSI port: usually 0 or 1)"
+    )
+    parser.add_argument(
+        "--ssh-password",
+        help="Temporary SSH password for the Pi (test use only; not cached)"
+    )
+    parser.add_argument(
+        "--ota-admin-username",
+        default=os.environ.get("OTA_ADMIN_USERNAME", "admin"),
+        help="OTA admin username for enrollment (default: env OTA_ADMIN_USERNAME or admin)"
+    )
+    parser.add_argument(
+        "--ota-admin-password",
+        default=os.environ.get("OTA_ADMIN_PASSWORD", ""),
+        help="OTA admin password for enrollment (default: env OTA_ADMIN_PASSWORD)"
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate CLI arguments and policy checks, then exit without provisioning"
     )
+    parser.add_argument(
+        "--skip-version-check",
+        action="store_true",
+        help="Do not fail provisioning when the installed VERSION differs from the requested release"
+    )
 
     args = parser.parse_args()
+
+    if args.cam_interface is not None and args.cam_interface < 0:
+        parser.error("--cam-interface must be a non-negative integer (for RPi5 use 0 or 1)")
 
     def resolve_ssh_pubkey(pubkey_arg, require_key=False):
         """Resolve and validate SSH public key path before provisioning starts."""
@@ -1193,7 +1351,12 @@ Examples:
         use_cached_password=args.use_cached_password,
         cache_password=args.cache_password,
         production=args.production,
+        cam_interface=args.cam_interface,
+        ssh_password=args.ssh_password,
+        ota_admin_username=args.ota_admin_username,
+        ota_admin_password=args.ota_admin_password,
     )
+    manager.skip_version_check = args.skip_version_check or args.local
 
     return manager.provision()
 

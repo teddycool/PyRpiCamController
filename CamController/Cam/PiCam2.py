@@ -6,7 +6,7 @@ __author__ = 'teddycool'
 
 from Cam import CamBase
 from Cam import camera_settings
-from picamera2 import Picamera2
+from Cam import picamera_interface
 from picamera2.encoders import MJPEGEncoder
 from picamera2.outputs import FileOutput
 import libcamera
@@ -35,6 +35,7 @@ class PiCam2(CamBase.CamBase):
         self._cam = None
         self._camera_config = None
         self._logger = logger
+        self._camera_interface = 0
 
     def _setting_or_default(self, settings: dict[str, Any], path: str, default: Any) -> Any:
         current: Any = settings
@@ -190,7 +191,11 @@ class PiCam2(CamBase.CamBase):
 
     def start(self, settings: dict[str, Any]) -> None:
         res = self._resolve_image_resolution(settings)
-        self._cam = Picamera2()
+        self._cam, self._camera_interface = picamera_interface.create_picamera2(
+            settings,
+            self._logger,
+            self._camera_name,
+        )
         self._current_mode = "cam"
         self._current_image_resolution = res
         self._current_stream_resolution = None
@@ -199,7 +204,12 @@ class PiCam2(CamBase.CamBase):
         self._camera_config = self._cam.create_still_configuration(
             main={"format": "RGB888", "size": res}
         )
-        self._logger.info("%s still config: %s", self._camera_name, str(self._camera_config.get("main")))
+        self._logger.info(
+            "%s still config: %s (interface=%s)",
+            self._camera_name,
+            str(self._camera_config.get("main")),
+            self._camera_interface,
+        )
         self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
         self._last_started_at = time.time()
@@ -233,7 +243,11 @@ class PiCam2(CamBase.CamBase):
             settings = {}
         stream_res = self._resolve_stream_resolution(settings)
         stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
-        self._cam = Picamera2()
+        self._cam, self._camera_interface = picamera_interface.create_picamera2(
+            settings,
+            self._logger,
+            self._camera_name,
+        )
         self._current_mode = "stream"
         self._current_stream_resolution = stream_res
         self._current_stream_framerate = int(stream_cfg.framerate)
@@ -246,7 +260,12 @@ class PiCam2(CamBase.CamBase):
             main={"format": "RGB888", "size": stream_res},
             **stream_config_kwargs,
         )
-        self._logger.info("%s stream config: %s", self._camera_name, str(self._camera_config.get("main")))
+        self._logger.info(
+            "%s stream config: %s (interface=%s)",
+            self._camera_name,
+            str(self._camera_config.get("main")),
+            self._camera_interface,
+        )
         self._cam.configure(self._camera_config)
         self._cam.start(show_preview=False)
         self._last_started_at = time.time()
@@ -277,7 +296,11 @@ class PiCam2(CamBase.CamBase):
             stream_cfg = camera_settings.StreamSettings.from_settings(settings, self._supported_video_resolutions[0])
             stream_fps = max(1, int(stream_cfg.framerate))
             stream_bitrate = self._resolve_stream_mjpeg_bitrate(settings, stream_res, stream_fps)
-            self._cam = Picamera2()
+            self._cam, self._camera_interface = picamera_interface.create_picamera2(
+                settings,
+                self._logger,
+                self._camera_name,
+            )
             self._current_mode = "stream"
             self._current_stream_resolution = stream_res
             self._current_stream_framerate = stream_fps
@@ -291,9 +314,10 @@ class PiCam2(CamBase.CamBase):
                 **stream_config_kwargs,
             )
             self._logger.info(
-                "%s encoded stream config: %s",
+                "%s encoded stream config: %s (interface=%s)",
                 self._camera_name,
                 str(self._camera_config.get("main")),
+                self._camera_interface,
             )
             self._cam.configure(self._camera_config)
             encoder = MJPEGEncoder(bitrate=stream_bitrate)

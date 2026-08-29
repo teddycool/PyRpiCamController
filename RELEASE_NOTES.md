@@ -6,17 +6,61 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
-## v1.5.12
+## v1.6.0
 
 Release date: 2026-08-24
 
 ### Highlights
 
-- [Add release highlights]
+- Raspberry Pi 5 dual-camera interface support end-to-end:
+  - Added configurable camera interface index (`CamInterface`) in hardware config template/runtime config.
+  - Added shared Picamera2 interface selection helper and wired it into `PiCam2`, `PiCam3`, and `PiCamHQ` camera backends.
+  - Added installer/provisioner support to set and propagate camera interface selection during deployment.
+- Provisioning and installation hardening:
+  - Added apt/dpkg lock waiting and retry behavior to reduce install failures caused by `unattended-upgrades` contention.
+  - Improved production provisioning auth flow for OTA enrollment (including non-interactive/admin-password compatible paths).
+- Network/comitup startup behavior hardened for field reliability:
+  - Added explicit `comitup` start condition script so AP portal starts only when no real client network is available.
+  - Prevented runtime auto-start of `comitup` when network drops after boot.
+  - Updated camera/web/update services to wait for real network readiness and avoid AP/normal-mode port contention races.
+- Web GUI white-balance calibration improvements:
+  - Added guided white-balance calibration action in Advanced settings, above White Balance Mode.
+  - Calibration samples AWB metadata from a white-paper reference and stores manual red/blue gains.
+  - Auto White Balance is set to off after calibration so calibrated manual values are used.
+  - If camera/stream service is running, calibration stops `camcontroller.service` automatically before sampling and starts it again after calibration.
+  - Added recovery start attempt if calibration fails after stopping the service.
+- YouTube Live stability hardening for long-running streams:
+  - Removed FFmpeg `-re` from live stdin pipeline to prevent pacing drift and ingest buffering.
+  - Moved FPS control to output side and enforced constant frame rate with `-vsync cfr`.
+  - Anchored output timestamps to wall clock with `-use_wallclock_as_timestamps 1` to reduce long-run PTS drift.
+  - Added adaptive x264 preset by Pi generation (`ultrafast` on Pi4/older, `fast` on Pi5+) for better hardware-fit stability.
+  - Reduced FFmpeg pipe queue pressure and changed frame queue behavior to drain stale backlog frames instead of bursting old frames.
+  - Added continuous FFmpeg stderr capture into service logs for live ingest diagnostics.
+- End-user documentation updates:
+  - Added white-balance calibration guidance to both English and Swedish user manuals.
+  - Added note that cameras purchased from sensorwebben.se are already calibrated.
+
+### End-user summary
+
+- Added a one-click white-balance calibration in Advanced settings for faster, more reliable color setup.
+- Improved YouTube Live stability during long streams, with fewer buffering events and less quality drop over time.
+- Better reliability on Raspberry Pi devices through safer startup/network behavior and installation/provisioning hardening.
+- Included updated documentation (English and Swedish) to make setup and daily operation easier.
 
 ### Validation
 
-- [Add validation notes]
+- Verified Pi5 provisioning and runtime on target hardware (`192.168.1.86`) including service restarts and stream startup.
+- Confirmed streaming service uses encoded camera-native path and remains active with expected port ownership.
+- Validated comitup behavior with live tests:
+  - network-present boot: `comitup` skipped via `ExecCondition`;
+  - no-network condition: `comitup` can start;
+  - runtime network loss: `comitup` stays inactive (no auto-start regression).
+- Confirmed branch changes include camera backend/interface updates, provisioning/install scripts, and service-gating scripts/units.
+- Verified WB calibration endpoint and Web GUI integration on target devices.
+- Synced and restarted services on Raspberry Pi targets (`192.168.1.140` and `192.168.1.89`), services confirmed active after deployment.
+- Validated YouTube Live runtime tuning on both Pi targets with service restarts and active stream process verification.
+- Verified Pi4 runs YouTube with adaptive `ultrafast` preset and reduced encoder thermals compared to fixed `fast` preset.
+- Confirmed updated FFmpeg command line contains wall-clock timestamping and CFR output settings after deployment.
 
 ## v1.5.12
 

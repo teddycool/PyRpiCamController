@@ -13,6 +13,7 @@ hwconfig1 = {
     "Version": 1,
     "RpiBoard": "{{RPI_BOARD}}",
     "CamChip": "{{CAM_CHIP}}",  # PiCam2, PiCamHQ, PiCam3, WebCam
+    "CamInterface": {{CAM_INTERFACE}},  # Picamera2 camera index / CSI interface (0 or 1 on RPi5)
     "LightBox": {{LIGHTBOX}},
     "Io": {
         "lightcontrolgpio": {{LIGHT_GPIO}},

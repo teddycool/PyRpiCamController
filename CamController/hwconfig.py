@@ -15,6 +15,7 @@ hwconfig1 = {
     "Version": 1, # version of the settings structure      
     "RpiBoard": "Rpi4", 
     "CamChip": "PiCam3",  # PiCam2, PiCamHQ, PiCam3, WebCam
+    "CamInterface": 0,  # Picamera2 camera index / CSI interface (0 or 1 on RPi5)
     "LightBox": True,
     "Io": {  # All pins defined as GPIO aka GPIO.BCM mode
         "lightcontrolgpio": 12,  #only works with a PWM0 pin

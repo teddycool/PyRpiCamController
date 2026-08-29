@@ -59,6 +59,34 @@ När WiFi är konfigurerat finns två sätt att komma åt filer och inställning
 
 ---
 
+## ⚪ Kalibrering av vitbalans (viktigt)
+
+Kalibrering av vitbalans är viktig för korrekta färger och stabil bildkvalitet, särskilt när ljusförhållanden varierar.
+
+### När du bör kalibrera
+- Kalibrera efter första installation om kameramodulen inte är fabrikskalibrerad
+- Kalibrera igen om kameran flyttas till en annan miljö eller ljuskälla
+- Kalibrera om bilderna ser för varma (gul/röd) eller för kalla (blå) ut
+
+### Enheter från Sensorwebben
+- Om kameran är köpt från **sensorwebben.se** är vitbalansen redan kalibrerad.
+- Du kan ändå kalibrera om vid behov, till exempel vid annan belysning.
+
+### Så kalibrerar du i webbgränssnittet
+1. Öppna webbgränssnittet på `http://[device-name].local`
+2. Gå till **Avancerade inställningar**
+3. I kameraavsnittet, använd **Calibrate White Balance** (ovanför **White Balance Mode**)
+4. Håll ett vitt papper så att det fyller större delen av kamerabilden
+5. Starta kalibreringen och vänta tills den blir klar
+
+### Vad som sker automatiskt
+- Kameratjänsten stoppas tillfälligt om den är igång
+- Nya manuella vitbalansvärden mäts och sparas
+- Auto White Balance sätts till **off** (`Cam.awb_enable = false`)
+- Kameratjänsten startar igen och fortsätter i tidigare läge
+
+---
+
 ## 🔄 Nätverksbeteende
 
 Kamerasystemet hanterar nätverksanslutning automatiskt:
