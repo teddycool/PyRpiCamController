@@ -10,17 +10,6 @@ This file is the canonical project changelog.
 
 Release date: 2026-08-29
 
-### Highlights
-
-- [Add release highlights]
-
-### Validation
-
-- [Add validation notes]
-
-## v1.6.0
-
-Release date: 2026-08-24
 
 ### Highlights
 
