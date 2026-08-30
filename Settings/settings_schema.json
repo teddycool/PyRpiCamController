@@ -345,7 +345,7 @@
               "description": "Enable URL publishing",
               "level": "advanced"
             },
-            "web_editable": true
+            "web_editable": false
           },
           "location": {
             "value": "your_server/your_endpoint",
@@ -356,7 +356,7 @@
               "description": "URL endpoint for image publishing",
               "level": "advanced"
             },
-            "web_editable": true
+            "web_editable": false
           },
           "apikey": {
             "value": "_your unique api key_",
@@ -367,7 +367,7 @@
               "description": "API key for URL publishing",
               "level": "advanced"
             },
-            "web_editable": true
+            "web_editable": false
           }
         },
         "file": {
@@ -481,7 +481,7 @@
             "type": "text",
             "ui": {
               "name": "Recording Path",
-              "section": "Camera",
+              "section": "Stream",
               "description": "Directory where recording segments are saved",
               "level": "advanced"
             },
@@ -500,20 +500,20 @@
             ],
             "ui": {
               "name": "Segment Length (s)",
-              "section": "Camera",
-              "description": "Length of each recording segment in seconds",
-              "level": "advanced"
+              "section": "Stream",
+              "description": "Length of each recording segment in seconds.",
+              "level": "basic"
             },
             "web_editable": true
           },
           "max_segments": {
-            "value": 288,
+            "value": 20,
             "type": "int",
             "ui": {
               "name": "Max Segments",
-              "section": "Camera",
+              "section": "Stream",
               "description": "Maximum number of segments to keep before deleting oldest",
-              "level": "advanced"
+              "level": "basic"
             },
             "web_editable": true
           }
@@ -563,7 +563,7 @@
         ],
         "ui": {
           "name": "White Balance Mode",
-          "section": "Camera",
+          "section": "System",
           "description": "Auto or fixed white-balance preset used for stream and still capture",
           "level": "advanced"
         },
@@ -575,7 +575,7 @@
         "type": "bool",
         "ui": {
           "name": "Auto White Balance",
-          "section": "Camera",
+          "section": "System",
           "description": "Enable automatic white balance. Disable to use manual red/blue gains",
           "level": "advanced"
         },
@@ -589,7 +589,7 @@
         "max": 8.0,
         "ui": {
           "name": "WB Red Gain",
-          "section": "Camera",
+          "section": "System",
           "description": "Manual red gain when Auto White Balance is disabled",
           "level": "advanced"
         },
@@ -603,7 +603,7 @@
         "max": 8.0,
         "ui": {
           "name": "WB Blue Gain",
-          "section": "Camera",
+          "section": "System",
           "description": "Manual blue gain when Auto White Balance is disabled",
           "level": "advanced"
         },
@@ -617,7 +617,7 @@
         "max": 2.0,
         "ui": {
           "name": "Saturation",
-          "section": "Camera",
+          "section": "System",
           "description": "Color saturation for stream and still capture",
           "level": "advanced"
         },
@@ -631,7 +631,7 @@
         "max": 2.0,
         "ui": {
           "name": "Contrast",
-          "section": "Camera",
+          "section": "System",
           "description": "Image contrast for stream and still capture",
           "level": "advanced"
         },
@@ -645,7 +645,7 @@
         "max": 4.0,
         "ui": {
           "name": "Sharpness",
-          "section": "Camera",
+          "section": "System",
           "description": "Edge sharpness for stream and still capture",
           "level": "advanced"
         },
@@ -660,7 +660,7 @@
         "type": "tuple",
         "ui": {
           "name": "Schedule (start, stop)",
-          "section": "Camera",
+          "section": "Stream",
           "description": "Active hours (start, stop)",
           "level": "advanced"
         },
@@ -673,7 +673,7 @@
           "type": "bool",
           "ui": {
             "name": "Motion Detector Active",
-            "section": "Camera",
+            "section": "Stream",
             "description": "Enable motion detection",
             "level": "advanced"
           },
