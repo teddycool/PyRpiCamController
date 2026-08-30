@@ -32,6 +32,15 @@ class StreamState(BaseState.BaseState):
         self._youtube_forward_frames_sent = 0
         self._youtube_forward_frames_skipped = 0
         self._youtube_forward_errors = 0
+
+        # Local stream recording forwarding
+        self._recorder_publisher = None
+        self._recorder_forward_running = False
+        self._recorder_forward_thread = None
+        self._recorder_stats_lock = threading.Lock()
+        self._recorder_forward_frames_seen = 0
+        self._recorder_forward_frames_sent = 0
+        self._recorder_forward_errors = 0
         return
 
     def initialize(self, settings):
@@ -61,6 +70,10 @@ class StreamState(BaseState.BaseState):
                 self._youtube_forward_frames_sent = 0
                 self._youtube_forward_frames_skipped = 0
                 self._youtube_forward_errors = 0
+            with self._recorder_stats_lock:
+                self._recorder_forward_frames_seen = 0
+                self._recorder_forward_frames_sent = 0
+                self._recorder_forward_errors = 0
             self._youtube_frame_interval = float(settings.get("Stream.youtube_frame_interval", 0.0))
             self._youtube_frame_interval_with_clients = float(
                 settings.get("Stream.youtube_frame_interval_with_clients", 0.0)
@@ -113,6 +126,36 @@ class StreamState(BaseState.BaseState):
             else:
                 logger.info("YouTube Live disabled in settings")
                 self._youtube_publisher = None
+
+            recorder_settings = settings.get("Cam", {}).get("publishers", {}).get("recorder", {})
+            recorder_enabled = False
+            if isinstance(recorder_settings, dict):
+                recorder_publish = recorder_settings.get("publish", {})
+                recorder_enabled = (
+                    recorder_publish.get("value", False)
+                    if isinstance(recorder_publish, dict)
+                    else bool(recorder_publish)
+                )
+
+            if recorder_enabled:
+                try:
+                    from Publishers.RecorderPublisher import RecorderPublisher
+                    self._recorder_publisher = RecorderPublisher()
+                    self._recorder_publisher.initialize(settings)
+                    if getattr(self._recorder_publisher, "enabled", False):
+                        logger.info("Local stream recorder active")
+                        self._start_recorder_forwarder()
+                    else:
+                        logger.info("Recorder publisher disabled or not fully configured")
+                        self._recorder_publisher = None
+                except Exception as e:
+                    logger.error("Failed to initialize recorder publisher: %s", e, exc_info=True)
+                    self._recorder_publisher = None
+            else:
+                logger.info("Local stream recorder disabled in settings")
+                self._recorder_publisher = None
+
+            self._update_force_active_framerate()
 
         except Exception as e:
             logger.error(f"StreamState initialization failed: {e}", exc_info=True)
@@ -180,6 +223,64 @@ class StreamState(BaseState.BaseState):
         )
         self._youtube_forward_thread.start()
 
+    def _start_recorder_forwarder(self):
+        """Start the background thread that feeds encoded frames to local recorder."""
+        if self._recorder_forward_running:
+            return
+
+        self._recorder_forward_running = True
+
+        def _forward_loop():
+            logger.info("Recorder forwarder thread started")
+            last_forwarded_frame = None
+
+            while self._recorder_forward_running and self._recorder_publisher:
+                try:
+                    output = self._streaming_server.output if self._streaming_server else None
+                    if output is None:
+                        time.sleep(0.1)
+                        continue
+
+                    with output.condition:
+                        output.condition.wait(timeout=0.5)
+                        frame = output.frame
+
+                    if frame is None or frame is last_forwarded_frame:
+                        continue
+
+                    with self._recorder_stats_lock:
+                        self._recorder_forward_frames_seen += 1
+
+                    published = self._recorder_publisher.publish(frame, metadata={"mode": "stream"})
+                    if published:
+                        last_forwarded_frame = frame
+                        with self._recorder_stats_lock:
+                            self._recorder_forward_frames_sent += 1
+
+                except Exception as e:
+                    with self._recorder_stats_lock:
+                        self._recorder_forward_errors += 1
+                    logger.warning("Recorder forwarder error: %s", e)
+                    time.sleep(0.2)
+
+            logger.info("Recorder forwarder thread stopped")
+
+        self._recorder_forward_thread = threading.Thread(
+            target=_forward_loop,
+            name="recorder-forwarder",
+            daemon=True,
+        )
+        self._recorder_forward_thread.start()
+
+    def _update_force_active_framerate(self):
+        """Keep encoded stream FPS active while YouTube or recorder is running."""
+        if not self._streaming_server or not hasattr(self._streaming_server, "set_force_active_framerate"):
+            return
+
+        youtube_active = bool(self._youtube_publisher and self._youtube_forward_running)
+        recorder_active = bool(self._recorder_publisher and self._recorder_forward_running)
+        self._streaming_server.set_force_active_framerate(youtube_active or recorder_active)
+
     def _stop_youtube(self):
         """Stop the YouTube forwarder thread and clean up the publisher."""
         self._youtube_forward_running = False
@@ -195,8 +296,24 @@ class StreamState(BaseState.BaseState):
                 logger.warning("Error cleaning up YouTube publisher: %s", e)
             self._youtube_publisher = None
 
-        if self._streaming_server and hasattr(self._streaming_server, "set_force_active_framerate"):
-            self._streaming_server.set_force_active_framerate(False)
+        self._update_force_active_framerate()
+
+    def _stop_recorder(self):
+        """Stop local recorder forwarder thread and clean up the publisher."""
+        self._recorder_forward_running = False
+        if self._recorder_forward_thread and self._recorder_forward_thread.is_alive():
+            self._recorder_forward_thread.join(timeout=2.0)
+        self._recorder_forward_thread = None
+
+        if self._recorder_publisher:
+            try:
+                self._recorder_publisher.cleanup()
+                logger.info("Recorder publisher cleaned up")
+            except Exception as e:
+                logger.warning("Error cleaning up recorder publisher: %s", e)
+            self._recorder_publisher = None
+
+        self._update_force_active_framerate()
 
     def get_youtube_stats(self):
         """Return a combined snapshot of YouTube forwarder and publisher performance."""
@@ -227,10 +344,40 @@ class StreamState(BaseState.BaseState):
             "publisher": publisher_stats,
         }
 
+    def get_recorder_stats(self):
+        """Return a combined snapshot of recorder forwarder and publisher performance."""
+        with self._recorder_stats_lock:
+            forwarder_stats = {
+                "forwarder_running": self._recorder_forward_running,
+                "frames_seen": self._recorder_forward_frames_seen,
+                "frames_sent": self._recorder_forward_frames_sent,
+                "forward_errors": self._recorder_forward_errors,
+            }
+
+        publisher_stats = None
+        if self._recorder_publisher and hasattr(self._recorder_publisher, "get_stats"):
+            try:
+                publisher_stats = self._recorder_publisher.get_stats()
+            except Exception as e:
+                logger.debug("Failed to collect recorder publisher stats: %s", e)
+
+        return {
+            "enabled": bool(self._recorder_publisher and getattr(self._recorder_publisher, "enabled", False)),
+            "running": bool(self._recorder_forward_running and self._recorder_publisher),
+            "forwarder": forwarder_stats,
+            "publisher": publisher_stats,
+        }
+
     def get_runtime_status(self):
         """Return StreamState-owned status without coupling MainLoop to YouTube."""
         youtube_stats = self.get_youtube_stats()
-        return {"youtube": youtube_stats} if youtube_stats else {}
+        recorder_stats = self.get_recorder_stats()
+        status = {}
+        if youtube_stats:
+            status["youtube"] = youtube_stats
+        if recorder_stats:
+            status["recorder"] = recorder_stats
+        return status
 
     def get_metrics(self):
         """Return stream metrics owned by the streaming state."""
@@ -251,11 +398,13 @@ class StreamState(BaseState.BaseState):
                     logger.debug("Failed to collect camera metrics from StreamState camera: %s", e)
 
         youtube_stats = self.get_youtube_stats()
+        recorder_stats = self.get_recorder_stats()
 
         metrics = {
             "stream": stream_metrics,
             "camera": camera_metrics,
             "youtube": youtube_stats,
+            "recorder": recorder_stats,
         }
         return {key: value for key, value in metrics.items() if value is not None}
 
@@ -282,6 +431,7 @@ class StreamState(BaseState.BaseState):
         logger.info("StreamState stop_streaming...")
         try:
             self._stop_youtube()
+            self._stop_recorder()
             ModernStreamingServer.stop_streaming()
             self._streaming_server = None
             logger.info("Streaming server stopped completely")

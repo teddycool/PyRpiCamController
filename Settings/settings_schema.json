@@ -463,6 +463,60 @@
             },
             "web_editable": true
           }
+        },
+        "recorder": {
+          "publish": {
+            "value": false,
+            "type": "bool",
+            "ui": {
+              "name": "Record Local Stream",
+              "section": "Stream",
+              "description": "Enable segmented recording from local MJPEG stream",
+              "level": "basic"
+            },
+            "web_editable": true
+          },
+          "location": {
+            "value": "/home/pi/shared/recordings",
+            "type": "text",
+            "ui": {
+              "name": "Recording Path",
+              "section": "Camera",
+              "description": "Directory where recording segments are saved",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "segment_seconds": {
+            "value": 300,
+            "type": "int",
+            "options": [
+              60,
+              120,
+              300,
+              600,
+              900,
+              1800
+            ],
+            "ui": {
+              "name": "Segment Length (s)",
+              "section": "Camera",
+              "description": "Length of each recording segment in seconds",
+              "level": "advanced"
+            },
+            "web_editable": true
+          },
+          "max_segments": {
+            "value": 288,
+            "type": "int",
+            "ui": {
+              "name": "Max Segments",
+              "section": "Camera",
+              "description": "Maximum number of segments to keep before deleting oldest",
+              "level": "advanced"
+            },
+            "web_editable": true
+          }
         }
       },
       "format": {
