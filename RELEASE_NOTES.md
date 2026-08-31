@@ -6,7 +6,7 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
-## v1.7.0
+## v1.7.1
 
 Release date: 2026-08-30
 
@@ -28,6 +28,9 @@ Release date: 2026-08-30
 - Metrics and observability continue to cover the stream runtime:
   - Structured metrics logs still capture temperature, CPU load, storage, mode, and stream state changes.
   - Historical graph markers continue to show mode and YouTube transitions directly in the Web GUI.
+- Web GUI local stream status now shows recording state:
+  - Added a Recording active/inactive indicator to the Local Stream status panel.
+  - The status now comes from the runtime stream payload, alongside the existing YouTube Live status.
 
 ### End-user summary
 
@@ -35,6 +38,7 @@ Release date: 2026-08-30
 - The Settings page is easier to understand because related YouTube options appear together in their own section.
 - OTA updates should download faster because the update package is smaller.
 - Metrics and status history remain available in the Web GUI to help with troubleshooting and performance checks.
+- The Local Stream panel now shows whether local recording is active or inactive.
 
 ### Validation
 
