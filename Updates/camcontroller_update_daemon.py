@@ -155,23 +155,30 @@ class UpdateDaemon:
                             self.logger.info("OTA check and update completed successfully")
                             self._update_current_version()
                             self._set_runtime_setting('OTA.available_version', '')
+                            self._set_runtime_setting('OTA.changelog', '')
                             self._set_runtime_setting('OTA.update_status', 'idle')
                         elif success is False:
                             self.logger.warning("OTA update failed")
                             self._set_runtime_setting('OTA.update_status', 'error')
                         else:
                             # No updates available
+                            self._set_runtime_setting('OTA.available_version', '')
+                            self._set_runtime_setting('OTA.changelog', '')
                             self._set_runtime_setting('OTA.update_status', 'idle')
                     else:
                         # New behavior: check only, don't auto-apply
                         update_info = self.update_manager.check_for_updates()
                         if update_info:
                             available_version = update_info.get('version', 'Unknown')
+                            changelog = update_info.get('release_notes', '') or ''
                             self.logger.info(f"Update available: {available_version}")
                             self._set_runtime_setting('OTA.available_version', available_version)
+                            self._set_runtime_setting('OTA.changelog', changelog)
                             self._set_runtime_setting('OTA.update_status', 'available')
                         else:
                             self.logger.info("No updates available")
+                            self._set_runtime_setting('OTA.available_version', '')
+                            self._set_runtime_setting('OTA.changelog', '')
                             self._set_runtime_setting('OTA.update_status', 'idle')
                     
                     # Update last check time
@@ -216,12 +223,15 @@ class UpdateDaemon:
                 update_info = self.update_manager.check_for_updates()
                 if update_info:
                     available_version = update_info.get('version', 'Unknown')
+                    changelog = update_info.get('release_notes', '') or ''
                     self.logger.info(f"Manual check found update: {available_version}")
                     self._set_runtime_setting('OTA.available_version', available_version)
+                    self._set_runtime_setting('OTA.changelog', changelog)
                     self._set_runtime_setting('OTA.update_status', 'available')
                 else:
                     self.logger.info("Manual check: No updates available")
                     self._set_runtime_setting('OTA.available_version', '')
+                    self._set_runtime_setting('OTA.changelog', '')
                     self._set_runtime_setting('OTA.update_status', 'idle')
                 
                 self._set_last_check()
@@ -245,6 +255,7 @@ class UpdateDaemon:
                     self.logger.info("Manual update application completed successfully")
                     self._update_current_version()
                     self._set_runtime_setting('OTA.available_version', '')
+                    self._set_runtime_setting('OTA.changelog', '')
                     self._set_runtime_setting('OTA.update_status', 'idle')
                 else:
                     self.logger.error("Manual update application failed")
@@ -267,13 +278,16 @@ class UpdateDaemon:
             update_info = self.update_manager.check_for_updates()
             if update_info:
                 available_version = update_info.get('version', 'Unknown')
+                changelog = update_info.get('release_notes', '') or ''
                 self._set_runtime_setting('OTA.available_version', available_version)
+                self._set_runtime_setting('OTA.changelog', changelog)
                 self._set_runtime_setting('OTA.update_status', 'available')
                 self._set_last_check()
                 self.logger.info(f"Manual OTA check found update: {available_version}")
                 return True
             else:
                 self._set_runtime_setting('OTA.available_version', '')
+                self._set_runtime_setting('OTA.changelog', '')
                 self._set_runtime_setting('OTA.update_status', 'idle')
                 self._set_last_check()
                 self.logger.info("Manual OTA check completed: no updates available")

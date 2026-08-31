@@ -3,3 +3,4 @@
 # The project is licensed under GNU GPLv3, check the LICENSE file for details.
 
 from . import FilePublisher
+from . import RecorderPublisher

@@ -6,6 +6,47 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
+## v1.7.1
+
+Release date: 2026-08-30
+
+
+### Highlights
+
+- Stream pipeline now includes local recording alongside local MJPEG streaming and YouTube Live forwarding:
+  - Added a recorder branch that forwards the shared encoded MJPEG stream into segmented local files.
+  - Added recorder-aware runtime flow so recording can run in parallel with the existing stream and YouTube paths.
+  - Kept the local viewer branch and YouTube ingest path intact while making the recording branch first-class in the runtime architecture.
+- Settings schema and Web GUI layout mapping improvements:
+  - Clarified how nested schema keys are flattened into web-editable fields for the GUI.
+  - Added explicit routing rules so `Cam.publishers.youtube.*` fields render under **YouTube Live** even when their schema metadata still says `Camera`.
+  - Kept field labels driven by `ui.name` while section headers are driven by GUI grouping rules.
+- OTA release packaging was reduced:
+  - Added a lean OTA tarball that contains only the runtime code needed on the device.
+  - Preserved the full release tarball for fresh provisioning and installer workflows.
+  - Reduced download size for OTA updates without changing the update flow on the Pi.
+- Metrics and observability continue to cover the stream runtime:
+  - Structured metrics logs still capture temperature, CPU load, storage, mode, and stream state changes.
+  - Historical graph markers continue to show mode and YouTube transitions directly in the Web GUI.
+- Web GUI local stream status now shows recording state:
+  - Added a Recording active/inactive indicator to the Local Stream status panel.
+  - The status now comes from the runtime stream payload, alongside the existing YouTube Live status.
+
+### End-user summary
+
+- You can now record the local stream while still streaming normally and forwarding to YouTube.
+- The Settings page is easier to understand because related YouTube options appear together in their own section.
+- OTA updates should download faster because the update package is smaller.
+- Metrics and status history remain available in the Web GUI to help with troubleshooting and performance checks.
+- The Local Stream panel now shows whether local recording is active or inactive.
+
+### Validation
+
+- Verified the Settings schema to Web GUI mapping so `Cam.publishers.youtube.*` fields render under **YouTube Live** while keeping `ui.name` as the field label.
+- Synced the updated `settings_schema.json` to the Raspberry Pi 5 target (`192.168.1.89`) and confirmed `camcontroller.service` and `camcontroller-web.service` restarted successfully.
+- Confirmed the release packager now emits both a full tarball for provisioning and a lean `-ota.tar.gz` package for OTA delivery.
+- Reviewed the new recording branch and release notes updates alongside the stream pipeline and metrics work already validated on target hardware.
+
 ## v1.6.1
 
 Release date: 2026-08-29

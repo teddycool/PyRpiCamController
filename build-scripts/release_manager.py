@@ -244,32 +244,52 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
 """
         return notes
     
-    def create_distribution_package(self, version):
-        """Create distribution tar.gz file suitable for OTA delivery"""
-        self.log(f"Creating distribution package for v{version}...")
+    def create_distribution_package(self, version, package_type="full"):
+        """Create a distribution tar.gz file.
+
+        package_type:
+            - "full": release bundle for fresh provisioning
+            - "ota": lean runtime bundle for OTA updates
+        """
+        if package_type not in {"full", "ota"}:
+            raise ValueError(f"Unsupported package_type: {package_type}")
+
+        self.log(f"Creating {package_type} distribution package for v{version}...")
         
         # Create output directories
         RELEASE_DIR.mkdir(exist_ok=True)
         DIST_DIR.mkdir(exist_ok=True)
         
-        tar_name = f"PyRpiCamController-{version}.tar.gz"
+        suffix = "" if package_type == "full" else "-ota"
+        tar_name = f"PyRpiCamController-{version}{suffix}.tar.gz"
         tar_path = DIST_DIR / tar_name
         
         # Files/directories to include
-        include_patterns = [
-            "CamController/",
-            "Settings/", 
-            "Services/",
-            "tools/",
-            "WebGui/",
-            "Updates/",
-            "_doc/",
-            "VERSION",
-            "requirements-pi.txt",
-            "requirements.txt",
-            "LICENSE", 
-            "README.md"
-        ]
+        if package_type == "full":
+            include_patterns = [
+                "CamController/",
+                "Settings/",
+                "Services/",
+                "tools/",
+                "WebGui/",
+                "Updates/",
+                "_doc/",
+                "VERSION",
+                "requirements-pi.txt",
+                "requirements.txt",
+                "LICENSE",
+                "README.md",
+            ]
+        else:
+            include_patterns = [
+                "CamController/",
+                "Settings/",
+                "Services/",
+                "WebGui/",
+                "Updates/",
+                "VERSION",
+                "requirements-pi.txt",
+            ]
         
         # Files to exclude
         exclude_patterns = [
@@ -314,7 +334,7 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
             f.write(self.create_release_notes(version))
         
         file_size = tar_path.stat().st_size / (1024 * 1024)  # MB
-        self.log(f"✓ Package created: {tar_name} ({file_size:.1f} MB)")
+        self.log(f"✓ {package_type.title()} package created: {tar_name} ({file_size:.1f} MB)")
         self.log(f"✓ SHA-256: {checksum}")
         self.log(f"✓ Sidecar:  {tar_name}.sha256")
         self.log(f"✓ Release notes: release-notes-{version}.md")
@@ -374,11 +394,15 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
             self.log("Tests failed - aborting build", "ERROR")
             return False
         
-        # Create package
-        zip_path, checksum = self.create_distribution_package(version)
+        # Create packages
+        zip_path, full_checksum = self.create_distribution_package(version, package_type="full")
+        ota_path, ota_checksum = self.create_distribution_package(version, package_type="ota")
         
         self.log(f"Release package built successfully")
         self.log(f"Package: {zip_path}")
+        self.log(f"Full SHA-256: {full_checksum}")
+        self.log(f"OTA package: {ota_path}")
+        self.log(f"OTA SHA-256: {ota_checksum}")
         self.log(f"Ready for distribution")
         
         return True
@@ -410,11 +434,15 @@ Released: {datetime.now().strftime('%Y-%m-%d')}
         if not self.git_commit_and_tag(version):
             return False
         
-        # Create package
-        zip_path, checksum = self.create_distribution_package(version)
+        # Create packages
+        zip_path, full_checksum = self.create_distribution_package(version, package_type="full")
+        ota_path, ota_checksum = self.create_distribution_package(version, package_type="ota")
         
         self.log(f"🚀 Release v{version} completed successfully!")
         self.log(f"Package: {zip_path}")
+        self.log(f"Full SHA-256: {full_checksum}")
+        self.log(f"OTA package: {ota_path}")
+        self.log(f"OTA SHA-256: {ota_checksum}")
         self.log(f"Git tag: v{version}")
         self.log(f"Ready for distribution and OTA updates")
         

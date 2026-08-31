@@ -1281,7 +1281,7 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
             {% if current_level == 'status' %}
             <!-- Streaming Status Panel -->
             <div class="section streaming-controls">
-                <h3 class="section-title">📹 Stream Status</h3>
+                <h3 class="section-title">📹 Local Stream</h3>
                 <div class="section-content">
                     <div class="stream-status" id="streamStatus">
                         <div class="status-indicator">
@@ -1336,6 +1336,10 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                         <div class="info-item" id="youtubeDroppedItem" style="display: none;">
                             <label>YouTube Dropped:</label>
                             <span id="youtubeDroppedFrames">-</span>
+                        </div>
+                        <div class="info-item" id="recorderStatusItem" style="display: none;">
+                            <label>Recording:</label>
+                            <span id="recorderStatus">-</span>
                         </div>
                         <div class="info-item">
                             <label>View Stream:</label>
@@ -2903,6 +2907,9 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                 const youtubeAvgPublishMs = document.getElementById('youtubeAvgPublishMs');
                 const youtubeMaxPublishMs = document.getElementById('youtubeMaxPublishMs');
                 const youtubeDroppedFrames = document.getElementById('youtubeDroppedFrames');
+                const recorder = streamStatus.recorder;
+                const recorderStatusItem = document.getElementById('recorderStatusItem');
+                const recorderStatus = document.getElementById('recorderStatus');
 
                 if (youtube && youtube.enabled) {
                     const publisher = youtube.publisher || {};
@@ -2925,6 +2932,14 @@ The project is licensed under GNU GPLv3, check the LICENSE file for details.
                     if (youtubeAvgPublishItem) youtubeAvgPublishItem.style.display = 'none';
                     if (youtubeMaxPublishItem) youtubeMaxPublishItem.style.display = 'none';
                     if (youtubeDroppedItem) youtubeDroppedItem.style.display = 'none';
+                }
+
+                if (recorder && recorder.enabled) {
+                    const recorderText = recorder.running ? 'Active' : 'Inactive';
+                    if (recorderStatus) recorderStatus.textContent = recorderText;
+                    if (recorderStatusItem) recorderStatusItem.style.display = 'flex';
+                } else {
+                    if (recorderStatusItem) recorderStatusItem.style.display = 'none';
                 }
             } else {
                 statusLight.className = 'status-light stopped';

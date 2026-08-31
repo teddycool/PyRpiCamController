@@ -1026,6 +1026,7 @@ def stream_status():
             'awb_mode_display': None,
         }
         youtube_data = None
+        recorder_data = None
         
         try:
             runtime_status_file = "/tmp/cam_runtime_status.json"
@@ -1043,6 +1044,7 @@ def stream_status():
                             awb_data['awb_enable'] = status_data.get('awb_enable')
                             awb_data['awb_mode_display'] = status_data.get('awb_mode_display')
                             youtube_data = status_data.get('youtube')
+                            recorder_data = status_data.get('recorder')
                         break  # Success, exit retry loop
                     except (json_module.JSONDecodeError, IOError) as e:
                         if attempt < 2:  # Retry on first two attempts
@@ -1107,6 +1109,7 @@ def stream_status():
             'stream_capture_mode': stream_capture_mode,
             'stream_idling': stream_idling,
             'youtube': youtube_data,
+            'recorder': recorder_data,
         }
         
         # Add temperature data to response
