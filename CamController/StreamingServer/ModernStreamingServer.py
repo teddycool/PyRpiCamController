@@ -23,6 +23,7 @@ from http import server
 from threading import Condition, Thread
 import time
 import socket
+import errno
 from typing import Optional, Dict, Any
 import json
 
@@ -438,6 +439,19 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.send_header('Pragma', 'no-cache')
             self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
             self.end_headers()
+
+            target_fps = max(1, int(settings_manager.get('Stream.framerate', 20)))
+            max_send_seconds = max(0.6, min(3.0, 6.0 / float(target_fps)))
+
+            try:
+                self.connection.settimeout(max_send_seconds)
+            except Exception:
+                pass
+
+            try:
+                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except Exception:
+                pass
             
             try:
                 while True:
@@ -446,13 +460,33 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                         logger.warning("Frame timeout, client may disconnect")
                         break
                     
+                    write_started = time.monotonic()
                     self.wfile.write(b'--FRAME\r\n')
                     self.send_header('Content-Type', 'image/jpeg')
                     self.send_header('Content-Length', str(len(frame)))
                     self.end_headers()
                     self.wfile.write(frame)
                     self.wfile.write(b'\r\n')
+
+                    write_duration = time.monotonic() - write_started
+                    if write_duration > max_send_seconds:
+                        logger.warning(
+                            "Disconnecting slow stream client after %.2fs frame send (> %.2fs budget)",
+                            write_duration,
+                            max_send_seconds,
+                        )
+                        break
                     
+            except socket.timeout:
+                logger.warning(
+                    "Client disconnected due to stream write timeout (%.2fs)",
+                    max_send_seconds,
+                )
+            except OSError as e:
+                if e.errno in {errno.EPIPE, errno.ECONNRESET, errno.ETIMEDOUT}:
+                    logger.info(f"Client disconnected: {e}")
+                else:
+                    logger.info(f"Client disconnected: {e}")
             except Exception as e:
                 logger.info(f"Client disconnected: {e}")
             finally:

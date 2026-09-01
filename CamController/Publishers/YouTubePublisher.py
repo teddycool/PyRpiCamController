@@ -282,10 +282,10 @@ class YouTubePublisher(PublisherBase):
             # VBV buffer: 2× bitrate — large enough for bursty frames but not so large
             # that the rate-controller fights the encoder.
             bufsize = f"{bitrate_int * 2}k"
-            # Preset: Pi5 has enough CPU for "fast"; Pi4 and below need "ultrafast"
-            # to stay below 150% CPU and avoid thermal throttling at 80°C+.
+            # Keep a single low-overhead preset across Pi4 and Pi5 for thermal headroom
+            # and smoother long-running stability in combined stream workloads.
             pi_gen = _detect_pi_generation()
-            x264_preset = "fast" if pi_gen >= 5 else "ultrafast"
+            x264_preset = "ultrafast"
             logger.info("Detected Pi generation %d — using x264 preset '%s'", pi_gen, x264_preset)
             ffmpeg_cmd = [
                 "ffmpeg",

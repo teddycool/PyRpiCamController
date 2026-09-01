@@ -122,6 +122,7 @@ class ProvisioningManager:
         self._temp_ssh_key_priv = None
         self.final_ssh_posture = "unchanged"
         self.password_locked = False
+        self.rpi5_usb_boot_fix_status = "not_checked"
 
         # Derive tarball filename and GitHub URL
         self.tarball_filename = f"PyRpiCamController-{self.release_version}.tar.gz"
@@ -674,6 +675,47 @@ class ProvisioningManager:
         print("\n[1/5] Verifying Pi connectivity...")
         self.ssh_run("echo 'SSH ok'", "Testing SSH connection", check=True)
 
+    def ensure_rpi5_usb_boot_power_setting(self):
+        """Ensure Raspberry Pi 5 has usb_max_current_enable=1 as final config.txt line."""
+        print("  → Checking Raspberry Pi 5 USB boot power setting...", end=" ", flush=True)
+        cmd = (
+            "set -e; "
+            "model=$(tr -d '\\0' </proc/device-tree/model 2>/dev/null || true); "
+            "if [[ \"$model\" != *\"Raspberry Pi 5\"* ]]; then "
+            "echo 'SKIP:not-rpi5'; "
+            "exit 0; "
+            "fi; "
+            "config_path='/boot/firmware/config.txt'; "
+            "if [[ ! -f \"$config_path\" ]]; then config_path='/boot/config.txt'; fi; "
+            "if [[ ! -f \"$config_path\" ]]; then "
+            "echo 'ERROR:missing-config'; "
+            "exit 2; "
+            "fi; "
+            "sudo sed -i '/^usb_max_current_enable=1$/d' \"$config_path\"; "
+            "echo 'usb_max_current_enable=1' | sudo tee -a \"$config_path\" >/dev/null; "
+            "last_line=$(tail -n 1 \"$config_path\"); "
+            "if [[ \"$last_line\" != 'usb_max_current_enable=1' ]]; then "
+            "echo 'ERROR:not-last'; "
+            "exit 3; "
+            "fi; "
+            "echo \"APPLIED:$config_path\""
+        )
+        result = self.ssh_run(cmd, check=True)
+        stdout = (result.stdout or "").strip()
+
+        if "SKIP:not-rpi5" in stdout:
+            self.rpi5_usb_boot_fix_status = "skipped_non_rpi5"
+            print("skipped (not Raspberry Pi 5)")
+            return
+
+        if "APPLIED:" in stdout:
+            self.rpi5_usb_boot_fix_status = "applied"
+            print("✓")
+            return
+
+        self.rpi5_usb_boot_fix_status = "unknown"
+        raise ProvisioningError(f"Unexpected response while applying RPi5 USB boot fix: {stdout}")
+
     def download_and_extract(self):
         """Download (or build locally and SCP) and extract release tarball on Pi."""
         if self.local:
@@ -1093,6 +1135,7 @@ class ProvisioningManager:
 
             self.open_ssh_session()
             self.verify_pi_connectivity()
+            self.ensure_rpi5_usb_boot_power_setting()
             self.download_and_extract()
             self.run_installer()
 

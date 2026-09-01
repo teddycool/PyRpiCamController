@@ -25,6 +25,7 @@ import logging
 import json
 import shutil
 import secrets
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -415,9 +416,13 @@ def package_install(with_opencv=False):
     
     return True
 
-def setup_comitup():
+def setup_comitup(model_info=None):
     """Setup ComitUp WiFi management - simple version with proper repository"""
     log_step("COMITUP", "Setting up ComitUp WiFi management...")
+
+    if model_info is None:
+        model_info = detect_model()
+    is_pi5 = bool(model_info.get("is_pi5", False))
     
     # First, configure WiFi country and unblock WiFi
     log_step("COMITUP", "Configuring WiFi country and unblocking WiFi...")
@@ -434,19 +439,66 @@ def setup_comitup():
     log_step("COMITUP", "Adding ComitUp repository...")
     comitup_deb = "davesteele-comitup-apt-source_1.3_all.deb"
     if not run_cmd(f"wget -O /tmp/{comitup_deb} https://davesteele.github.io/comitup/deb/{comitup_deb}", check=False):
+        if is_pi5:
+            log_step(
+                "ERROR",
+                "Failed to download ComitUp repository package on Raspberry Pi 5. "
+                "RPi5 requires the upstream ComitUp build to avoid known NetworkManager compatibility crashes.",
+                "ERROR",
+            )
+            return False
         log_step("WARNING", "Failed to download ComitUp repository - skipping WiFi management setup")
         return False
     
     if not run_cmd(f"sudo dpkg -i /tmp/{comitup_deb}", check=False):
+        if is_pi5:
+            log_step(
+                "ERROR",
+                "Failed to install ComitUp external repository package on Raspberry Pi 5. "
+                "RPi5 requires the upstream ComitUp build to avoid known NetworkManager compatibility crashes.",
+                "ERROR",
+            )
+            return False
         log_step("WARNING", "Failed to install ComitUp repository")
         return False
     
     # Update package lists and install ComitUp
     log_step("COMITUP", "Installing ComitUp...")
     run_cmd("sudo apt-get update")
-    if not run_cmd("sudo apt-get install -y comitup"):
+    if not run_apt_command("install -y comitup", retries=3, timeout=1800):
         log_step("WARNING", "Failed to install ComitUp - skipping WiFi management setup")
         return False
+
+    if is_pi5:
+        # Debian's 1.38 build has a known crash with newer NetworkManager device types
+        # on some Pi 5 setups (KeyError: dbus.UInt32(32)). Require upstream fixed build.
+        has_required_version = run_cmd(
+            "dpkg --compare-versions \"$(dpkg-query -W -f='${Version}' comitup 2>/dev/null)\" ge 1.47.1-1",
+            check=False,
+        )
+        if not has_required_version:
+            installed_version = run_cmd(
+                "dpkg-query -W -f='${Version}' comitup 2>/dev/null || echo unknown",
+                capture=True,
+                check=False,
+            )
+            installed_version = (installed_version or "unknown").strip()
+            log_step(
+                "ERROR",
+                f"Installed ComitUp version on Raspberry Pi 5 is too old ({installed_version}). "
+                "Require >= 1.47.1-1 from upstream ComitUp repository.",
+                "ERROR",
+            )
+            return False
+
+    comitup_unit_present = run_cmd(
+        "systemctl list-unit-files comitup.service >/dev/null 2>&1",
+        check=False,
+    )
+    if not comitup_unit_present:
+        log_step("WARNING", "ComitUp package installed but comitup.service unit was not found")
+        if is_pi5:
+            return False
     
     # Generate dynamic configuration with hostname-based AP name
     log_step("COMITUP", "Creating ComitUp configuration...")
@@ -776,6 +828,102 @@ def setup_camera_boot_config():
         log_step("CAMERA", "gpu_mem=256 added to boot config (reboot required)")
 
 
+def _read_hwconfig_light_profile():
+    """Read LightBox and lightcontrolgpio values from generated hwconfig.py."""
+    hwconfig_path = Path(PROJECT_ROOT) / "CamController" / "hwconfig.py"
+    if not hwconfig_path.exists():
+        return {"lightbox_enabled": None, "light_gpio": None}
+
+    try:
+        text = hwconfig_path.read_text(encoding="utf-8")
+    except OSError:
+        return {"lightbox_enabled": None, "light_gpio": None}
+
+    lightbox_match = re.search(r'"LightBox"\s*:\s*(True|False)', text)
+    light_gpio_match = re.search(r'"lightcontrolgpio"\s*:\s*(None|-?\d+)', text)
+
+    lightbox_enabled = None
+    if lightbox_match:
+        lightbox_enabled = lightbox_match.group(1) == "True"
+
+    light_gpio = None
+    if light_gpio_match:
+        raw_gpio = light_gpio_match.group(1)
+        if raw_gpio != "None":
+            try:
+                light_gpio = int(raw_gpio)
+            except ValueError:
+                light_gpio = None
+
+    return {
+        "lightbox_enabled": lightbox_enabled,
+        "light_gpio": light_gpio,
+    }
+
+
+def setup_rpi5_light_pwm_overlay(model_info, lightbox_enabled, light_gpio):
+    """Ensure Pi 5 LightBox PWM pin is mapped for hardware PWM via overlay."""
+    if not model_info.get("is_pi5"):
+        log_step("PWM", "Skipping Pi 5 PWM overlay (not a Raspberry Pi 5)")
+        return False
+
+    if lightbox_enabled is False:
+        log_step("PWM", "Skipping Pi 5 PWM overlay (LightBox disabled in hwconfig)")
+        return False
+
+    if light_gpio is None:
+        log_step("PWM", "Skipping Pi 5 PWM overlay (lightcontrolgpio is not set)")
+        return False
+
+    pwm_pin_map = {
+        12: 0,
+        13: 0,
+        18: 2,
+        19: 2,
+    }
+
+    if light_gpio not in pwm_pin_map:
+        log_step(
+            "WARNING",
+            f"Pi 5 Light GPIO {light_gpio} is not a supported hardware PWM pin. "
+            "Supported BCM pins: 12, 13, 18, 19",
+        )
+        return False
+
+    config_paths = ["/boot/firmware/config.txt", "/boot/config.txt"]
+    config_path = next((p for p in config_paths if os.path.exists(p)), None)
+    if not config_path:
+        log_step("WARNING", "Boot config file not found - Pi 5 PWM overlay not set")
+        return False
+
+    func = pwm_pin_map[light_gpio]
+    overlay_line = f"dtoverlay=pwm,pin={light_gpio},func={func}"
+
+    existing_exact = run_cmd(
+        f"grep -Fx '{overlay_line}' {config_path} || true",
+        capture=True,
+        check=False,
+    )
+    if existing_exact:
+        log_step("PWM", f"Pi 5 hardware PWM overlay already present ({overlay_line})")
+    else:
+        run_cmd(f"echo '{overlay_line}' | sudo tee -a {config_path} >/dev/null")
+        log_step("PWM", f"Added Pi 5 hardware PWM overlay: {overlay_line} (reboot required)")
+
+    audio_enabled = run_cmd(
+        f"grep -E '^\\s*dtparam=audio=on\\s*$' {config_path} || true",
+        capture=True,
+        check=False,
+    )
+    if audio_enabled:
+        log_step(
+            "PWM",
+            "Note: dtparam=audio=on is enabled. If PWM output conflicts, set dtparam=audio=off.",
+        )
+
+    return True
+
+
 def setup_ds18b20_hardware():
     """Configure DS18B20 1-wire temperature sensor hardware support"""
     log_step("DS18B20", "Configuring DS18B20 temperature sensor hardware...")
@@ -828,9 +976,13 @@ def setup_ds18b20_hardware():
     
     return True
 
-def setup_services():
+def setup_services(model_info=None):
     """Setup all systemd services"""
     log_step("SERVICES", "Setting up system services...")
+
+    if model_info is None:
+        model_info = detect_model()
+    is_pi5 = bool(model_info.get("is_pi5", False))
 
     self_heal_script = f"{PROJECT_ROOT}/Services/self_heal_shared.sh"
     if os.path.exists(self_heal_script):
@@ -872,9 +1024,47 @@ def setup_services():
     run_cmd("sudo systemctl restart camcontroller-web.service", check=False)
     run_cmd("sudo systemctl restart camcontroller-update.service", check=False)
 
-    # Enable pigpio daemon for stable hardware PWM on supported GPIO pins.
-    run_cmd("sudo systemctl enable pigpiod", check=False)
-    run_cmd("sudo systemctl restart pigpiod", check=False)
+    if is_pi5:
+        log_step("SERVICES", "Pi 5 detected - skipping pigpiod service enable/restart")
+        run_cmd("sudo systemctl disable --now pigpiod", check=False)
+
+        run_cmd("sudo mkdir -p /etc/systemd/system/camcontroller.service.d", check=False)
+        pi5_env_dropin = """[Service]
+Environment=PYCAM_PI5_SYSFS_PWM=1
+"""
+        with open('/tmp/30-pi5-sysfs-pwm.conf', 'w', encoding='utf-8') as f:
+            f.write(pi5_env_dropin)
+        run_cmd(
+            "sudo mv /tmp/30-pi5-sysfs-pwm.conf /etc/systemd/system/camcontroller.service.d/30-pi5-sysfs-pwm.conf",
+            check=False,
+        )
+        run_cmd(
+            "sudo chown root:root /etc/systemd/system/camcontroller.service.d/30-pi5-sysfs-pwm.conf",
+            check=False,
+        )
+        run_cmd(
+            "sudo chmod 644 /etc/systemd/system/camcontroller.service.d/30-pi5-sysfs-pwm.conf",
+            check=False,
+        )
+
+        run_cmd(
+            f"sudo sed -i '/pigpiod.service/d' {PROJECT_ROOT}/Services/camcontroller.service",
+            check=False,
+        )
+        run_cmd(
+            "sudo sed -i '/pigpiod.service/d' /etc/systemd/system/camcontroller.service",
+            check=False,
+        )
+        run_cmd("sudo rm -f /etc/systemd/system/camcontroller.service.d/20-pi5-no-pigpiod.conf", check=False)
+        run_cmd("sudo systemctl daemon-reload", check=False)
+    else:
+        run_cmd("sudo rm -f /etc/systemd/system/camcontroller.service.d/30-pi5-sysfs-pwm.conf", check=False)
+        run_cmd("sudo rm -f /etc/systemd/system/camcontroller.service.d/20-pi5-no-pigpiod.conf", check=False)
+        run_cmd("sudo systemctl daemon-reload", check=False)
+
+        # Enable pigpio daemon for stable hardware PWM on supported GPIO pins.
+        run_cmd("sudo systemctl enable pigpiod", check=False)
+        run_cmd("sudo systemctl restart pigpiod", check=False)
 
 def sync_hostname_in_hosts(hostname):
     """Ensure /etc/hosts contains a local mapping for the configured hostname."""
@@ -1043,7 +1233,11 @@ def configure_hwconfig(interactive=True, cam_interface=None):
 
     output_path.write_text(rendered)
     log_step("HWCONFIG", f"Generated device hwconfig: {output_path}")
-    return True
+    return {
+        "success": True,
+        "lightbox_enabled": lightbox_enabled,
+        "light_gpio": light_gpio,
+    }
 
 
 def main():
@@ -1121,7 +1315,15 @@ def main():
             sys.exit(1)
         
         # ComitUp setup (WiFi management)
-        setup_comitup()
+        comitup_ok = setup_comitup(model_info=model_info)
+        if not comitup_ok and model_info.get("is_pi5"):
+            log_step(
+                "ERROR",
+                "ComitUp setup failed on Raspberry Pi 5. "
+                "Aborting install to avoid headless no-network startup deadlock.",
+                "ERROR",
+            )
+            sys.exit(1)
 
         # OS security patching (unattended-upgrades)
         setup_os_security_updates()
@@ -1133,10 +1335,14 @@ def main():
         smb_credentials = setup_samba()
         
         # Generate device-unique hardware config from template
+        hwconfig_profile = None
         if args.skip_hwconfig:
             log_step("HWCONFIG", "Skipping hwconfig generation (--skip-hwconfig)")
+            hwconfig_profile = _read_hwconfig_light_profile()
+            if hwconfig_profile["lightbox_enabled"] is None and hwconfig_profile["light_gpio"] is None:
+                log_step("HWCONFIG", "No existing hwconfig.py found to infer Light PWM pin")
         else:
-            configure_hwconfig(
+            hwconfig_profile = configure_hwconfig(
                 interactive=(not args.non_interactive and sys.stdin.isatty()),
                 cam_interface=args.cam_interface,
             )
@@ -1144,11 +1350,18 @@ def main():
         # GPU memory for camera DMA allocation
         setup_camera_boot_config()
 
+        if hwconfig_profile:
+            setup_rpi5_light_pwm_overlay(
+                model_info=model_info,
+                lightbox_enabled=hwconfig_profile.get("lightbox_enabled"),
+                light_gpio=hwconfig_profile.get("light_gpio"),
+            )
+
         # DS18B20 temperature sensor hardware setup
         setup_ds18b20_hardware()
 
         # Services setup
-        setup_services()
+        setup_services(model_info=model_info)
         
         # Set hostname
         hostname = get_serial()
