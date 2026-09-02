@@ -30,6 +30,7 @@ Examples:
     # Production hardening with SSH key (key-only SSH posture) and interactive hwconfig
     python3 tools/provision_fresh_pi.py 192.168.1.99 1.5.0 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
     
+    python3 tools/provision_fresh_pi.py 192.168.1.90 1.8.0 "Camera-Prod" "Warehouse" --ssh-pubkey ~/.ssh/pyrpi_prov_ed25519.pub --ssh-posture key-only --production
 
 """
 
