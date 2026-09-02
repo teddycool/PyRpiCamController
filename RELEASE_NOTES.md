@@ -6,6 +6,43 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
+## v1.8.0
+
+Release date: 2026-09-02
+
+### Highlights
+
+- [Add release highlights]
+
+### Validation
+
+- [Add validation notes]
+
+## v1.8.0
+
+Release date: 2026-09-02
+
+
+### Highlights
+
+- YouTube FFmpeg streaming configuration modernized and hardened:
+  - Replaced deprecated FFmpeg `-vsync cfr` with `-fps_mode cfr` for modern FFmpeg compatibility.
+  - Fixed color range handling on MJPEG input by moving `-color_range tv` before input format specification, eliminating recurring swscaler warnings about deprecated pixel formats.
+  - Increased H.264 level from 4.0 to 5.1 to properly support 2304×1296 resolution (Pi5 camera) and higher frame configurations across all Raspberry Pi generations.
+  - These changes eliminate ~30+ FFmpeg warnings per initialization while maintaining stream stability and compatibility.
+
+### End-user summary
+
+- YouTube Live streaming now initializes cleanly without FFmpeg format warnings.
+- Better support for high-resolution streams on Pi5 with proper H.264 level constraints.
+- Stream quality and latency behavior remain unchanged—this is a configuration/compatibility fix.
+
+### Validation
+
+- Confirmed YouTube publisher initializes without deprecation or swscaler warnings in service logs.
+- Verified on Raspberry Pi 5 with 2304×1296 resolution at 15 fps (YouTube ingest).
+- H.264 level 5.1 is YouTube-standard and backwards-compatible with all Pi3/Pi4/Pi5 hardware.
+
 ## v1.7.1
 
 Release date: 2026-08-30
