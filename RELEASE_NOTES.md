@@ -6,7 +6,7 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
-## v1.8.1
+## v1.8.2
 
 Release date: 2026-09-02
 
@@ -18,7 +18,7 @@ Release date: 2026-09-02
 
 - [Add validation notes]
 
-## v1.8.1
+## v1.8.2
 
 Release date: 2026-09-02
 
