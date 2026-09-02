@@ -18,7 +18,7 @@ Release date: 2026-09-02
 
 - [Add validation notes]
 
-## v1.8.0
+## v1.8.1
 
 Release date: 2026-09-02
 
