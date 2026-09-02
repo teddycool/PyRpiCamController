@@ -303,6 +303,7 @@ class YouTubePublisher(PublisherBase):
                 # -r on OUTPUT only: let FFmpeg downsample from camera fps (20) to
                 # target fps (10) using its own fps filter with clean PTS.
                 "-use_wallclock_as_timestamps", "1",
+                "-color_range", "tv",           # Input color range: TV/limited — prevents swscaler warnings
                 "-f", "mjpeg",                  # Input format: MJPEG from camera pipe
                 "-thread_queue_size", "16",     # Small value — pipe:0 is always ready
                 "-i", "pipe:0",                 # Read MJPEG frames from stdin
@@ -311,11 +312,10 @@ class YouTubePublisher(PublisherBase):
                 "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",  # Silent audio
                 "-c:v", "libx264",              # H.264 software encode
                 "-pix_fmt", "yuv420p",          # YouTube-compatible pixel format
-                "-color_range", "1",            # Explicitly limited/TV range — silences swscaler warnings
                 "-profile:v", "main",
-                "-level", "4.0",
+                "-level", "5.1",                # Level 5.1 supports 2304x1296 resolution (level 4.0 was too low)
                 "-r", str(self.fps),            # OUTPUT framerate (downsamples 20fps → 10fps)
-                "-vsync", "cfr",                # Constant frame rate — no timestamp gaps or duplicates
+                "-fps_mode", "cfr",             # Constant frame rate — no timestamp gaps or duplicates (replaces deprecated -vsync)
                 "-g", str(gop_size),            # Max keyframe interval (2 s)
                 "-keyint_min", str(keyint_min), # Allow keyframe every 1 s if needed
                 "-sc_threshold", "0",           # Disable scene-cut keyframes (stable PTS)
