@@ -91,11 +91,10 @@ class Light(object):
             self._backend = "lgpio"
             logger.info("Light PWM backend: lgpio")
             if is_pi5:
+                reason = f"kernel PWM init failed: {pi5_sysfs_error}" if pi5_sysfs_enabled else "sysfs PWM backend disabled (set PYCAM_PI5_SYSFS_PWM=1)"
                 logger.warning(
-                    "Pi 5 is using lgpio fallback for Light PWM because kernel hardware PWM "
-                    "initialization failed. This may flicker under CPU load. "
-                    "Error: %s",
-                    pi5_sysfs_error,
+                    "Pi 5 is using lgpio fallback for Light PWM (%s). This may flicker under CPU load.",
+                    reason,
                 )
             return
         except Exception as e:
