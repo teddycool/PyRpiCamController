@@ -492,7 +492,7 @@ def setup_comitup(model_info=None):
             return False
 
     comitup_unit_present = run_cmd(
-        "systemctl list-unit-files comitup.service >/dev/null 2>&1",
+        "systemctl cat comitup.service >/dev/null 2>&1",
         check=False,
     )
     if not comitup_unit_present:
