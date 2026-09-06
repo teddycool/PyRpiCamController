@@ -445,26 +445,47 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             # run normally. Use the same best-effort MJPEG delivery pattern as the
             # 1.6.1 stream path instead of applying a per-frame write budget.
             try:
+                loop_count = 0
                 while True:
                     frame = output.get_frame(timeout=5.0)
                     if frame is None:
-                        logger.warning("Frame timeout, client may disconnect")
+                        logger.warning("Local MJPEG stream: frame timeout, client may disconnect")
                         break
 
-                    self.wfile.write(b'--FRAME\r\n')
-                    self.send_header('Content-Type', 'image/jpeg')
-                    self.send_header('Content-Length', str(len(frame)))
-                    self.end_headers()
-                    self.wfile.write(frame)
-                    self.wfile.write(b'\r\n')
-                    self.wfile.flush()
+                    loop_count += 1
+                    frame_start = time.monotonic()
+                    try:
+                        self.wfile.write(b'--FRAME\r\n')
+                        self.send_header('Content-Type', 'image/jpeg')
+                        self.send_header('Content-Length', str(len(frame)))
+                        self.end_headers()
+                        self.wfile.write(frame)
+                        self.wfile.write(b'\r\n')
+                        self.wfile.flush()
+                    except Exception as e:
+                        logger.warning(
+                            "Local MJPEG stream: write failed after %.3fs for frame #%s (%s bytes): %s",
+                            time.monotonic() - frame_start,
+                            loop_count,
+                            len(frame),
+                            e,
+                        )
+                        break
+
+                    if loop_count % 30 == 0:
+                        logger.debug(
+                            "Local MJPEG stream: delivered frame #%s (%s bytes) to client in %.3fs",
+                            loop_count,
+                            len(frame),
+                            time.monotonic() - frame_start,
+                        )
 
             except Exception as e:
-                logger.info(f"Client disconnected: {e}")
+                logger.info(f"Local MJPEG stream: client disconnected: {e}")
             finally:
                 with output.condition:
                     output.clients -= 1
-                logger.info(f"Client disconnected. Remaining clients: {output.clients}")
+                logger.info(f"Local MJPEG stream: client disconnected. Remaining clients: {output.clients}")
                 
         except Exception as e:
             logger.error(f"Error serving stream: {e}")
