@@ -143,6 +143,38 @@ class TestModernStreamingServerCameraInterface:
         assert stream_settings['Stream']['resolution'] == (1280, 720)
         assert stream_settings['Stream']['framerate'] == 20
 
+    def test_serve_stream_keeps_legacy_best_effort_local_streaming(self):
+        handler = streaming_server_module.StreamingHandler.__new__(streaming_server_module.StreamingHandler)
+        output = streaming_server_module.StreamingOutput()
+        output.frame = b'frame-bytes'
+
+        def fake_get_frame(timeout=5.0):
+            if not hasattr(fake_get_frame, 'called'):
+                fake_get_frame.called = True
+                return b'frame-bytes'
+            return None
+
+        output.get_frame = fake_get_frame
+        output.clients = 1
+        output.condition = MagicMock()
+        output.condition.__enter__ = MagicMock(return_value=None)
+        output.condition.__exit__ = MagicMock(return_value=False)
+
+        handler.server = SimpleNamespace(streaming_server=SimpleNamespace(output=output))
+        handler.connection = MagicMock()
+        handler.wfile = MagicMock()
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.send_error = MagicMock()
+
+        handler._serve_stream()
+
+        handler.connection.settimeout.assert_not_called()
+        handler.connection.setsockopt.assert_not_called()
+        assert handler.wfile.write.call_count >= 3
+        handler.wfile.flush.assert_called()
+
     def test_stop_calls_cam_stop(self):
         streamer = streaming_server_module.CameraStreamer()
         fake_cam = MagicMock()
