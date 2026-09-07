@@ -6,31 +6,50 @@ This file is the canonical project changelog.
 - Historical entries are kept below.
 - Per-build notes are also generated in `dist/release-notes-<version>.md`.
 
+## v1.8.3
 
-## v1.8.2
+Release date: 2026-09-07
+
+### Highlights
+
+- [Add release highlights]
+
+### Validation
+
+- [Add validation notes]
+
+## v1.8.3
 
 Release date: 2026-09-02
 
 
 ### Highlights
 
+- `v1.8.3` is the public rollout release and includes the `v1.8.2` work (users do not need a separate `v1.8.2` update).
 - YouTube FFmpeg streaming configuration modernized and hardened:
   - Replaced deprecated FFmpeg `-vsync cfr` with `-fps_mode cfr` for modern FFmpeg compatibility.
   - Fixed color range handling on MJPEG input by moving `-color_range tv` before input format specification, eliminating recurring swscaler warnings about deprecated pixel formats.
   - Increased H.264 level from 4.0 to 5.1 to properly support 2304×1296 resolution (Pi5 camera) and higher frame configurations across all Raspberry Pi generations.
   - These changes eliminate ~30+ FFmpeg warnings per initialization while maintaining stream stability and compatibility.
+- Local MJPEG browser stream regression fixed:
+  - Removed the aggressive per-frame write-time budget and socket timeout behavior that could disconnect slower browser clients.
+  - Restored best-effort local stream delivery behavior (same stable pattern as the `1.6.1` stream path), which removes visible local stream lag/disconnect regressions.
+  - Added clearer local-stream logging to distinguish frame timeout vs write-failure vs normal client disconnect scenarios.
 
 ### End-user summary
 
+- `v1.8.3` includes all user-facing `v1.8.2` improvements.
 - YouTube Live streaming now initializes cleanly without FFmpeg format warnings.
 - Better support for high-resolution streams on Pi5 with proper H.264 level constraints.
-- Stream quality and latency behavior remain unchanged—this is a configuration/compatibility fix.
+- Local browser stream behavior is more stable again for slower clients, with fewer unexpected disconnects/lag symptoms.
 
 ### Validation
 
 - Confirmed YouTube publisher initializes without deprecation or swscaler warnings in service logs.
 - Verified on Raspberry Pi 5 with 2304×1296 resolution at 15 fps (YouTube ingest).
 - H.264 level 5.1 is YouTube-standard and backwards-compatible with all Pi3/Pi4/Pi5 hardware.
+- Added/updated unit coverage for the local MJPEG handler path to verify legacy best-effort stream behavior (no per-frame socket timeout enforcement).
+- Added runtime logging checkpoints in the local MJPEG loop to separate write failures, frame timeouts, and normal disconnects during troubleshooting.
 
 ## v1.7.1
 
