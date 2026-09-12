@@ -282,10 +282,10 @@ class YouTubePublisher(PublisherBase):
             # VBV buffer: 2× bitrate — large enough for bursty frames but not so large
             # that the rate-controller fights the encoder.
             bufsize = f"{bitrate_int * 2}k"
-            # Preset: Pi5 has enough CPU for "fast"; Pi4 and below need "ultrafast"
-            # to stay below 150% CPU and avoid thermal throttling at 80°C+.
+            # Keep a single low-overhead preset across Pi4 and Pi5 for thermal headroom
+            # and smoother long-running stability in combined stream workloads.
             pi_gen = _detect_pi_generation()
-            x264_preset = "fast" if pi_gen >= 5 else "ultrafast"
+            x264_preset = "ultrafast"
             logger.info("Detected Pi generation %d — using x264 preset '%s'", pi_gen, x264_preset)
             ffmpeg_cmd = [
                 "ffmpeg",
@@ -309,13 +309,16 @@ class YouTubePublisher(PublisherBase):
                 "-f", "lavfi",
                 "-thread_queue_size", "16",
                 "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",  # Silent audio
+                # MJPEG decodes as full-range JPEG (yuvj*). Normalize explicitly
+                # to limited-range yuv420p before x264 to avoid swscaler range warnings.
+                "-vf", "scale=in_range=full:out_range=tv,format=yuv420p",
                 "-c:v", "libx264",              # H.264 software encode
                 "-pix_fmt", "yuv420p",          # YouTube-compatible pixel format
-                "-color_range", "1",            # Explicitly limited/TV range — silences swscaler warnings
+                "-color_range", "tv",           # Mark output as limited/TV range
                 "-profile:v", "main",
-                "-level", "4.0",
+                "-level", "5.1",                # Level 5.1 supports 2304x1296 resolution (level 4.0 was too low)
                 "-r", str(self.fps),            # OUTPUT framerate (downsamples 20fps → 10fps)
-                "-vsync", "cfr",                # Constant frame rate — no timestamp gaps or duplicates
+                "-fps_mode", "cfr",             # Constant frame rate — no timestamp gaps or duplicates (replaces deprecated -vsync)
                 "-g", str(gop_size),            # Max keyframe interval (2 s)
                 "-keyint_min", str(keyint_min), # Allow keyframe every 1 s if needed
                 "-sc_threshold", "0",           # Disable scene-cut keyframes (stable PTS)
