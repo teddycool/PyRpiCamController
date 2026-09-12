@@ -303,15 +303,18 @@ class YouTubePublisher(PublisherBase):
                 # -r on OUTPUT only: let FFmpeg downsample from camera fps (20) to
                 # target fps (10) using its own fps filter with clean PTS.
                 "-use_wallclock_as_timestamps", "1",
-                "-color_range", "tv",           # Input color range: TV/limited — prevents swscaler warnings
                 "-f", "mjpeg",                  # Input format: MJPEG from camera pipe
                 "-thread_queue_size", "16",     # Small value — pipe:0 is always ready
                 "-i", "pipe:0",                 # Read MJPEG frames from stdin
                 "-f", "lavfi",
                 "-thread_queue_size", "16",
                 "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",  # Silent audio
+                # MJPEG decodes as full-range JPEG (yuvj*). Normalize explicitly
+                # to limited-range yuv420p before x264 to avoid swscaler range warnings.
+                "-vf", "scale=in_range=full:out_range=tv,format=yuv420p",
                 "-c:v", "libx264",              # H.264 software encode
                 "-pix_fmt", "yuv420p",          # YouTube-compatible pixel format
+                "-color_range", "tv",           # Mark output as limited/TV range
                 "-profile:v", "main",
                 "-level", "5.1",                # Level 5.1 supports 2304x1296 resolution (level 4.0 was too low)
                 "-r", str(self.fps),            # OUTPUT framerate (downsamples 20fps → 10fps)
