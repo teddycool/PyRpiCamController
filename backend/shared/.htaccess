@@ -13,32 +13,14 @@
     RewriteRule ^storage/.*$ - [F,L]
     RewriteRule ^\..*$ - [F,L]
     
-    # API Routing - only process requests for this subfolder
-    # Don't interfere with WordPress URLs
-    
-    # OTA API endpoints
-    RewriteRule ^api/ota/check/?$ ota_check.php [L]
-    RewriteRule ^api/ota/report/?$ ota_report.php [L]
-    
-    # Version management API
-    RewriteRule ^api/versions/?$ version_management.php [L]
-    RewriteRule ^api/versions/([0-9]+)/?$ version_management.php?id=$1 [L]
-    
-    # Device management API
-    RewriteRule ^api/devices/?$ device_management.php [L]
-    RewriteRule ^api/devices/([a-zA-Z0-9]+)/?$ device_management.php?cpu_id=$1 [L]
-    
-    # Logs API (if needed)
-    RewriteRule ^api/logs/?$ ota_report.php?action=logs [L]
-    
-    # Admin dashboard and authentication
-    RewriteRule ^admin/login/?$ admin_login.php [L]
-    RewriteRule ^admin/logout/?$ admin_logout.php [L]
-    RewriteRule ^admin/?$ admin_dashboard.php [L]
-    
-    # Debug endpoints (keep only api_test for API testing)
-    RewriteRule ^api/test/?$ api_test.php [L]
-    RewriteRule ^api/simplelist/?$ simple_device_list.php [L]
+    # API Routing - production backend routing has been migrated to the
+    # separate PyRpiCamOtaBackend repository. The original rewrite rules
+    # that routed `/api/ota/*`, admin pages, and backend-specific endpoints
+    # were removed here to avoid confusing on-host deployments. Local test
+    # mocks and device clients should use the configured `OTA.server_url`.
+    #
+    # (Retained file serves other shared webserver settings such as security
+    # headers and compression directives.)
 </IfModule>
 <IfModule mod_headers.c>
 	Header unset X-Robots-Tag

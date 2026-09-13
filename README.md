@@ -4,6 +4,8 @@ A modern Python camera control system for Raspberry Pi with a web interface, des
 
 **Production Baseline**: This release provides secure provisioning, OTA support, capture, streaming, web-based configuration, and network file sharing for Raspberry Pi deployments.
 
+Note: The production OTA server implementation has been migrated to a separate private repository named `PyRpiCamOtaBackend`. This public repository continues to contain the Raspberry Pi device-side OTA client, the Web GUI update workflow, and local test mocks (for example `tools/mock_ota_server.py`). The production backend server code is not included here.
+
 [![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://python.org)
 [![Raspberry Pi](https://img.shields.io/badge/platform-raspberry%20pi-red.svg)](https://raspberrypi.org)
 [![License](https://img.shields.io/badge/license-GPL%20v3-green.svg)](LICENSE)

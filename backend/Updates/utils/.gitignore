@@ -1,3 +1,0 @@
-# Never commit live secrets
-cam_ota_secrets.php
-*.secrets.php
