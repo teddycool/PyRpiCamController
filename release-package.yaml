@@ -1,0 +1,125 @@
+schema_version: 1
+product: PyRpiCamController
+
+artifacts:
+  full:
+    description: Fresh-install package for an unprovisioned Raspberry Pi.
+    include:
+      - CamController/**
+      - WebGui/**
+      - Settings/**
+      - Updates/**
+      - Services/**
+      - tools/install-all-optimized.py
+      - tools/validate_installation.sh
+      - tools/test_camera_service.py
+      - tools/test_web_service.py
+      - tools/test_smb_service.py
+      - VERSION
+      - requirements-pi.txt
+      - requirements.txt
+      - LICENSE
+      - README.md
+
+  ota:
+    description: OTA upgrade payload for already-installed devices.
+    include:
+      - CamController/**
+      - WebGui/**
+      - Settings/**
+      - Updates/**
+      - Services/**
+      - VERSION
+      - requirements-pi.txt
+
+global_exclude:
+  - .git/**
+  - .github/**
+  - .dev-guidelines/**
+  - tests/**
+  - backend/**
+  - build-scripts/**
+  - dist/**
+  - releases/**
+  - .tmp/**
+  - .venv/**
+  - venv/**
+  - env/**
+  - bootstrap/**
+  - '**/__pycache__/**'
+  - '**/*.pyc'
+  - '**/*.pyo'
+  - '**/.pytest_cache/**'
+  - '**/.mypy_cache/**'
+  - '**/*.log'
+  - _logs/**
+  - Settings/user_settings.json
+  - '**/*credential*'
+  - '**/*secret*'
+  - tools/ota_credentials.txt
+  - tools/smoke_test_pi.env
+  - tools/smoke_test_pi.env.template
+  - tools/device_batch_template.csv
+  - tools/sample_devices.json
+  - '**/*report*'
+
+manifest:
+  file: RELEASE_MANIFEST.json
+  required_fields:
+    - schema_version
+    - product
+    - product_version
+    - candidate_id
+    - artifact_type
+    - source_repository
+    - source_commit
+    - builder
+    - build_id
+    - build_timestamp
+    - supported_architecture
+    - supported_pi_models
+    - os_family
+    - ota_min_source_version
+    - reboot_required
+
+checksum:
+  algorithm: sha256
+  sidecar_pattern: "{artifact_filename}.sha256"
+  sidecar_format: "<sha256>  <filename>"
+
+rules:
+  build_once_test_once_promote_same_bytes: true
+  stable_release_must_be_exact_tested_artifact: true
+  rebuild_after_approval_forbidden: true
+  separate_identity_axes:
+    - product_version
+    - candidate_id
+    - build_id
+    - source_commit
+    - artifact_checksum
+
+tool_classification:
+  required_on_installed_pi:
+    - tools/install-all-optimized.py
+    - tools/validate_installation.sh
+
+  optional_diagnostic_probes:
+    - tools/test_camera_service.py
+    - tools/test_web_service.py
+    - tools/test_smb_service.py
+
+  remote_development_or_lab_orchestration:
+    - tools/provision_fresh_pi.py
+    - tools/smoke_test_pi.sh
+    - tools/mock_ota_server.py
+    - tools/secure_enroll_device.py
+    - deploy_and_test.sh
+
+  obsolete_or_temporary_tooling_candidates:
+    - debug_packaging.py
+    - build-scripts/test_package.py
+    - tools/timelaps.py
+
+notes:
+  - backend/ImagePublisher is intentionally excluded from automatic ownership assignment and requires separate review.
+  - Current repository contains two release build paths (release_manager explicit includes vs create-release git archive); alignment is future work.
