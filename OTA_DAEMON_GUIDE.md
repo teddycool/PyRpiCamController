@@ -236,12 +236,13 @@ For production fleets:
 
 ## Release Channels and Test Devices
 
-The actual rollout controls live on the server side in the OTA admin dashboard:
+The actual rollout controls live on the server side in the production OTA service. The production OTA admin and release controls are maintained in the private `PyRpiCamOtaBackend` repository and its admin UI or via `PyRpiCamReleaseLab` tooling. Device-side documentation and local testing use the configured `OTA.server_url` to point at the desired backend or local mock server.
 
-- Upload releases in `backend/Updates/admin/admin_dashboard.php`.
-- Assign each release to `stable`, `testing`, or `beta`.
-- Promote a release from `draft` to `testing` or `stable` only after validation.
-- Assign devices to a channel in the admin dashboard as well.
+Guidance:
+
+- To publish and promote releases for production fleets, use the `PyRpiCamOtaBackend` admin UI or the ReleaseLab promotion tooling (private).
+- For local development and integration testing, use `tools/mock_ota_server.py` and configure `OTA.server_url` accordingly.
+- Do not attempt to upload releases via removed local PHP admin paths — those server-side endpoints are not present in this repository.
 
 Device-side test mode is separate:
 

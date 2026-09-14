@@ -3,10 +3,10 @@
 This document records the completed removal of server-side OTA backend files (migrated to the private `PyRpiCamOtaBackend`) and the verification performed in this repository to confirm device-side functionality.
 
 Summary
-- The production server-side OTA backend implementation (PHP API, admin UI, DB schema, release storage and helpers) has been removed from this repository. The removed server-side files were under `backend/Updates/` and are staged for deletion in the current branch.
+- The production server-side OTA backend implementation (PHP API, admin UI, DB schema, release storage and helpers) has been removed from this repository and is now maintained in the private `PyRpiCamOtaBackend` project. The server-side PHP admin and API files are not present in this repository.
 - An ignored/untracked local backend configuration file, `backend/Updates/utils/cam_ota_secrets.php`, was a local-only secret/template; it was removed from the working tree (it was not tracked as part of this change) and is not required by the device client.
 
-Removed server-side files (staged for deletion)
+Removed server-side files (no longer present in this repository)
 - backend/Updates/.htaccess
 - backend/Updates/admin/admin_dashboard.php
 - backend/Updates/admin/admin_login.php

@@ -103,6 +103,25 @@ Recommended starting values for Raspberry Pi 3B+:
 
 The production stream path currently uses FFmpeg + RTMPS with `libx264` and `ultrafast` for reliability. Hardware H.264 acceleration is not required for normal operation.
 
+## Release Delivery Overview
+
+[![PyRpiCam release delivery overview](_doc/code-to-production-release-flow.png)](_doc/code-to-production-release-flow.png)
+
+This diagram shows the agreed target release delivery workflow spanning three repositories and the device fleet. Key points:
+
+- Repository responsibilities:
+   - `PyRpiCamController` owns product source, device runtime, and public contracts (OTA client contract, release package contract, probe/result contract).
+   - `PyRpiCamReleaseLab` consumes a pinned source commit and the contracts, builds release candidates, runs physical regression tests, and approves the exact tested artifacts.
+   - `PyRpiCamOtaBackend` distributes OTA artifacts to devices through testing and stable channels and collects device reports.
+
+- Artifact model:
+   - Fresh installations use a Full installation package; upgrades use an OTA update package. Both artifact types share the same release identity and manifest.
+   - Approved artifacts are promoted without rebuilding: Build once, test once, promote the same bytes.
+
+- Operational note: `PyRpiCamReleaseLab` migration and automation are still being implemented. Transitional release and provisioning scripts therefore remain in `PyRpiCamController` until that migration completes; the diagram is the target model and not every workflow step is yet operational.
+
+See `REPOSITORY_BOUNDARIES.md` for detailed ownership and transitional classification.
+
 ## Quick Start
 
 **Prerequisites**: Raspberry Pi 3B+, 4B, or 5 with camera module, WiFi, and USB boot capability.
