@@ -12,7 +12,7 @@ PyRpiCamController is a service-based Raspberry Pi camera system with a state-ma
 - `Settings/*` — schema and persistence (`settings_schema.json`, `user_settings.json`, manager)
 - `WebGui/*` — web app and settings UI
 - `Updates/*` — OTA manager/daemon, package install/rollback logic
-- `backend/Updates/*` — OTA backend API/admin/dashboard and DB schema
+ - `backend/Updates/*` — OTA backend API/admin/dashboard and DB schema (migrated to a separate private repository; server-side OTA implementation is not included in this repository)
 
 ## Runtime Model
 
@@ -82,10 +82,12 @@ For detailed daemon/update flow, settings, trigger paths, and failure modes, see
 
 ### Backend OTA
 
-- `backend/Updates/api/ota_check.php` provides update metadata for devices.
-- `backend/Updates/api/ota_report.php` receives install status reports.
-- `backend/Updates/admin/*` provides release/device/log administration.
-- Database schema (`backend/Updates/database/ota_schema_v2.sql`) stores admins, devices, releases, and OTA logs.
+The server-side OTA backend implementation has been migrated out of this public repository and is maintained in the private `PyRpiCamOtaBackend` project. Device-side OTA logic in `Updates/` expects an external OTA API (configured via `OTA.server_url`) and the device client will use that configured server for checks and reporting.
+
+Device-side endpoints and responsibilities (remaining in this repo):
+
+- `Updates/camcontroller_update_daemon.py` and `Updates/camcontroller_update_manager.py` — device-side check/download/install/rollback logic
+- The public repository does not host the production admin UI or database schema for OTA; those artifacts are owned by `PyRpiCamOtaBackend`.
 
 ### Identity and Security
 

@@ -63,6 +63,22 @@
 - `backend/Updates/` is OTA server implementation and is a candidate to move to PyRpiCamOtaBackend.
 - PyRpiCamReleaseLab validates OTA behavior and release-channel outcomes but does not implement customer OTA service logic.
 
+## Target release delivery workflow
+
+[![Repository ownership and release delivery workflow](_doc/code-to-production-release-flow.png)](_doc/code-to-production-release-flow.png)
+
+This diagram is the target model for release delivery across repositories. Its semantics:
+
+- Horizontal swimlanes represent repository ownership: `PyRpiCamController`, `PyRpiCamReleaseLab`, and `PyRpiCamOtaBackend`.
+- Cross-lane arrows represent explicit contract or artifact exchange (not shared source ownership): pinned source commits, release manifests, and tested artifact bytes.
+- `PyRpiCamReleaseLab` may consume a pinned commit and the public contracts from `PyRpiCamController` to build, test, and approve release candidates.
+- `PyRpiCamController` must not depend on ReleaseLab-specific inventory, orchestration, PoE control, or dashboard code.
+- The Full installation package is used for fresh device provisioning; the OTA update package is tested as an upgrade from a prior installed version. Both converge on behavior/service comparison across supported Raspberry Pi models.
+- Approved artifact bytes (version, candidate ID, source commit, SHA-256) are the exact bytes promoted to production; `PyRpiCamOtaBackend` distributes these bytes but does not rebuild them.
+
+Label: this is the target workflow. Some release-building and remote-provisioning scripts remain temporarily in `PyRpiCamController` until the ReleaseLab migration is complete.
+
+
 ## File and directory classification
 
 | Path | Classification | Notes from current code |
@@ -84,7 +100,7 @@
 | `build-scripts/release_manager.py` | Split between repositories | Product package contract remains public; release execution/promotion flow aligns with ReleaseLab. |
 | `.github/workflows/create-release.yml` | Split between repositories | Current workflow builds repo-wide archive; release pipeline ownership should align with ReleaseLab. |
 | `.github/workflows/provisioning-security-check.yml` | Keep in PyRpiCamController | Validates provisioning CLI security posture in product repo CI. |
-| `backend/Updates/` | Move to PyRpiCamOtaBackend | OTA server API/admin/database and release storage implementation. |
+| `backend/Updates/` | Moved to PyRpiCamOtaBackend (private) | OTA server API/admin/database and release storage implementation is no longer hosted in this repository; device-side OTA client remains in `Updates/`. |
 | `backend/ImagePublisher/` | **Review separately** | Legacy/parallel backend surface for image/log ingestion; not auto-assigned to OTA backend. |
 | `backend/` root composition | Split between repositories | Contains both OTA backend candidate and ImagePublisher review area. |
 | `VERSION` and `build-scripts/VERSION` | Review separately | Duplicate version sources currently diverge (`1.8.3` vs `1.2.1`). |
