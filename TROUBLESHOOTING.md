@@ -436,3 +436,11 @@ Share these outputs:
 3. `libcamera-hello --list-cameras`
 4. `cat /home/pi/PyRpiCamController/VERSION`
 5. `python3 -c "from Settings.settings_manager import settings_manager; print(settings_manager.get('Mode'))"`
+
+
+## Secure runtime logging
+
+Optional HTTPS log uploads use a dedicated per-device logging key stored outside
+settings and release packages. Remote logging is disabled by default. See
+[Runtime logging](docs/RUNTIME_LOGGING.md) for provisioning, settings,
+troubleshooting and delivery limits. Deploy the backend migration first.

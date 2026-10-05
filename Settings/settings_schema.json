@@ -714,7 +714,7 @@
       "resolution": {
         "value": [
           1536,
-            864
+          864
         ],
         "type": "enum",
         "options": [
@@ -1070,7 +1070,7 @@
       "level": "advanced"
     },
     "LogUrl": {
-      "value": "/your script",
+      "value": "/pycamota/api/device/logs",
       "type": "text",
       "ui": {
         "name": "Log Server URL",
@@ -1314,6 +1314,65 @@
         },
         "web_editable": true
       }
+    },
+    "LogCredentialFile": {
+      "value": "/etc/pycam/logging.key",
+      "type": "text",
+      "ui": {
+        "name": "Logging credential file",
+        "section": "System",
+        "description": "Logging credential file",
+        "level": "advanced"
+      },
+      "web_editable": false,
+      "level": "advanced"
+    },
+    "LogServerLevel": {
+      "value": "info",
+      "type": "enum",
+      "options": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical"
+      ],
+      "ui": {
+        "name": "Remote log level",
+        "section": "System",
+        "description": "Remote log level",
+        "level": "advanced"
+      },
+      "web_editable": false,
+      "level": "advanced"
+    },
+    "LogQueueSize": {
+      "value": 1000,
+      "type": "int",
+      "min": 1,
+      "max": 10000,
+      "ui": {
+        "name": "Remote log queue size",
+        "section": "System",
+        "description": "Remote log queue size",
+        "level": "advanced"
+      },
+      "web_editable": false,
+      "level": "advanced"
+    },
+    "LogBatchSize": {
+      "value": 10,
+      "type": "int",
+      "min": 1,
+      "max": 10,
+      "ui": {
+        "name": "Remote log batch size",
+        "section": "System",
+        "description": "Remote log batch size",
+        "level": "advanced"
+      },
+      "web_editable": false,
+      "level": "advanced"
     }
   }
 }

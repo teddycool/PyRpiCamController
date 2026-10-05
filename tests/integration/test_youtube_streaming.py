@@ -16,6 +16,22 @@ sys.path.insert(0, os.path.join(project_root, 'Settings'))
 from Publishers.YouTubePublisher import YouTubePublisher
 
 
+@pytest.fixture(autouse=True)
+def cleanup_test_publishers(monkeypatch):
+    """Release actual worker threads started around mocked FFmpeg processes."""
+    publishers = []
+    original_init = YouTubePublisher.__init__
+
+    def tracked_init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        publishers.append(self)
+
+    monkeypatch.setattr(YouTubePublisher, "__init__", tracked_init)
+    yield
+    for publisher in publishers:
+        publisher.cleanup()
+
+
 class TestYouTubePublisherIntegration:
     """Integration tests for YouTubePublisher with schema and settings layer."""
 
@@ -131,3 +147,4 @@ class TestYouTubePublisherIntegration:
 
         # Phase 2: frames are queued, not directly written
         assert publisher._publish_queue.qsize() == 10
+

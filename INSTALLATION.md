@@ -274,3 +274,11 @@ For full daemon/update flow details, see `OTA_DAEMON_GUIDE.md`.
 ### 9) Troubleshooting
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for startup, settings, PWM backend, and stream diagnostics.
+
+
+## Secure runtime logging
+
+Optional HTTPS log uploads use a dedicated per-device logging key stored outside
+settings and release packages. Remote logging is disabled by default. See
+[Runtime logging](docs/RUNTIME_LOGGING.md) for provisioning, settings,
+troubleshooting and delivery limits. Deploy the backend migration first.

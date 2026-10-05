@@ -1332,6 +1332,7 @@ def main():
         setup_directories()
         
         # Samba setup
+        run_cmd("sudo install -d -o root -g root -m 755 /etc/pycam")
         smb_credentials = setup_samba()
         
         # Generate device-unique hardware config from template
@@ -1419,3 +1420,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

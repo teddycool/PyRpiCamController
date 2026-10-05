@@ -71,7 +71,7 @@ class ProvisioningManager:
                  install_timeout=1800, ssh_posture="keep", ssh_pubkey=None,
                  lock_password=True, use_cached_password=False, cache_password=False,
                  production=False, cam_interface=None, ssh_password=None,
-                 ota_admin_username=None, ota_admin_password=None):
+                 ota_admin_username=None, ota_admin_password=None, enable_logging=False):
         """
         Initialize provisioning manager.
 
@@ -96,6 +96,7 @@ class ProvisioningManager:
             ota_admin_username: Optional OTA admin username for enrollment
             ota_admin_password: Optional OTA admin password for enrollment
         """
+        self.enable_logging = enable_logging
         self.pi_ip = pi_ip
         self.pi_user = pi_user
         self.release_tag = self._normalize_version(release_version)
@@ -863,9 +864,13 @@ class ProvisioningManager:
             sys.executable,
             str(self.repo_dir / "tools" / "secure_enroll_device.py"),
             "--host", self.pi_ip,
+            "--ssh-user", self.pi_user,
             "--name", self.device_name,
             "--location", self.location,
         ]
+
+        if self.enable_logging:
+            enroll_cmd.append("--enable-logging")
 
         if self.ota_admin_username:
             enroll_cmd.extend(["--admin-username", self.ota_admin_username])
@@ -1213,6 +1218,7 @@ Examples:
         """
     )
 
+    parser.add_argument("--enable-logging", action="store_true", help="Enable authenticated runtime logging after enrollment")
     parser.add_argument("pi_ip", help="IP address of the Pi")
     parser.add_argument("release_version", help="Release version (e.g., '1.0.0' or 'v1.0.0')")
     parser.add_argument("device_name", help="Human-readable device name")
@@ -1399,6 +1405,7 @@ Examples:
         ssh_password=args.ssh_password,
         ota_admin_username=args.ota_admin_username,
         ota_admin_password=args.ota_admin_password,
+        enable_logging=args.enable_logging,
     )
     manager.skip_version_check = args.skip_version_check or args.local
 
@@ -1407,3 +1414,4 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
+

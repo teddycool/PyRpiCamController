@@ -66,28 +66,29 @@ jsonformatter = logging.Formatter(json.dumps({
 #Default, always log to the console
 sh = logging.StreamHandler()
 sh.setFormatter(formatter)
+sh.setLevel(loglevel)
 logger.addHandler(sh)
 
 if settings_manager.get("LogToServer"):
-    # Use secure logging if API key is configured
-    log_api_key = settings_manager.get("LogApiKey")
-    if log_api_key:
-        from LoggingSecure import LoggingSecureHandler
+    try:
+        from LoggingSecure import LoggingSecureHandler, load_logging_key
+        from pathlib import Path
+        version_path = Path(_project_root) / "VERSION"
+        version = version_path.read_text().strip() if version_path.exists() else None
         secure_handler = LoggingSecureHandler(
             host=settings_manager.get("LogHost"),
             url=settings_manager.get("LogUrl"),
-            api_key=log_api_key
+            api_key=load_logging_key(settings_manager.get("LogCredentialFile")),
+            level=loglevels[settings_manager.get("LogServerLevel").lower()],
+            queue_size=settings_manager.get("LogQueueSize"),
+            batch_size=settings_manager.get("LogBatchSize"),
+            app_version=version,
+            secrets=(settings_manager.get("OTA.api_key", ""),),
         )
-        secure_handler.setFormatter(jsonformatter)
+        logger.setLevel(min(loglevel, secure_handler.level))
         logger.addHandler(secure_handler)
-    else:
-        httph = logging.handlers.HTTPHandler(
-            host=settings_manager.get("LogHost"), 
-            url=settings_manager.get("LogUrl"), 
-            method="GET", 
-            secure=False
-        )
-        logger.addHandler(httph)
+    except (OSError, ValueError, KeyError):
+        logger.error("Remote logging unavailable: check endpoint and protected logging credential file")
 
 if settings_manager.get("LogToFile"):
     fh = logging.handlers.RotatingFileHandler(
@@ -95,6 +96,7 @@ if settings_manager.get("LogToFile"):
         maxBytes=settings_manager.get("LogFileSize"), 
         backupCount=settings_manager.get("LogFileBuCount")
     )
+    fh.setLevel(loglevel)
     fh.setFormatter(jsonformatter)
     logger.addHandler(fh)
 
@@ -136,4 +138,5 @@ class Main(object):
 if __name__ == "__main__":
     cd=Main()
     cd.run()
+
 

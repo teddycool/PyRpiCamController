@@ -33,6 +33,7 @@ artifacts:
       - requirements-pi.txt
 
 global_exclude:
+  - "**/logging.key"
   - .git/**
   - .github/**
   - .dev-guidelines/**

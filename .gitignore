@@ -179,3 +179,7 @@ _logs/
 .tmp/
 _img_prompts/
 
+
+
+# Dedicated runtime logging credentials
+**/logging.key

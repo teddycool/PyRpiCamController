@@ -49,6 +49,7 @@ class DeviceEnrollmentResult:
     device_id: str
     api_key: str
     channel: str
+    logging_api_key: str
 
 
 class EnrollmentError(RuntimeError):
@@ -69,13 +70,13 @@ def run_cmd(cmd: List[str], capture: bool = True, check: bool = True, input_text
     )
 
 
-def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: bool = True) -> subprocess.CompletedProcess:
+def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: bool = True, input_text: Optional[str] = None) -> subprocess.CompletedProcess:
     cmd = [
         "ssh",
         "-o", "ControlMaster=auto",
         "-o", "ControlPersist=600",
         "-o", "SendEnv=none",       # suppress locale forwarding (avoids LC_ALL warnings on Pi)
-        "-o", "StrictHostKeyChecking=no",
+        "-o", "StrictHostKeyChecking=accept-new",
     ]
 
     if _SSH_IDENTITY_FILE:
@@ -93,7 +94,7 @@ def run_ssh(host: str, ssh_user: str, ssh_port: int, remote_cmd: str, capture: b
         f"{ssh_user}@{host}",
         remote_cmd,
     ]
-    return run_cmd(cmd, capture=capture, check=True)
+    return run_cmd(cmd, capture=capture, check=True, input_text=input_text)
 
 
 def setup_ssh_session(host: str, ssh_user: str, ssh_port: int, identity_file: Optional[str] = None) -> None:
@@ -114,7 +115,7 @@ def setup_ssh_session(host: str, ssh_user: str, ssh_port: int, identity_file: Op
         "-o", "ControlMaster=auto",
         "-o", "ControlPersist=600",
         "-o", "SendEnv=none",       # suppress locale forwarding
-        "-o", "StrictHostKeyChecking=no",
+        "-o", "StrictHostKeyChecking=accept-new",
         "-o", f"ControlPath={_SSH_CONTROL_PATH}",
         "-p", str(ssh_port),
     ]
@@ -228,6 +229,7 @@ def consume_enrollment_token(cfg: BackendConfig, token: str, device_id: str, dev
         device_id=str(data["device_id"]),
         api_key=str(data["api_key"]),
         channel=str(data.get("channel", "stable")),
+        logging_api_key=str(data["logging_api_key"]),
     )
 
 
@@ -401,6 +403,34 @@ def push_settings_to_pi(
     run_ssh(host, ssh_user, ssh_port, f"cd /home/pi/PyRpiCamController && {remote_cmd}")
 
 
+def push_logging_key_to_pi(host, ssh_user, ssh_port, key):
+    import re
+    if not re.fullmatch(r"log_[a-f0-9]{64}", key):
+        raise EnrollmentError("Backend did not return a dedicated logging key")
+    remote = "sudo -n python3 -c \"import os,sys,tempfile; os.makedirs('/etc/pycam',mode=0o755,exist_ok=True); fd,path=tempfile.mkstemp(prefix='.logging-',dir='/etc/pycam'); os.fchmod(fd,0o600); stream=os.fdopen(fd,'w'); stream.write(sys.stdin.read()); stream.flush(); os.fsync(stream.fileno()); stream.close(); os.replace(path,'/etc/pycam/logging.key'); parent=os.open('/etc/pycam',os.O_RDONLY); os.fsync(parent); os.close(parent)\""
+    run_ssh(host, ssh_user, ssh_port, remote, input_text=key + "\n")
+
+
+def configure_remote_logging(host, ssh_user, ssh_port, base_url):
+    from urllib.parse import urlsplit
+    parsed = urlsplit(base_url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise EnrollmentError("Remote logging requires an HTTPS backend URL")
+    payload = base64.b64encode(json.dumps({"host": parsed.netloc, "url": parsed.path.rstrip("/") + "/api/device/logs"}).encode()).decode()
+    script = f"""python3 - <<'PYREMOTE'
+import base64,json
+from Settings.settings_manager import settings_manager
+p=json.loads(base64.b64decode('{payload}'))
+settings_manager.set('LogHost',p['host'],save=False,allow_readonly=True)
+settings_manager.set('LogUrl',p['url'],save=False,allow_readonly=True)
+settings_manager.set('LogCredentialFile','/etc/pycam/logging.key',save=False,allow_readonly=True)
+settings_manager.set('LogToServer',True,save=False,allow_readonly=True)
+settings_manager.save_user_settings()
+PYREMOTE"""
+    run_ssh(host, ssh_user, ssh_port, "cd /home/pi/PyRpiCamController && " + script)
+    run_ssh(host, ssh_user, ssh_port, "sudo -n systemctl restart camcontroller.service")
+
+
 def restart_remote_services(host: str, ssh_user: str, ssh_port: int) -> None:
     run_ssh(host, ssh_user, ssh_port, "sudo systemctl daemon-reload", capture=False)
     run_ssh(host, ssh_user, ssh_port, "sudo systemctl restart camcontroller-update.service", capture=False)
@@ -408,6 +438,7 @@ def restart_remote_services(host: str, ssh_user: str, ssh_port: int) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Securely enroll a real Pi into OTA backend")
+    parser.add_argument("--enable-logging", action="store_true", help="Provision and enable runtime logging; restarts camera service")
     parser.add_argument("--host", required=True, help="Pi hostname or IP")
     parser.add_argument("--ssh-user", default="pi", help="SSH user on Pi (default: pi)")
     parser.add_argument("--ssh-port", type=int, default=22, help="SSH port (default: 22)")
@@ -502,6 +533,9 @@ def main() -> int:
             test_device=args.test_device,
             device_name=device_name,
         )
+        push_logging_key_to_pi(args.host, args.ssh_user, args.ssh_port, reg.logging_api_key)
+        if args.enable_logging:
+            configure_remote_logging(args.host, args.ssh_user, args.ssh_port, cfg.base_url)
         restart_remote_services(args.host, args.ssh_user, args.ssh_port)
 
         print("✅ Secure enrollment completed successfully")
@@ -537,3 +571,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
