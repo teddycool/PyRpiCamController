@@ -247,3 +247,10 @@ If you're still having issues:
 4. **Network range**: Ensure device is within WiFi range
 
 Your camera system is designed to work automatically - most issues resolve themselves with a little patience! 🎯
+
+## Secure runtime logging
+
+Optional HTTPS log uploads use a dedicated per-device logging key stored outside
+settings and release packages. Remote logging is disabled by default. See
+[Runtime logging](docs/RUNTIME_LOGGING.md) for provisioning, settings,
+troubleshooting and delivery limits. Deploy the backend migration first.

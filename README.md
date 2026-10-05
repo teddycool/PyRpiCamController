@@ -318,3 +318,11 @@ Licensed under GNU GPLv3. See [LICENSE](LICENSE).
 - Discussions: [GitHub Discussions](https://github.com/teddycool/PyRpiCamController/discussions)
 - Installation help: [INSTALLATION.md](INSTALLATION.md)
 - Architecture details: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+
+## Secure runtime logging
+
+Optional HTTPS log uploads use a dedicated per-device logging key stored outside
+settings and release packages. Remote logging is disabled by default. See
+[Runtime logging](docs/RUNTIME_LOGGING.md) for provisioning, settings,
+troubleshooting and delivery limits. Deploy the backend migration first.

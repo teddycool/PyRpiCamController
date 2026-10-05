@@ -107,3 +107,11 @@ Device-side endpoints and responsibilities (remaining in this repo):
 - Keep runtime behavior predictable and restart-safe.
 - Separate hardware configuration from web-editable settings.
 - Prefer explicit, simple control paths over hidden implicit behavior.
+
+
+## Secure runtime logging
+
+Optional HTTPS log uploads use a dedicated per-device logging key stored outside
+settings and release packages. Remote logging is disabled by default. See
+[Runtime logging](docs/RUNTIME_LOGGING.md) for provisioning, settings,
+troubleshooting and delivery limits. Deploy the backend migration first.

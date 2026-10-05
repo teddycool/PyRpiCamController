@@ -63,3 +63,27 @@ def test_command_failure_does_not_print_remote_command(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert secret not in captured.err
     assert "exit code 1" in captured.err
+
+
+
+def test_logging_key_sent_over_stdin_not_remote_command(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(secure_enroll_device, 'run_ssh',
+        lambda *args, **kwargs: captured.update(args=args, kwargs=kwargs))
+    key = 'log_' + 'a'*64
+    secure_enroll_device.push_logging_key_to_pi('pi.invalid', 'pi', 22, key)
+    assert key not in captured['args'][3]
+    assert captured['kwargs']['input_text'] == key+'\n'
+    assert 'os.fchmod(fd,0o600)' in captured['args'][3]
+    assert 'os.replace' in captured['args'][3]
+    assert 'os.fsync(parent)' in captured['args'][3]
+
+
+def test_enrollment_requires_separate_logging_key(monkeypatch):
+    class Response:
+        status_code = 201
+        def json(self): return {'device_id':'test','api_key':'ota','logging_api_key':'log_'+'a'*64}
+    monkeypatch.setattr(secure_enroll_device.requests, 'post', lambda *a, **k: Response())
+    cfg = secure_enroll_device.BackendConfig('https://example.invalid','admin','password')
+    result = secure_enroll_device.consume_enrollment_token(cfg,'token','test','Test','')
+    assert result.api_key != result.logging_api_key

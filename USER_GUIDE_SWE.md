@@ -245,3 +245,12 @@ Om du fortfarande har problem:
 4. **Nätverksräckvidd**: kontrollera att enheten är inom WiFi-räckvidd
 
 Kamerasystemet är byggt för att fungera automatiskt – de flesta problem löser sig med lite tålamod! 🎯
+
+
+## Säker loggning till servern
+
+Valfri uppladdning av loggar via HTTPS använder en separat loggningsnyckel för
+varje enhet. Nyckeln sparas utanför inställningarna och installationspaketen.
+Serverloggning är avstängd som standard. Se
+[Runtime logging](docs/RUNTIME_LOGGING.md) för installation, inställningar,
+felsökning och begränsningar. Kör först migreringen i backendprojektet.
